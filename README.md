@@ -36,6 +36,16 @@ The project is divided into two main components:
 
     ---
 
-    ## Installation
+## Installation
 
-    To be filled in
+All of the codes required for the cleaning, setupping and analysis of the data.
+The main analyzers are divided in either a Sea Surface Temperature script or a Chlorofille script.
+The cleaning and data setupping scripts are contained within the "Processing" folder.
+Each folder contains the main functions to run the scripts.
+
+## The Test Case
+
+The project has been mostly taylored for the analysis of a North-Adriatic simulation of a Bio-Physical model developed combining the BFM and NEMO models.
+The simulation revolves around the Sea Surface Temperature Fields and the Chlorofille values simulated between the year 2000 up to 2009.
+Due to the rough size of the datasets (~ 22.2 Gb of data for the model and ~2 Gb satellite data) they will not be provided here due to the size file limit of GitHub.
+These datas will be provided only upon request via mail.
