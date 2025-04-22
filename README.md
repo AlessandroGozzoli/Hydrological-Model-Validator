@@ -1,35 +1,41 @@
-####################################################
-######## HYDROLOGICAL MODEL VALIDATOR GUIDE ########
-####################################################
-#
-# This project aims at reading and interpolating
-# Hydrological-Geochimical model data for analysis 
-# and validation using corresponding satellite data.
-#
-# The project is split into 2 sections:
-# 	
-#	- Data setupping which includes:
-#		- Idenetification of missing data;
-#		- Interpolation using either satel
-#		  lite data or model data;
-#		- Computation of the Basin Average;
-#	- Data analysis which includes:
-#		- Timeseries plotting;
-#		- BIAS plotting;
-#		- Scatter plots;
-#	- Data validation which includes:
-#		- Taylor Diagrams;
-#		- Target plots;
-#		- Coefficient of Determinations;
-#		- Weighted Coefficient of Determina
-#		  tion;
-#		- Index of Aggreements;
-#		- Nash Sutcliffe index.
-#	
-# As this is a thesis project it might be expanded
-# upon further down the line with additional plots
-# and methods of analysis.
-#
-#####################################################
-#################### INSTALLATION ###################
-#####################################################
+# Hydrological Model Validator
+
+## Overview
+
+This project is designed to **read, interpolate, and analyze** Hydrological-Geochemical model data, enabling **validation against satellite observations**.
+
+It is developed as part of a thesis project and may be extended with additional analysis methods in the future.
+
+---
+
+## Project Structure
+
+The project is divided into two main components:
+
+### 1. Data Setup
+- Identification of missing data
+- Interpolation using either:
+  - Satellite data
+    - Model data
+    - Computation of Basin Averages
+
+    ### 2. Data Analysis & Validation
+
+    #### Analysis Tools:
+    - Time series plotting
+    - Bias plotting
+    - Scatter plots
+
+    #### Validation Tools:
+    - Taylor diagrams
+    - Target plots
+    - Coefficient of Determination
+    - **Weighted** Coefficient of Determination
+    - Index of Agreement
+    - Nash-Sutcliffe Efficiency
+
+    ---
+
+    ## Installation
+
+    To be filled in
