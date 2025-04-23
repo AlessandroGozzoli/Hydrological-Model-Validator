@@ -204,3 +204,66 @@ def save_model_SST_data(output_path, Msst_complete):
 
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*"*45)
+    
+def save_SST_Bavg(output_path, BASSTmod, BASSTsat):
+    
+    os.chdir(output_path)
+    
+    assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
+    assert os.path.isdir(output_path), f"{output_path} is not a valid directory"
+
+    assert isinstance(BASSTmod, (list, np.ndarray)), "BASSTmod must be a list or NumPy array"
+    assert isinstance(BASSTsat, (list, np.ndarray)), "BASSTsat must be a list or NumPy array"
+    assert len(BASSTmod) == len(BASSTsat), "BASSTmod and BASSTsat must have the same length"
+
+    # Ask the user for the preferred format
+    print("Choose a file format to save the data:")
+    print("1. MAT-File (.mat)")
+    print("2. NetCDF (.nc)")
+    print("3. Both MAT and NetCDF")
+    choice = input("Enter the number corresponding to your choice: ").strip()
+    print('-'*45)
+
+    # Prepare .mat data
+    mat_data = {
+        "BASSTmod": BASSTmod,
+        "BASSTsat": BASSTsat
+    }
+
+    if choice == "1" or choice == "3":
+        print("Saving data as a .mat file...")
+        try:
+            scipy.io.savemat("BASST_data.mat", mat_data)
+            print("Data saved as BASST_data.mat")
+        except Exception as e:
+            print(f"Error saving MAT file: {e}")
+        print("-"*45)
+
+    if choice == "2" or choice == "3":
+        print("Saving each dataset separately as .nc files...")
+        
+        # Save BASSTmod as NetCDF
+        try:
+            ds_mod = xr.Dataset({"BASSTmod": ("time", BASSTmod)})
+            filename_mod = "BASSTmod.nc"
+            ds_mod.to_netcdf(filename_mod)
+            print(f"Saved {filename_mod}")
+        except Exception as e:
+            print(f"Error saving BASSTmod NetCDF file: {e}")
+        
+        # Save BASSTsat as NetCDF
+        try:
+            ds_sat = xr.Dataset({"BASSTsat": ("time", BASSTsat)})
+            filename_sat = "BASSTsat.nc"
+            ds_sat.to_netcdf(filename_sat)
+            print(f"Saved {filename_sat}")
+        except Exception as e:
+            print(f"Error saving BASSTsat NetCDF file: {e}")
+        
+        print("-"*45)
+
+    if choice not in ["1", "2", "3"]:
+        print("Invalid choice. Please run the script again and select a valid option.")
+
+    print("\033[92m✅ The requested data has been saved!\033[0m")
+    print("*"*45)    

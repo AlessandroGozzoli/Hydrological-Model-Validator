@@ -100,7 +100,7 @@ from Corollary import true_time_series_length, mask_reader
 from SAT_data_reader import sat_chldata, read_sst_satellite_data
 
 # Reads the model datasets
-from MOD_data_reader import read_model_chl_data, read_model_sst
+from MOD_data_reader import read_model_chl_data, read_model_sst, Bavg_sst
 
 # Series of functions to check for the missing satellite data
 from Missing_data import (
@@ -109,7 +109,7 @@ from Missing_data import (
                           eliminate_empty_fields
                           )
 
-from Data_saver import save_satellite_CHL_data, save_satellite_SST_data, save_model_CHL_data, save_model_SST_data
+from Data_saver import save_satellite_CHL_data, save_satellite_SST_data, save_model_CHL_data, save_model_SST_data, save_SST_Bavg
 
 # A series of user define costants used for multiple computations
 from Costants import (
@@ -350,3 +350,51 @@ if save in ["yes", "y"]:
 else:
     print("You chose not to save the data")
     print('*' * 45)
+    
+###############################################################################
+##                                                                           ##
+##                              BASIN AVERAGES                               ##
+##                                                                           ##
+###############################################################################
+
+Bavg = input("Do you wish to compute the Basin Averages? (yes/no): ").strip().lower()
+print('-'*45)
+
+if Bavg in ["yes", "y"]:
+    # WARNING ABOUT THE CHL DATA
+    print("\033[91m⚠️ WARNING ABOUT THE CHLOROPHYLLE DATA ⚠️")
+    print("\033[91m Due to the high concentration of Nan fields and other ")
+    print(" missing data in the CHL fields (especially the satellite ones) ")
+    print(" the basin avegares computations can be done only after the ")
+    print(" run of the interpolator.m script to ensure that the missing ")
+    print(" fields are appropriatelly reconstructed. \033[0m")
+    
+    # Computing the SST Basin Averages
+    print("Creating the Basin Average timeseries of model and satellite SST data...")
+    BASSTmod, BASSTsat = Bavg_sst(Tspan, ysec, Dmod, Sat_sst, Mfsm)
+    print("\033[92m✅ Basin Average Daily Mean Timeseries computed! \033[0m")
+    
+    save = input("Do you want to save the basin average SST data? (yes/no): ").strip().lower()
+
+    if save in ["yes", "y"]:
+        
+        # Create a timestamped folder for this run
+        timestamp = datetime.now().strftime("run_%Y-%m-%d")
+        output_path = os.path.join(BaseDIR, "OUTPUT", "BASIN_AVERAGES", "SST", timestamp)
+        os.makedirs(output_path, exist_ok=True)
+
+        print(f"Saving files in folder: {output_path}")
+        print('-' * 45)
+
+        # Call the save function and pass the new path
+        save_SST_Bavg(output_path, BASSTmod, BASSTsat)
+        
+    print("Please proceed with either the interpolation of the missing satellite data")
+    print("or with the analysis and validation of the datasets")
+    print('*'*45)
+    
+else:
+    print("You chose not to compute the Basin Averages data")
+    print("Please proceed with either the interpolation of the missing satellite data")
+    print("or with the analysis and validation of the datasets")
+    print('*'*45)
