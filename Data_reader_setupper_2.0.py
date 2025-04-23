@@ -4,6 +4,13 @@
 ##                        UniBO id: 0001126381                               ##
 ###############################################################################
 
+# Ignoring a depracation warning to ensure a better console run
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+
+# Ignore specific deprecation warning from cryptography (used by paramiko)
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
 ###############################################################################
 ###############################################################################
 ##    This code retrieves and sets up the Satellite and Model Sea Surface    ##
@@ -87,14 +94,14 @@ from Leap_year import true_time_series_length
 # Reads the satellite datasets
 from SAT_data_reader import sat_chldata, read_sst_satellite_data
 
-# Series of functions to check for the missing data
+# Series of functions to check for the missing satellite data
 from Missing_data import (
                           check_missing_days,
                           find_missing_observations,
                           eliminate_empty_fields
                           )
 
-from Data_saver import save_satellite_data
+from Data_saver import save_satellite_CHL_data, save_satellite_SST_data
 
 # A series of user define costants used for multiple computations
 from Costants import (
@@ -170,7 +177,7 @@ satnan = find_missing_observations(Schl_complete, Truedays)
 # Run the empty field checker
 Schl_complete = eliminate_empty_fields(Schl_complete, Truedays)
 
-again = input("Do you want to save the Satellite CHL data in case of interpolation? (yes/no): ").strip().lower()
+again = input("Do you want to save the Satellite CHL data? (yes/no): ").strip().lower()
 print('-' * 45)
 
 if again in ["yes", "y"]:
@@ -183,7 +190,7 @@ if again in ["yes", "y"]:
     print('-' * 45)
 
     # Call the save function and pass the new path
-    save_satellite_data(output_path, Truedays, Slon, Slat, Schl_complete)
+    save_satellite_CHL_data(output_path, Truedays, Slon, Slat, Schl_complete)
 
 else:
     print("You chose not to save the data")
@@ -199,3 +206,22 @@ print("Starting to read the satellite SST data...")
 Sat_sst = read_sst_satellite_data(DSST_sat, Truedays)
 print("Satellite SST retrieval completed!")
 print("*"*45)
+
+again = input("Do you want to save the Satellite SST data? (yes/no): ").strip().lower()
+print('-' * 45)
+
+if again in ["yes", "y"]:
+    # Create a timestamped folder for this run
+    timestamp = datetime.now().strftime("run_%Y-%m-%d")
+    output_path = os.path.join(BaseDIR, "OUTPUT", "SATELLITE", "SST", timestamp)
+    os.makedirs(output_path, exist_ok=True)
+
+    print(f"📁 Saving files in folder: {output_path}")
+    print('-' * 45)
+
+    # Call the save function and pass the new path
+    save_satellite_SST_data(Sat_sst)
+
+else:
+    print("You chose not to save the data")
+    print('*' * 45)
