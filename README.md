@@ -49,3 +49,11 @@ The project has been mostly taylored for the analysis of a North-Adriatic simula
 The simulation revolves around the Sea Surface Temperature Fields and the Chlorofille values simulated between the year 2000 up to 2009.
 Due to the rough size of the datasets (~ 22.2 Gb of data for the model and ~2 Gb satellite data) they will not be provided here due to the size file limit of GitHub.
 These datas will be provided only upon request via mail.
+
+# Bibliography
+
+The Northern Adriatic Forecasting System for Circulation and Biogeochemistry: Implementation and Preliminary Results (Scroccaro I et al., 2022)
+
+Comparison of different efficiency criteria for hydrological model assessment (Krause P. et al., 2005)
+
+Summary diagrams for coupled hydrodynamic-ecosystem model skill assessment (Jolliff et al., 2008)
