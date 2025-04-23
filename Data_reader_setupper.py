@@ -109,7 +109,7 @@ from Missing_data import (
                           eliminate_empty_fields
                           )
 
-from Data_saver import save_satellite_CHL_data, save_satellite_SST_data
+from Data_saver import save_satellite_CHL_data, save_satellite_SST_data, save_model_CHL_data, save_model_SST_data
 
 # A series of user define costants used for multiple computations
 from Costants import (
@@ -188,20 +188,20 @@ satnan = find_missing_observations(Schl_complete, Truedays)
 # Run the empty field checker
 Schl_complete = eliminate_empty_fields(Schl_complete, Truedays)
 
-again = input("Do you want to save the Satellite CHL data? (yes/no): ").strip().lower()
+save = input("Do you want to save the Satellite CHL data? (yes/no): ").strip().lower()
 print('-' * 45)
 
-if again in ["yes", "y"]:
+if save in ["yes", "y"]:
     # Create a timestamped folder for this run
     timestamp = datetime.now().strftime("run_%Y-%m-%d")
     output_path = os.path.join(BaseDIR, "OUTPUT", "SATELLITE", chldlev, timestamp)
     os.makedirs(output_path, exist_ok=True)
 
-    print(f"📁 Saving files in folder: {output_path}")
+    print(f"Saving files in folder: {output_path}")
     print('-' * 45)
 
     # Call the save function and pass the new path
-    save_satellite_CHL_data(output_path, Truedays, Slon, Slat, Schl_complete)
+    save_satellite_CHL_data(output_path, Slon, Slat, Schl_complete)
 
 else:
     print("You chose not to save the data")
@@ -218,20 +218,20 @@ Sat_sst = read_sst_satellite_data(DSST_sat, Truedays)
 print("Satellite SST retrieval completed!")
 print("*"*45)
 
-again = input("Do you want to save the Satellite SST data? (yes/no): ").strip().lower()
+save = input("Do you want to save the Satellite SST data? (yes/no): ").strip().lower()
 print('-' * 45)
 
-if again in ["yes", "y"]:
+if save in ["yes", "y"]:
     # Create a timestamped folder for this run
     timestamp = datetime.now().strftime("run_%Y-%m-%d")
     output_path = os.path.join(BaseDIR, "OUTPUT", "SATELLITE", "SST", timestamp)
     os.makedirs(output_path, exist_ok=True)
 
-    print(f"📁 Saving files in folder: {output_path}")
+    print(f"Saving files in folder: {output_path}")
     print('-' * 45)
 
     # Call the save function and pass the new path
-    save_satellite_SST_data(Sat_sst)
+    save_satellite_SST_data(output_path, Sat_sst)
 
 else:
     print("You chose not to save the data")
@@ -300,7 +300,26 @@ else:
 # READING THE DATA
 print('*'*45)
 print("Reading the CHL data...")
-Mchl_complete, Mchl_orig = read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm)
+Mchl_complete = read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm)
+
+save = input("Do you want to save the Model CHL data? (yes/no): ").strip().lower()
+print('-' * 45)
+
+if save in ["yes", "y"]:
+    # Create a timestamped folder for this run
+    timestamp = datetime.now().strftime("run_%Y-%m-%d")
+    output_path = os.path.join(BaseDIR, "OUTPUT", "MODEL", "CHL", timestamp)
+    os.makedirs(output_path, exist_ok=True)
+
+    print(f"Saving files in folder: {output_path}")
+    print('-' * 45)
+
+    # Call the save function and pass the new path
+    save_model_CHL_data(output_path, Mchl_complete)
+
+else:
+    print("You chose not to save the data")
+    print('*' * 45)
 
 ###############################################################################
 ##                                                                           ##
@@ -312,3 +331,22 @@ print("Starting to read the MODEL SST data...")
 Msst_complete = read_model_sst(Dmod, ysec, Mfsm)
 print("\033[92m✅ The full Model SST data has been retrieved!\033[0m")
 print('*'*45)
+
+save = input("Do you want to save the Model SST data? (yes/no): ").strip().lower()
+print('-' * 45)
+
+if save in ["yes", "y"]:
+    # Create a timestamped folder for this run
+    timestamp = datetime.now().strftime("run_%Y-%m-%d")
+    output_path = os.path.join(BaseDIR, "OUTPUT", "MODEL", "SST", timestamp)
+    os.makedirs(output_path, exist_ok=True)
+
+    print(f"Saving files in folder: {output_path}")
+    print('-' * 45)
+
+    # Call the save function and pass the new path
+    save_model_SST_data(output_path, Msst_complete)
+
+else:
+    print("You chose not to save the data")
+    print('*' * 45)

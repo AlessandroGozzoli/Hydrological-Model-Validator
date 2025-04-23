@@ -80,7 +80,7 @@ def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
     print("\033[92m✅ Model CHL data fully loaded!\033[0m")
     print('*'*45)
 
-    return Mchl_complete, Mchl_orig
+    return Mchl_complete
 
 def read_model_sst(Dmod, ysec, Mfsm):
     """
