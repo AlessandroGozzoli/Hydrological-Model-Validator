@@ -9,12 +9,15 @@ from Costants import (
                       total_SZTtmp
                       )
 
-def chldata_into_array(total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chldlev, ffrag2, DCHL_sat, Schl2r):
+def sat_chldata(total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chldlev, ffrag2, DCHL_sat, Schl2r):
     Slon = None
     Slat = None
     Schlpath = []  # Initialize the list to store paths
     T_orig = []  # List to store time data
     Schl_orig = []  # List to store chlorophyll data
+    
+    print("Reading the satellite chlorofille data...")
+    print(f"The dataset is divided into {nf} instances...")
 
     for n in range(nf):
         # Compose file name
@@ -58,7 +61,7 @@ def chldata_into_array(total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chl
             SZTtmp = Ttmp.shape[0]  # Get the size of SZTtmp for this iteration
             total_SZTtmp += SZTtmp  # Add to cumulative total
 
-            print(f"Number of days in iteration {n}: SZTtmp = {SZTtmp}, Cumulative SZTtmp = {total_SZTtmp}")
+            print(f"Number of days in instance {n+1}: {SZTtmp}, Cumulative = {total_SZTtmp}")
 
             # Get dimensions
             SZTtmp = Ttmp.shape[0]

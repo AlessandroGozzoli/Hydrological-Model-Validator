@@ -8,7 +8,7 @@ import pandas as pd
 from Leap_year import true_time_series_length
 
 # Importing the functions form CHL_array.py
-from CHL_array import chldata_into_array
+from CHL_array import sat_chldata
 
 from SST_SAT_reader import read_sst_satellite_data
 
@@ -37,12 +37,12 @@ from Costants import (
 ### Setting up the working directory ###
 # Change working directory
 print("Accessing the satellite directory data for cleanup...")
-WDIR = "C:/Tesi Magistrale/"
+WDIR = "C:/Hydrological_model_validator/"
 os.chdir(WDIR)  # Set the working directory
 print('*'*45)
 
 # -----DATA BASE DIRECTORY-----
-BDIR = os.path.join(WDIR, "Dati/")
+BDIR = os.path.join(WDIR, "Data/")
 
 # -----DIRECTORIES FOR SATELLITE DATA-----
 DSAT = os.path.join(BDIR, "SATELLITE/")
@@ -54,7 +54,7 @@ DCHL_sat = os.path.join(DSAT, "SCHL/")
 # -----SATELLITE DATA LEVEL (NEEDED FOR CHLOROPHYLL DATA)-----
 # N.B: chldlev='l3' data level 3
 #      chldlev='l4' data level 4
-chldlev = "l4"
+chldlev = "l3"
 
 # -----THESE ARE NEEDED TO COMPOSE THE SCHL FILE NAMES-----
 ffrag1 = "NADR-CHL-SAT-CMEMS-"
@@ -73,7 +73,7 @@ print("The number of true days in the dataset is:", Truedays)
 print('*'*45)
 
 # Call the function to read the data, merge it and check for SLON, SLAT shapes
-T_orig, Schl_orig, Slon, Slat, Schlpath = chldata_into_array(
+T_orig, Schl_orig, Slon, Slat, Schlpath = sat_chldata(
     total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chldlev, ffrag2, DCHL_sat, Schl2r
 )
 
