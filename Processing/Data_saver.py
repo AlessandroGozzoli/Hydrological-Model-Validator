@@ -2,7 +2,7 @@ import scipy.io
 import xarray as xr
 import os
 
-def save_satellite_data(output_path, Truedays, Slon, Slat, Schl_complete):
+def save_satellite_CHL_data(output_path, Truedays, Slon, Slat, Schl_complete):
 
     os.chdir(output_path)
 
@@ -46,5 +46,42 @@ def save_satellite_data(output_path, Truedays, Slon, Slat, Schl_complete):
     else:
         print("Invalid choice. Please run the script again and select a valid option.")
 
-    print("✅ The requested clean data has been saved!")
+    print("\033[92m✅ The requested clean data has been saved!\033[0m")
     print("*" * 45)
+
+def save_satellite_SST_data(Sat_sst):
+    
+    # Data to save
+    data = {
+        'Sat_sst': Sat_sst
+    }
+
+    # Ask the user for the preferred format
+    print("Choose a file format to save the data:")
+    print("1. MAT-File (.mat)")
+    print("2. NetCDF (.nc)")
+    print("3. Both MAT and NetCDF")
+    choice = input("Enter the number corresponding to your choice: ").strip()  # Remove extra spaces
+    print('-'*45)
+
+    # Save based on user choice
+    if choice == '1' or choice == '3':
+        print("Saving the SST data as a .mat file...")
+        # Saving as .mat file
+        scipy.io.savemat("Sat_sst.mat", data)
+        print("Data saved as Sat_sst.mat")
+        print("-"*45)
+
+    if choice == '2' or choice == '3':
+        print("Saving the SST data as .nc file...")
+        # Saving as .nc file
+        Sat_sst_xr = xr.DataArray(Sat_sst)
+        Sat_sst_xr.to_netcdf("Sat_sst.nc")
+        print("Sat_sst saved as Sat_sst.nc")
+        print("-"*45)
+
+    else:
+        print("Invalid choice. Please run the script again and select a valid option.")
+
+    print("\033[92m✅ The requested SST data has been saved!\033[0m")
+    print("*"*45)
