@@ -84,11 +84,8 @@ print('*'*45)
 # by taking into accounts the leap years
 from Leap_year import true_time_series_length
 
-# Reads the satellite chlorophylle dataset
-from SAT_data_reader import sat_chldata
-
-# Reads the satellite sea surface temperature dataset
-from SST_SAT_reader import read_sst_satellite_data
+# Reads the satellite datasets
+from SAT_data_reader import sat_chldata, read_sst_satellite_data
 
 # Series of functions to check for the missing data
 from Missing_data import (
@@ -117,6 +114,12 @@ from Costants import (
 ###############################################################################
 ##                                                                           ##
 ##                           PROCESSING THE DATA                             ##
+##                                                                           ##
+###############################################################################
+
+###############################################################################
+##                                                                           ##
+##                         SATELLITE - CHLOROPHYLLE                          ##
 ##                                                                           ##
 ###############################################################################
 
@@ -185,3 +188,14 @@ if again in ["yes", "y"]:
 else:
     print("You chose not to save the data")
     print('*' * 45)
+
+###############################################################################
+##                                                                           ##
+##                    SATELLITE - SEA SURFACE TEMPERATURE                    ##
+##                                                                           ##
+###############################################################################
+
+print("Starting to read the satellite SST data...")
+Sat_sst = read_sst_satellite_data(DSST_sat, Truedays)
+print("Satellite SST retrieval completed!")
+print("*"*45)
