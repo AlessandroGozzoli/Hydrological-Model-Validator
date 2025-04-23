@@ -78,6 +78,11 @@ print(f"Satellite SST data located at {DSST_sat}")
 DCHL_sat = Path(DSAT, "SCHL/")
 sys.path.append(str(DCHL_sat))  # Add the folder to the system path
 print(f"Satellite CHL data locate at {DCHL_sat}")
+
+# ----- DIRECTORIES FOR MODEL DATA
+Dmod = Path(BaseDIR, "MODEL")
+print(f"Model data lcated at {Dmod}")
+
 print("\033[91m⚠️ MAKE SURE TO UPDATE THE PATHS ACCORDINGLY ⚠️\033[0m")
 print('*'*45)
 
@@ -93,6 +98,9 @@ from Corollary import true_time_series_length, mask_reader
 
 # Reads the satellite datasets
 from SAT_data_reader import sat_chldata, read_sst_satellite_data
+
+# Reads the model datasets
+from MOD_data_reader import read_model_chl_data, read_model_sst
 
 # Series of functions to check for the missing satellite data
 from Missing_data import (
@@ -115,7 +123,10 @@ from Costants import (
                       startingday,
                       LE,
                       LS,
-                      total_SZTtmp
+                      total_SZTtmp,
+                      Ybeg,
+                      Tspan,
+                      ysec
                       )
 
 ###############################################################################
@@ -235,7 +246,7 @@ print("*"*45)
 ##                                                                           ##
 ###############################################################################
 
-print("Starting to work on the model CHL data...")
+print("Starting to work on the model data...")
 
 print("\033[91m⚠️ The model data needs to be masked ⚠️\033[0m")
 print("\033[91m⚠️ Please make sure that the data is masked or provide the mask yourself ⚠️\033[0m")
@@ -285,3 +296,19 @@ elif masking in ["no", "n"]:
 
 else:
     print("Invalid input. Please answer with 'yes' or 'no'.")
+
+# READING THE DATA
+print('*'*45)
+print("Reading the CHL data...")
+Mchl_complete, Mchl_orig = read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm)
+
+###############################################################################
+##                                                                           ##
+##                      MODEL - SEA SURFACE TEMPERATURE                      ##
+##                                                                           ##
+###############################################################################
+
+print("Starting to read the MODEL SST data...")
+Msst_complete = read_model_sst(Dmod, ysec, Mfsm)
+print("\033[92m✅ The full Model SST data has been retrieved!\033[0m")
+print('*'*45)
