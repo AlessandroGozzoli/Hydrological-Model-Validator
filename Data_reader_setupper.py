@@ -89,7 +89,7 @@ print('*'*45)
 
 # Knowing the size of the datasets counts the number of days in the timeseries
 # by taking into accounts the leap years
-from Leap_year import true_time_series_length
+from Corollary import true_time_series_length, mask_reader
 
 # Reads the satellite datasets
 from SAT_data_reader import sat_chldata, read_sst_satellite_data
@@ -225,3 +225,63 @@ if again in ["yes", "y"]:
 else:
     print("You chose not to save the data")
     print('*' * 45)
+    
+print("Satellite data completed!")
+print("*"*45)
+
+###############################################################################
+##                                                                           ##
+##                           MODEL - CHLOROPHYLLE                            ##
+##                                                                           ##
+###############################################################################
+
+print("Starting to work on the model CHL data...")
+
+print("\033[91m⚠️ The model data needs to be masked ⚠️\033[0m")
+print("\033[91m⚠️ Please make sure that the data is masked or provide the mask yourself ⚠️\033[0m")
+
+# Ask user if the model data is already masked
+masking = input("Is the model data provided already masked? (yes/no): ").strip().lower()
+
+if masking in ["yes", "y"]:
+    print("\033[92m✅ Model data is already masked. Proceeding...\033[0m")
+    print("-" * 45)
+
+elif masking in ["no", "n"]:
+    # Ask if the raw mask file is already in the folder
+    while True:
+        raw_mask = input("Is the raw mask file already provided in the data folder? (yes/no): ").strip().lower()
+
+        if raw_mask in ["yes", "y"]:
+            print("Retrieving land mask data...")
+            Mmask, Mfsm, Mfsm_3d, Mlat, Mlon = mask_reader(BaseDIR)
+            print("\033[92m✅ Mask successfully imported!\033[0m")
+            print("-" * 45)
+            break
+
+        elif raw_mask in ["no", "n"]:
+            print("Please add the raw mask file to the data folder.")
+            
+            # Ask for confirmation once the file has been added
+            while True:
+                confirm = input("Have you added the raw mask file to the folder? (yes/no): ").strip().lower()
+                
+                if confirm in ["yes", "y"]:
+                    print("Retrieving land mask data...")
+                    Mmask, Mfsm, Mfsm_3d, Mlat, Mlon = mask_reader(BaseDIR)
+                    print("\033[92m✅ Mask successfully imported!\033[0m")
+                    print("-" * 45)
+                    break  # Break inner loop
+
+                elif confirm in ["no", "n"]:
+                    print("Waiting for you to add the raw mask file...")
+                else:
+                    print("Please answer with 'yes' or 'no'.")
+
+            break  # Break outer loop once mask is loaded
+
+        else:
+            print("Please answer with 'yes' or 'no'.")
+
+else:
+    print("Invalid input. Please answer with 'yes' or 'no'.")
