@@ -55,7 +55,7 @@ ProcessingDIR = Path(WDIR, "Processing/")
 sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
 
 from Costants import ysec
-from Leap_year import convert_to_monthly_data
+from Corollary import convert_to_monthly_data
 
 print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
 print("-"*45)
