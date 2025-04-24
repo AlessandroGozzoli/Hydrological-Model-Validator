@@ -302,7 +302,10 @@ print("*"*45)
 print("Plotting remaining plots...")
 
 # Time series and scatter plots
+print("Computing the BIAS...")
 BIAS_Bavg = BASSTsat - BASSTmod
+print("\033[92m✅ BIAS computed! \033[0m")
+print("-"*45)
 
 # Create a timestamped folder for this run
 timestamp = datetime.now().strftime("run_%Y-%m-%d")
