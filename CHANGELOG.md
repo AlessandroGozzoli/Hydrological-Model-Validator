@@ -1,25 +1,48 @@
+# **Version:** 2.8  
+**Date:** 24/04/2025  
+
+## Summary
+
+Updated the CHL analysis script and performed minor cleanup in the SST script.
+
+## Chlorophyll Analysis Script Updated to Version 2.0
+
+- The CHL analysis script has been updated to align with the improvements made in the SST script.
+- Comments have been revised to more clearly identify level 3 and level 4 analysis sections.
+- Plots are now displayed for 3 seconds before closing and are saved in dynamically created folders.
+
+## Other Changes
+
+- Added a print statement to the SST analysis script to inform the user when the BIAS has been computed.
+
+## Known Issues
+
+- Similar to the SST plots, the CHL plots have a fixed range for the RMSD in the Taylor diagrams. Future updates aim to make the RMSD range dynamic for improved graph display.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 2.7  
 **Date:** 24/04/2025  
 
 ## Summary
 
-Updated the SST analysing script, minor path bugs fixed
+Updated the SST analysis script and fixed minor path-related issues.
 
-## Sea Surface Temperature data analysing script version 2.0
+## Sea Surface Temperature Data Analysis Script Version 2.0
 
-- SST analysing script has been updated to version 2.0, allowing for a better user dialogue through the prints and for a better handling of the plots.
-- Added the dynamical path creation used in the previous scripts to create ad-hoc folders to save the plots.
-- The plots are now displayed for only 3 seconds before closing, this can be changed by changing the value in the plotting functions.
+- The SST analysis script has been updated to version 2.0, enhancing user interaction through improved print statements and more effective plot handling.
+- Implemented dynamic path creation, enabling the automatic creation of ad-hoc folders to save plots, as seen in previous scripts.
+- Plots are now displayed for 3 seconds before automatically closing; this duration can be adjusted by modifying the value in the plotting functions.
 
-## Other changes
+## Other Changes
 
-- Removed Plot outputs folder to declutter, example outputs will be provided in a future README update
-- Removed leap_year.py as all functions within have been moved to Corollary.py
-- Merged scatterplots, timeseries plots and efficiency plots functions in a single script called Plots.py.
+- Removed the `Plot outputs` folder to declutter the project structure. Example outputs will be provided in a future update to the README.
+- Removed `leap_year.py`, as its functions have been migrated to `Corollary.py`.
+- Merged scatter plots, time series plots, and efficiency plots functions into a single script, `Plots.py`.
 
-# Known issues
+## Known Issues
 
-- Currently the RMSD in the Taylor diagrams is not displayed correctly as it is based upon the option .csv files provided in the folder, the aim is to make the ranges dynamic for a better display of the graphs.
+- The RMSD (Root Mean Square Deviation) in the Taylor diagrams is not currently displayed correctly. This issue stems from the `.csv` files provided in the folder. Future updates will aim to make the ranges dynamic for improved graph display.
 
 --------------------------------------------------------------------------------------
 
