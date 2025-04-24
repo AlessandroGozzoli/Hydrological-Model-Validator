@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import skill_metrics as sm
 import calendar
+from pathlib import Path
 
 from Costants import (
     Ybeg,
@@ -11,7 +12,7 @@ from Costants import (
     ysec
 )
 
-def comprehensive_taylor_diagram(taylor_dict, taylor_options, std_ref):
+def comprehensive_taylor_diagram(taylor_dict, taylor_options, std_ref, output_path):
     """
     Generate and plot a Taylor diagram for the model and reference data in the provided taylor_dict.
 
@@ -88,11 +89,16 @@ def comprehensive_taylor_diagram(taylor_dict, taylor_options, std_ref):
     plt.title("Comprehensive Taylor Diagram (Yearly performance)", pad = 40)
 
     # Optionally, save or show the plot
-    plt.savefig('C:/Tesi Magistrale/Codici/Python/Plot output/Taylor/CHL/L4/Comprehensive_taylor_diagram.png')
-    plt.show()
+    output_path = Path(output_path)
+    filename = 'Taylor_diagram_summary.png'
+    save_path = output_path / filename
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()  # <-- Force rendering
+    plt.pause(3)
     plt.close()
 
-def monthly_taylor_diagram(taylor_dict, month_index, taylor_options_monthly):
+def monthly_taylor_diagram(taylor_dict, month_index, taylor_options_monthly, output_path):
     """
     Extracts satellite data for a specific month across all years
     and computes its standard deviation.
@@ -165,6 +171,11 @@ def monthly_taylor_diagram(taylor_dict, month_index, taylor_options_monthly):
     plt.title(f"Taylor Diagram for {month_name}", pad = 40)
 
     # Optionally, save or show the plot
-    plt.savefig(f'C:/Tesi Magistrale/Codici/Python/Plot output/Taylor/CHL/L4/Taylor_diagram_month{month_index}.png')
-    plt.show()
+    output_path = Path(output_path)
+    filename = f'Taylor_diagram_{month_name}.png'
+    save_path = output_path / filename
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()  # <-- Force rendering
+    plt.pause(3)
     plt.close()

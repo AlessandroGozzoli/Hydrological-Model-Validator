@@ -1,34 +1,70 @@
+###############################################################################
+##                     Author: Gozzoli Alessandro                            ##
+##              email: alessandro.gozzoli4@studio.unibo.it                   ##
+##                        UniBO id: 0001126381                               ##
+###############################################################################
+
+# Ignoring a depracation warning to ensure a better console run
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+
+# Ignore specific deprecation warning from cryptography (used by paramiko)
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
+###############################################################################
+###############################################################################
+##    This code retrieves the data from the setupper (SST specifically)      ##
+## analyzes it and tests it for efficiency. The analysis is done by creating ##
+##    multiple dictionaries and then plotting timeseries and scatterplots.   ##
+##       The efficiency is tested by using taylor diagrams, target plots     ##
+##        and multiple coefficents and metrics, which are also plotted.      ##
+###############################################################################
+###############################################################################
+
+
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Libraries for paths
 import os
 from pathlib import Path
+import sys
+
+# Utility libraries
 import numpy as np
 import pandas as pd
 import xarray as xr
 import calendar
+from datetime import datetime
 
-############### MODULES LOADING ###############
-
-import sys
+###############################################################################
+##                                                                           ##
+##                                MODULES                                    ##
+##                                                                           ##
+###############################################################################
 
 print("Loading the necessary modules...")
-CodingDIR = "C:/Tesi Magistrale/Codici/Python/"
-os.chdir(CodingDIR)  # Set the working directory
+WDIR = os.getcwd()
+os.chdir(WDIR)  # Set the working directory
 
 print("Loading the Pre-Processing modules and constants...")
-ProcessingDIR = Path(CodingDIR, "Processing/")
+ProcessingDIR = Path(WDIR, "Processing/")
 sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
 
 from Costants import ysec
 from Leap_year import convert_to_monthly_data
 
-print("Pre-processing modules have been loaded!")
+print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
 print("-"*45)
 
 print("Loading the plotting modules...")
-PlottingDIR = Path(CodingDIR, "Plotting")
+PlottingDIR = Path(WDIR, "Plotting")
 sys.path.append(str(PlottingDIR))  # Add the folder to the system path
 
-from Daily_means_timeseries import plot_daily_means, plot_metric
-from Scatter_plot import scatter_plot_BASST
+from Plots import plot_daily_means, plot_metric, scatter_plot
 from Taylor_diagrams import (
                              comprehensive_taylor_diagram,
                              monthly_taylor_diagram
@@ -38,6 +74,13 @@ from Target_plots import (
                           target_diagram_by_month
                           )
 
+taylor_options = str(Path(PlottingDIR, 'taylor_option_config.csv'))
+taylor_options_monthly = str(Path(PlottingDIR, 'taylor_option_config - monthly.csv'))
+
+print("\033[92m✅ The plotting modules have been loaded!\033[0m")
+print('-'*45)
+
+print("Loading the validation modules...")
 from Efficiency_metrics import (
                                 r_squared,
                                 weighted_r_squared,
@@ -58,32 +101,29 @@ from Efficiency_metrics import (
                                 monthly_relative_nse,
                                 monthly_relative_index_of_agreement
                                 )
-
-taylor_options = str(Path(PlottingDIR, 'taylor_option_config.csv'))
-taylor_options_monthly = str(Path(PlottingDIR, 'taylor_option_config - monthly.csv'))
-
-print("The plotting modules have been loaded!")
-print('-'*45)
-
-print("Loading the validation modules...")
-ValidationDIR = Path(CodingDIR, "Validation")
-print("The validation modules have been loaded!")
+print("\033[92m✅ The validation modules have been loaded!\033[0m")
 print('*'*45)
+
+###############################################################################
+##                                                                           ##
+##                             DATA LOADING                                  ##
+##                                                                           ##
+###############################################################################
 
 # ----- SETTING UP THE WORKING DIRECTOTY -----
 print("Resetting the working directory...")
-WDIR = "C:/Tesi Magistrale/"
+WDIR = os.getcwd()
 os.chdir(WDIR)  # Set the working directory
 print('*'*45)
 
 # ----- BASE DATA DIRECTORY -----
-BDIR = Path(WDIR, "Dati")
+BDIR = Path(WDIR, "Data")
 
 # ----- INPUT DATA DIRECTORY -----
 IDIR = Path(BDIR, "PROCESSING_INPUT/")
 print("Loading the input data...")
-print(f"!!! The input data needs to be located in the {IDIR} folder !!!")
-print("!!! Make sure that it contains all of the necessary datasets !!!")
+print(f"\033[91m⚠️ The input data needs to be located in the {IDIR} folder ⚠️\033[0m")
+print("\033[91m⚠️ Make sure that it contains all of the necessary datasets ⚠️\033[0m")
 print("-"*45)
 
 print("The folder contains the following datasets")
@@ -93,9 +133,11 @@ contents = os.listdir(IDIR)
 print(contents)
 print("*"*45)
 
-# ----- SETTING UP THE DICTIONARIES TO KEEP THE DATA -----
-
-# ----- SETTING UP THE SST DICTIONARY
+###############################################################################
+##                                                                           ##
+##                              DICTIONARIES                                 ##
+##                                                                           ##
+###############################################################################
 
 print("Setting up the SST dictionary...")
 print('-'*45)
@@ -117,13 +159,13 @@ for year in ysec:
     else:
         print(f"Warning: {file_name} not found!")
 
-print("Model SST obtained!")
+print("\033[92m✅ Model SST obtained!\033[0m")
 
 # Moving onto the satellite SST data
 
 print("Getting the satellite SST data...")
 SAT_SST = xr.open_dataset(Path(IDIR, 'Sat_sst.nc'))
-print("Satellite SST obtained!")
+print("\033[92m✅ Satellite SST obtained!\033[0m")
 
 SST = {
        'MODEL' : Msst_data,
@@ -131,8 +173,7 @@ SST = {
        }
 
 print("-"*45)
-print("SST dictionary created!")
-print("All of the dictionaries have been created!")
+print("\033[92m✅ SST dictionary created!\033[0m")
 print("*"*45)
 
 # ----- IMPORTING BASIN AVERAGES -----
@@ -142,15 +183,17 @@ BASSTmod = xr.open_dataset(Path(IDIR, 'BASSTmod.nc'))
 BASSTsat = xr.open_dataset(Path(IDIR, 'BASSTsat.nc'))
 BASSTmod = BASSTmod['BASSTmod'].values
 BASSTsat = BASSTsat['BASSTsat'].values
-print("Basin Average Timseries obtained!")
+print("\033[92m✅ Basin Average Timseries obtained!\033[0m")
 
 print("Adding them to a dictionary...")
 BASST = {
         'BAmod' : BASSTmod,
         'BAsat' : BASSTsat
         }
-print("Basin Average dictionary created!")
+print("\033[92m✅ Basin Average dictionary created!\033[0m")
 print('*'*45)
+
+print("Splitting the data to better hanlde it...")
 
 # Generate datetime index
 dates = pd.date_range(start='2000-01-01', end='2009-12-31', freq='D')
@@ -175,6 +218,8 @@ BASST_yearly = {
                 'BAsat_year' : BASSTsat_yearly
                 }
 
+print("\033[92m✅ Yearly datasets computed and added to the dictionary!\033[0m")
+
 # Conversion to a dictionary divided in months
 BASSTmod_monthly_dict = convert_to_monthly_data(BASSTmod_yearly)
 BASSTsat_monthly_dict = convert_to_monthly_data(BASSTsat_yearly)
@@ -184,59 +229,106 @@ BASSTmonthly = {
                 'BASSTsat_monthly' : BASSTsat_monthly_dict
                 }
 
+print("\033[92m✅ Monthly datasets computed and added to a dictionary! \033[0m")
+print("\033[92m✅ All of the dictionaries have been created!\033[0m")
+
+print("\033[91m⚠️ HEADS UP ⚠️")
+print("To ensure that the code runs smoothly the plots will be")
+print("displayed only for 3 seconds. This time can be changed")
+print("in the script. After the plot's window closes it will be")
+print("saved in the appropriate folder for further analysis.\033[0m")
+confirm = input("Please press any key to confirm and move on: ")
+
+###############################################################################
+##                                                                           ##
+##                            TAYLOR DIAGRAMS                                ##
+##                                                                           ##
+###############################################################################
+
 std_ref = np.std(BASSTsat)
 
 # Plotting the Taylor Diagram
 print("Plotting the Taylor diagrams...")
 print("-"*45)
 
+# Create a timestamped folder for this run
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TAYLOR", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
 print("Plotting the SST Taylor diagram for yearly data...")
-comprehensive_taylor_diagram(BASST_yearly, taylor_options, std_ref)
-print("Yearly data Taylor diagram has been plotted!")
+comprehensive_taylor_diagram(BASST_yearly, taylor_options, std_ref, output_path)
+print("\033[92m✅ Yearly data Taylor diagram has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data diagrams...")
 for i in range(12):
-    monthly_taylor_diagram(BASSTmonthly, i, taylor_options_monthly)
-print("All of the Taylor diagrams have been plotted!")
+    monthly_taylor_diagram(BASSTmonthly, i, taylor_options_monthly, output_path)
+print("\033[92m✅ All of the Taylor diagrams have been plotted!\033[0m")
 print("*"*45)
+
+###############################################################################
+##                                                                           ##
+##                              TARGET PLOTS                                 ##
+##                                                                           ##
+###############################################################################
 
 # Making the target plots
 print("Plotting the Target plots...")
 print("-"*45)
 
+# Create a timestamped folder for this run
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TARGET", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
 print("Plotting the Target plot for the yearly data...")
-comprehensive_target_diagram(BASST_yearly)
-print("Yearly data Target plot has been plotted!")
+comprehensive_target_diagram(BASST_yearly, output_path)
+print("\033[92m✅ Yearly data Target plot has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data plots...")
 for i in range(12):
-    target_diagram_by_month(BASSTmonthly, i)
-print("All of the Target plots has been plotted!")
+    target_diagram_by_month(BASSTmonthly, i, output_path)
+print("\033[92m✅ All of the Target plots has been plotted!\033[0m")
 print("*"*45)
+
+###############################################################################
+##                                                                           ##
+##                              OTHER PLOTS                                  ##
+##                                                                           ##
+###############################################################################
+
+print("Plotting remaining plots...")
 
 # Time series and scatter plots
 BIAS_Bavg = BASSTsat - BASSTmod
 
+# Create a timestamped folder for this run
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "OTHER", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
 print("Plotting the time-series...")
-plot_daily_means(BASST, 'SST', BIAS_Bavg, BA=True)
-print("Time-series plotted succesfully!")
+plot_daily_means(output_path, BASST, 'SST', BIAS_Bavg, BA=True)
+print("\033[92m✅ Time-series plotted succesfully!\033[0m")
 
 print("Plotting the scatter plot...")
-scatter_plot_BASST(BASST, 'SST', BA=False)
-print("Scatter plot plotted succesfully!")
+scatter_plot(output_path, BASST, 'SST', BA=False)
+print("\033[92m✅ Scatter plot plotted succesfully!\033[0m")
 print("*"*45)
 
-################################################
-# ----- COMPUTING THE EFFICIENCY METRCIS ----- #
-################################################
+###############################################################################
+##                                                                           ##
+##                          EFFICIENCY METRCIS                               ##
+##                                                                           ##
+###############################################################################
+
 print("Computing the Efficiency Metrics...")
-print("They are based onto Krause et al. 2005")
 print("-"*45)
 
 # ----- Coefficient of determination -----
-print("Computing Coefficient of Determination (r²)...")
+print("\033[93mComputing Coefficient of Determination (r²)...\033[0m")
 
 r2_value = r_squared(BASST['BAsat'], BASST['BAmod'])
 print(f"r² (Coefficient of Determination) = {r2_value:.4f}")
@@ -250,7 +342,7 @@ for i, val in enumerate(r2_monthly):
 print("-" * 45)
 
 # ----- Weighted Coeddificient of Determination -----
-print("Computing Weighted Coefficient of Determination (wr²)...")
+print("\033[93mComputing Weighted Coefficient of Determination (wr²)...\033[0m")
 
 wr2_value = weighted_r_squared(BASST['BAsat'], BASST['BAmod'])
 print(f"wr² (Weighted Coefficient of Determination) = {wr2_value:.4f}")
@@ -264,7 +356,7 @@ for i, val in enumerate(wr2_monthly):
 print("-" * 45)
 
 # ----- Nash-Sutcliffe -----
-print("Computing Nash–Sutcliffe Efficiency (NSE)...")
+print("\033[93mComputing Nash–Sutcliffe Efficiency (NSE)...\033[0m")
 
 nse_value = nse(BASST['BAsat'], BASST['BAmod'])
 print(f"NSE (Nash–Sutcliffe Efficiency) = {nse_value:.4f}")
@@ -278,7 +370,7 @@ for i, val in enumerate(nse_monthly):
 print("-" * 45)
 
 # ----- Index of Agreement -----
-print("Computing Index of Agreement (d)...")
+print("\033[93mComputing Index of Agreement (d)...\033[0m")
 
 d_value = index_of_agreement(BASST['BAsat'], BASST['BAmod'])
 print(f"Index of Agreement (d) = {d_value:.4f}")
@@ -292,7 +384,7 @@ for i, val in enumerate(d_monthly):
 print("-" * 45)
 
 # ----- Logarithmic Nash–Sutcliffe Efficiency (ln NSE) -----
-print("Computing NSE with Logarithmic Values (ln NSE)...")
+print("\033[93mComputing NSE with Logarithmic Values (ln NSE)...\033[0m")
 
 # Remove NaNs and ensure values are positive before computing
 mask = ~np.isnan(BASST['BAsat']) & ~np.isnan(BASST['BAmod']) & \
@@ -310,7 +402,7 @@ for i, val in enumerate(ln_nse_monthly):
 print("-" * 45)
 
 # ----- Modified Nash–Sutcliffe Efficiency (E₁, j=1) -----
-print("Computing Modified NSE (E₁, j=1)...")
+print("\033[93mComputing Modified NSE (E₁, j=1)...\033[0m")
 
 e1_value = nse_j(BASST['BAsat'], BASST['BAmod'], j=1)
 print(f"Modified NSE (E₁, j=1) = {e1_value:.4f}")
@@ -324,7 +416,7 @@ for i, val in enumerate(e1_monthly):
 print("-" * 45)
 
 # ----- Modified Index of Agreement (d₁, j=1) -----
-print("Computing Modified Index of Agreement (d₁, j=1)...")
+print("\033[93mComputing Modified Index of Agreement (d₁, j=1)...\033[0m")
 
 d1_value = index_of_agreement_j(BASST['BAsat'], BASST['BAmod'], j=1)
 print(f"Modified Index of Agreement (d₁, j=1) = {d1_value:.4f}")
@@ -338,7 +430,7 @@ for i, val in enumerate(d1_monthly):
 print("-" * 45)
 
 # ----- Relative Nash–Sutcliffe Efficiency (E_rel) -----
-print("Computing Relative NSE (E_rel)...")
+print("\033[93mComputing Relative NSE (E_rel)...\033[0m")
 
 mask = ~np.isnan(BASST['BAsat']) & ~np.isnan(BASST['BAmod']) & (BASST['BAsat'] != 0)
 e_rel_value = relative_nse(BASST['BAsat'][mask], BASST['BAmod'][mask])
@@ -353,7 +445,7 @@ for i, val in enumerate(e_rel_monthly):
 print("-" * 45)
 
 # ----- Relative Index of Agreement (d_rel) -----
-print("Computing Relative Index of Agreement (d_rel)...")
+print("\033[93mComputing Relative Index of Agreement (d_rel)...\033[0m")
 
 mask = ~np.isnan(BASST['BAsat']) & ~np.isnan(BASST['BAmod']) & (BASST['BAsat'] != 0)
 d_rel_value = relative_index_of_agreement(BASST['BAsat'][mask], BASST['BAmod'][mask])
@@ -367,49 +459,57 @@ for i, val in enumerate(d_rel_monthly):
 
 print("-" * 45)
 
-print("All of the metrcis have been computed!")
+print("\033[92m✅ All of the metrcis have been computed!\033[0m")
 print('*'*45)
 
-####################################
-# ----- PLOTTING THE RESULTS ----- #
-####################################
+###############################################################################
+##                                                                           ##
+##                           EFFICIENCY PLOTS                                ##
+##                                                                           ##
+###############################################################################
+
 print("Plotting the efficiency metrcis results...")
 
+# Create a timestamped folder for this run
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "EFFICIENCY", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
 # ----- Plot Coefficient of Determination (r²) ----- 
-plot_metric('Coefficient of Determination (r²)', r2_value, r2_monthly, 'r² Value')
-print("Coefficient of determination plotted!")
+plot_metric('Coefficient of Determination (r²)', r2_value, r2_monthly, 'r² Value', output_path)
+print("\033[92m✅ Coefficient of determination plotted!\033[0m")
 
 # ----- Plot Weighted Coefficient of Determination (wr²) ----- 
-plot_metric('Weighted Coefficient of Determination (wr²)', wr2_value, wr2_monthly, 'wr² Value')
-print("Weighted coefficient of determination plotted!")
+plot_metric('Weighted Coefficient of Determination (wr²)', wr2_value, wr2_monthly, 'wr² Value', output_path)
+print("\033[92m✅ Weighted coefficient of determination plotted!\033[0m")
 
 # ----- Plot Nash-Sutcliffe Efficiency (NSE) ----- 
-plot_metric('Nash-Sutcliffe Efficiency', nse_value, nse_monthly, 'NSE Value')
-print("Nash-Sutcliffe index plotted!")
+plot_metric('Nash-Sutcliffe Efficiency', nse_value, nse_monthly, 'NSE Value', output_path)
+print("\033[92m✅ Nash-Sutcliffe index plotted!")
 
 # ----- Plot Index of Agreement (d) ----- 
-plot_metric('Index of Agreement (d)', d_value, d_monthly, 'Index of Agreement (d)')
-print("Index of Aggreement plotted!")
+plot_metric('Index of Agreement (d)', d_value, d_monthly, 'Index of Agreement (d)', output_path)
+print("\033[92m✅ Index of Aggreement plotted!\033[0m")
 
 # ----- Plot Logarithmic Nash–Sutcliffe Efficiency (ln NSE) ----- 
-plot_metric('Nash-Sutcliffe Efficiency (Logarithmic)', ln_nse_value, ln_nse_monthly, 'ln NSE Value')
-print("Logarithmic Nash-Sutcliffe index plotted!")
+plot_metric('Nash-Sutcliffe Efficiency (Logarithmic)', ln_nse_value, ln_nse_monthly, 'ln NSE Value', output_path)
+print("\033[92m✅ Logarithmic Nash-Sutcliffe index plotted!\033[0m")
 
 # ----- Plot Modified Nash–Sutcliffe Efficiency (E₁, j=1) ----- 
-plot_metric('Modified NSE (E₁, j=1)', e1_value, e1_monthly, 'E₁ Value')
-print("Modified Nash-Sutcliffe index plitted!")
+plot_metric('Modified NSE (E₁, j=1)', e1_value, e1_monthly, 'E₁ Value', output_path)
+print("\033[92m✅ Modified Nash-Sutcliffe index plitted!\033[0m")
 
 # ----- Plot Modified Index of Agreement (d₁, j=1) ----- 
-plot_metric('Modified Index of Agreement (d₁, j=1)', d1_value, d1_monthly, 'd₁ Value')
-print("Modified index of aggreement plotted!")
+plot_metric('Modified Index of Agreement (d₁, j=1)', d1_value, d1_monthly, 'd₁ Value', output_path)
+print("\033[92m✅ Modified index of aggreement plotted!\033[0m")
 
 # ----- Plot Relative Nash–Sutcliffe Efficiency (E_rel) ----- 
-plot_metric('Relative NSE ($E_{rel}$)', e_rel_value, e_rel_monthly, 'E_rel Value')
-print("Relative Nash-Sutcliffe index plotted!")
+plot_metric('Relative NSE ($E_{rel}$)', e_rel_value, e_rel_monthly, 'E_rel Value', output_path)
+print("\033[92m✅ Relative Nash-Sutcliffe index plotted!\033[0m")
 
 # ----- Plot Relative Index of Agreement (d_rel) ----- 
-plot_metric('Relative Index of Agreement ($d_{rel}$)', d_rel_value, d_rel_monthly, 'd_rel Value')
-print("Relative index of aggreement plotted!")
+plot_metric('Relative Index of Agreement ($d_{rel}$)', d_rel_value, d_rel_monthly, 'd_rel Value', output_path)
+print("\033[92m✅ Relative index of aggreement plotted!")
 
-print("The efficiency metrcis plots have been succesfully created!")
+print("\033[92m✅ The efficiency metrcis plots have been succesfully created!\033[0m")
 print("*"*45)

@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skill_metrics as sm
 import calendar
+from pathlib import Path
 
 from Costants import Ybeg, Tspan, DinY, ysec
 
-def target_diagram_by_month(taylor_dict, month_index):
+def target_diagram_by_month(taylor_dict, month_index, output_path):
     """
     Generate and plot a Target diagram for the model and reference data in the provided taylor_dict,
     using only the data for the specified month (0 = January, 1 = February, ..., 11 = December) from all years.
@@ -70,11 +71,16 @@ def target_diagram_by_month(taylor_dict, month_index):
     plt.title(f"Target Plot for {month_name}", pad = 50)
 
     # Optionally, save or show the plot
-    plt.savefig(f'C:/Tesi Magistrale/Codici/Python/Plot output/Target/CHL/L4/target_plot_{month_name}.png')
-    plt.show()
+    output_path = Path(output_path)
+    filename = f'Target_plot_{month_name}.png'
+    save_path = output_path / filename
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()  # <-- Force rendering
+    plt.pause(3)
     plt.close()
 
-def comprehensive_target_diagram(taylor_dict):
+def comprehensive_target_diagram(taylor_dict, output_path):
     """
     Generate and plot a Target diagram for the model and reference data in the provided taylor_dict.
 
@@ -139,6 +145,11 @@ def comprehensive_target_diagram(taylor_dict):
     plt.title("Comprehensive Target Plot (Yearly performance)", pad = 40)
 
     # Optionally, save or show the plot
-    plt.savefig('C:/Tesi Magistrale/Codici/Python/Plot output/Target/CHL/L4/target_plot.png')
-    plt.show()
+    output_path = Path(output_path)
+    filename = 'Target_plot_summary.png'
+    save_path = output_path / filename
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()  # <-- Force rendering
+    plt.pause(3)
     plt.close()
