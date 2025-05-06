@@ -1,6 +1,6 @@
 %-----WORKING DIRECTORY-----
 %
-WDIR = "C:/Tesi magistrale/Dati/OUTPUT/";
+WDIR = "C:/Hydrological_model_validator";
 %% 
 
 %-----SATELLITE DATA LEVEL (NEEDED FOR CHLOROPHYLL DATA)-----
@@ -14,7 +14,7 @@ fprintf("Attemping to load the data from the Python output...");
 fprintf("\n!!! Please verify that the paths match the ones from the Python scripts !!!");
 fprintf('\n%s\n', repmat('-', 1, 45));
 fprintf("Loading the chl_clean.mat file...");
-data = load('C:/Tesi magistrale/Dati/OUTPUT/SATELLITE/chl_clean.mat');
+data = load('C:/Hydrological_model_validator/Data/INTERPOLATOR_INPUT/chl_clean.mat');
 fprintf("\nThis dataset contains the following variables:\n");
 % List all the field names (variable names) in the loaded structure
 disp(fieldnames(data));
@@ -22,14 +22,14 @@ fprintf("\nchl_clean data succesfully loaded");
 fprintf('\n%s\n', repmat('-', 1, 45));
 
 fprintf("Loading the Mchl_complete.mat file...");
-Mchl_complete_temp = load('C:/Tesi magistrale/Dati/OUTPUT/MODEL/Mchl_complete.mat');
+Mchl_complete_temp = load('C:/Hydrological_model_validator/Data/INTERPOLATOR_INPUT/Mchl_complete.mat');
 Mchl_complete = double(Mchl_complete_temp.Mchl_complete);
 fprintf("\nMchl_complete data succesfully loaded");
 fprintf('\n%s\n', repmat('-', 1, 45));
 
 %-----EXTRACTING THE SINGULAR FIELDS FROM DATA-----
 fprintf("Extracting the singular variables from data... \n");
-Truedays = double(data.Truedays);
+Truedays = 3653;
 fprintf("Trueday has been extracted! \n");
 Slon = double(data.Slon);
 fprintf("Slon has been extracted! \n");
@@ -108,7 +108,7 @@ if strcmp(chldlev, "l4")
 
     %-----SAVE AS NetCDF FILES-----
     fprintf("Setting to the Output Folder...\n");
-    interPath = 'C:/Tesi Magistrale/Dati/OUTPUT/INTERPOLATOR/';
+    interPath = 'C:/Hydrological_model_validator/DatA/OUTPUT/INTERPOLATOR/';
     fprintf("Proceding to save the data...\n")
 
     fprintf("Saving the Mchl level 4 data...\n")
@@ -199,10 +199,10 @@ elseif strcmp(chldlev, "l3")
         Mchl_interp(d, :, :) = Mtmp(:,:);
 
     end
-
+%%
     %-----SAVE AS NetCDF FILES-----
     fprintf("Setting to the Output Folder...\n");
-    interPath = 'C:/Tesi Magistrale/Dati/OUTPUT/INTERPOLATOR/';
+    interPath = 'C:/Hydrological_model_validator/Data/OUTPUT/INTERPOLATOR/';
     fprintf("Proceding to save the data...\n")
 
     fprintf("Saving the Mchl level 3 data...\n")
@@ -342,7 +342,7 @@ else
 end
 %% 
 fprintf("Setting to the Output Folder...\n");
-interpath = 'C:/Tesi Magistrale/Dati/OUTPUT/INTERPOLATOR/';
+interpath = 'C:/Hydrological_model_validator/Data/OUTPUT/INTERPOLATOR/';
 fprintf("Proceding to save the data...\n")
 
 switch chldlev
