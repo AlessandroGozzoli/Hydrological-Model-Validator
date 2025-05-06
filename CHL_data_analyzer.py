@@ -63,11 +63,18 @@ print("Loading the plotting modules...")
 PlottingDIR = Path(WDIR, "Plotting")
 sys.path.append(str(PlottingDIR))  # Add the folder to the system path
 
-from Plots import plot_daily_means, plot_metric, scatter_plot
+from Plots import (
+                   plot_daily_means, 
+                   plot_metric, 
+                   scatter_plot,
+                   scatter_plot_by_season
+                   )
+
 from Taylor_diagrams import (
                              comprehensive_taylor_diagram,
                              monthly_taylor_diagram
                              )
+
 from Target_plots import (
                           comprehensive_target_diagram,
                           target_diagram_by_month
@@ -244,7 +251,11 @@ print("\033[92m✅ Time series plotted! \033[0m")
 print("Plotting the scatter plot...")
 scatter_plot(output_path, BACHL_L3, 'CHL', BA=False)
 print("\033[92m✅ Scatter plot succesfully plotted! \033[0m")
-print("-"*45)
+
+print("Plotting the seasonal data as scatterplots...")
+scatter_plot_by_season(output_path, BACHL_L3, 'CHL', BA=False)
+print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
+print('*'*45)
 
 ###############################################################################
 ##                                                                           ##
@@ -575,7 +586,11 @@ print("\033[92m✅ Time series plotted! \033[0m")
 print("Plotting the scatter plot...")
 scatter_plot(output_path, BACHL_L4, 'CHL', BA=False)
 print("\033[92m✅ Scatter plot succesfully plotted! \033[0m")
-print("-"*45)
+
+print("Plotting the seasonal data as scatterplots...")
+scatter_plot_by_season(output_path, BACHL_L4, 'CHL', BA=False)
+print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
+print('*'*45)
 
 ###############################################################################
 ##                                                                           ##

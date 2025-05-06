@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np 
 import pandas as pd
 from matplotlib.lines import Line2D
+from sklearn.linear_model import HuberRegressor
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 def plot_daily_means(output_path, daily_means_dict, variable_name, BIAS_Bavg, BA=False):
     """
@@ -233,27 +235,44 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         # Apply mask
         mod_season = BAmod[is_season]
         sat_season = BAsat[is_season]
+        mod_season = np.array(mod_season)
+        sat_season = np.array(sat_season)
+
+        # Exclude NaNs
+        valid_mask = ~np.isnan(mod_season) & ~np.isnan(sat_season)
+        mod_season = mod_season[valid_mask]
+        sat_season = sat_season[valid_mask]
 
         if len(mod_season) == 0 or len(sat_season) == 0:
             print(f"Skipping {season_name}: no data found.")
             continue
 
-        # Create scatter plot for the individual season
+        # Scatter plot
         plt.figure(figsize=(10, 8))
         plt.scatter(mod_season, sat_season, alpha=0.7, label=f'{variable_name} {season_name}', color=color)
 
-        # Calculate best fit line
-        slope, intercept = np.polyfit(mod_season, sat_season, 1)
-        best_fit_line = np.polyval([slope, intercept], mod_season)
+        # Dynamic x range
+        x_min, x_max = mod_season.min(), mod_season.max()
+        x_vals = np.linspace(x_min, x_max, 100)
 
-        # Plot the best fit line
-        plt.plot(mod_season, best_fit_line, color='black', linestyle='-', linewidth=2, label='Current Fit')
+        # Linear regression (Huber)
+        mod_season_reshaped = mod_season.reshape(-1, 1)
+        huber = HuberRegressor().fit(mod_season_reshaped, sat_season)
+        slope = huber.coef_[0]
+        intercept = huber.intercept_
+        linear_fit = slope * x_vals + intercept
+        plt.plot(x_vals, linear_fit, color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)')
+
+        # LOWESS smoother
+        sorted_idx = np.argsort(mod_season)
+        smoothed = lowess(sat_season[sorted_idx], mod_season[sorted_idx], frac=0.3)
+        plt.plot(smoothed[:, 0], smoothed[:, 1], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
 
         # Diagonal y = x line
         min_val = min(sat_season.min(), mod_season.min())
         max_val = max(sat_season.max(), mod_season.max())
         plt.plot([min_val, max_val], [min_val, max_val], 'b--', linewidth=2, label='Ideal Fit')
-        
+
         # Title and labels
         title = f'{variable_name} Scatter Plot (Model vs Satellite) - {season_name}'
         if BA:
@@ -262,11 +281,10 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         plt.xlabel(f'{variable_name} (Model - {season_name})')
         plt.ylabel(f'{variable_name} (Satellite - {season_name})')
         plt.legend()
-
         plt.grid(True)
         plt.tight_layout()
 
-        # Save plot for the season
+        # Save plot
         filename = f"{variable_name}_{season_name}_scatterplot.png"
         save_path = output_path / filename
         plt.savefig(save_path)
@@ -275,54 +293,61 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         plt.pause(2)
         plt.close()
 
-        # Store points for the comprehensive plot
+        # Store points
         all_mod_points.extend(mod_season)
         all_sat_points.extend(sat_season)
         all_colors.extend([color] * len(mod_season))
 
-    # Convert all points to numpy arrays
+    # Comprehensive plot
     all_mod_points = np.array(all_mod_points)
     all_sat_points = np.array(all_sat_points)
 
-    # Comprehensive plot with all seasons combined
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(all_mod_points, all_sat_points, c=all_colors, alpha=0.7)
-    plt.title(f'{variable_name} Scatter Plot (Model vs Satellite) - All Seasons')
-    plt.xlabel(f'{variable_name} (Model - All Seasons)')
-    plt.ylabel(f'{variable_name} (Satellite - All Seasons)')
-    plt.grid(True)
-    plt.tight_layout()
-    
-    # Add the y = x line for the comprehensive plot
-    min_val_all = min(all_sat_points.min(), all_mod_points.min())
-    max_val_all = max(all_sat_points.max(), all_mod_points.max())
-    plt.plot([min_val_all, max_val_all], [min_val_all, max_val_all], 'b--', linewidth=2, label='Ideal Fit')
+    if len(all_mod_points) > 0:
+        plt.figure(figsize=(10, 8))
+        plt.scatter(all_mod_points, all_sat_points, c=all_colors, alpha=0.7)
+        plt.title(f'{variable_name} Scatter Plot (Model vs Satellite) - All Seasons')
+        plt.xlabel(f'{variable_name} (Model - All Seasons)')
+        plt.ylabel(f'{variable_name} (Satellite - All Seasons)')
+        plt.grid(True)
+        plt.tight_layout()
 
-    # Calculate the best fit line for the comprehensive plot
-    slope_all, intercept_all = np.polyfit(all_mod_points, all_sat_points, 1)
-    best_fit_line_all = np.polyval([slope_all, intercept_all], all_mod_points)
+        # Diagonal y = x
+        min_val_all = min(all_sat_points.min(), all_mod_points.min())
+        max_val_all = max(all_sat_points.max(), all_mod_points.max())
+        plt.plot([min_val_all, max_val_all], [min_val_all, max_val_all], 'b--', linewidth=2, label='Ideal Fit')
 
-    # Plot the best fit line for all seasons
-    plt.plot(all_mod_points, best_fit_line_all, color='black', linestyle='-', linewidth=2, label='Current Fit')
+        # Linear fit for all
+        x_min_all, x_max_all = all_mod_points.min(), all_mod_points.max()
+        x_vals_all = np.linspace(x_min_all, x_max_all, 100)
+        all_mod_points_reshaped = all_mod_points.reshape(-1, 1)
+        huber_all = HuberRegressor().fit(all_mod_points_reshaped, all_sat_points)
+        slope_all = huber_all.coef_[0]
+        intercept_all = huber_all.intercept_
+        linear_fit_all = slope_all * x_vals_all + intercept_all
+        plt.plot(x_vals_all, linear_fit_all, color='black', linestyle='-', linewidth=2, label='Linear Fit')
 
-    # Add legend for the colors (one per season)
-    handles = [
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='gray', markersize=10, label='DJF'),
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='MAM'),
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='JJA'),
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='gold', markersize=10, label='SON'),
-        Line2D([0], [0], color='b', linestyle='--', linewidth=2, label='Ideal Fit'),
-        Line2D([0], [0], color='black', linestyle='-', linewidth=2, label='Current Fit')
+        # LOWESS smoother for all
+        sorted_idx_all = np.argsort(all_mod_points)
+        smoothed_all = lowess(all_sat_points[sorted_idx_all], all_mod_points[sorted_idx_all], frac=0.3)
+        plt.plot(smoothed_all[:, 0], smoothed_all[:, 1], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
+
+        # Custom legend
+        handles = [
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='gray', markersize=10, label='DJF'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='MAM'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='JJA'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='gold', markersize=10, label='SON'),
+            Line2D([0], [0], color='b', linestyle='--', linewidth=2, label='Ideal Fit'),
+            Line2D([0], [0], color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)'),
+            Line2D([0], [0], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
         ]
-    
-    # Add the legend to the plot
-    plt.legend(handles=handles, loc='upper left')
+        plt.legend(handles=handles, loc='upper left')
 
-    # Save the comprehensive plot
-    comprehensive_filename = f"{variable_name}_all_seasons_scatterplot.png"
-    comprehensive_save_path = output_path / comprehensive_filename
-    plt.savefig(comprehensive_save_path)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(2)
-    plt.close()
+        # Save plot
+        comprehensive_filename = f"{variable_name}_all_seasons_scatterplot.png"
+        comprehensive_save_path = output_path / comprehensive_filename
+        plt.savefig(comprehensive_save_path)
+        plt.show(block=False)
+        plt.draw()
+        plt.pause(2)
+        plt.close()
