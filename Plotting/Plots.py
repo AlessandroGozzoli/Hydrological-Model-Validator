@@ -8,6 +8,8 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
+from scipy.stats import spearmanr
+from sklearn.linear_model import TheilSenRegressor
 
 def plot_daily_means(output_path, daily_means_dict, variable_name, BIAS_Bavg, BA=False):
     """
@@ -324,7 +326,7 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         slope_all = huber_all.coef_[0]
         intercept_all = huber_all.intercept_
         linear_fit_all = slope_all * x_vals_all + intercept_all
-        plt.plot(x_vals_all, linear_fit_all, color='black', linestyle='-', linewidth=2, label='Linear Fit')
+        plt.plot(x_vals_all, linear_fit_all, color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)')
 
         # LOWESS smoother for all
         sorted_idx_all = np.argsort(all_mod_points)
