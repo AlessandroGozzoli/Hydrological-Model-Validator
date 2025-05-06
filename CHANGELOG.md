@@ -1,3 +1,28 @@
+# **Version:** 2.9  
+**Date:** 24/04/2025  
+
+## Summary
+
+Introduced seasonal scatterplots for both Sea Surface Temperature (SST) and Chlorophyll (CHL) datasets to support more detailed seasonal analysis.
+
+## Seasonal Scatterplots
+
+- Based on the insights from previous scatterplot analyses, new plots have been developed to break down basin-averaged values by season.
+- The data is first decomposed into seasonal subsets and visualized in individual season-specific scatterplots.
+- A combined scatterplot is also generated, consolidating all seasonal data and color-coding points according to their respective seasons.
+- Each plot includes:
+  - A best-fit line
+  - A **Huber regression line** for robust linear fitting (less sensitive to outliers)
+  - A **LOWESS (Locally Weighted Scatterplot Smoothing)** non-linear regression line to highlight trends in densely clustered areas.
+
+## Known Issues
+
+- The Taylor diagrams still use a fixed RMSD range; dynamic scaling is planned for a future update.
+- Taylor and Target plots continue to rely on static `.csv` files, which limits flexibility.
+- Some anomalous values have been observed in the CHL regression fits; further investigation is required to determine whether these are data artifacts or bugs.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 2.8  
 **Date:** 24/04/2025  
 
