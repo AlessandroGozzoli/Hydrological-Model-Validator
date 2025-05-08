@@ -144,7 +144,7 @@ The **test case** file are the **satellite data** and **model data** for the **y
 
 ### Seasonal Scatterplots (both global and seasonal)
 
-![SCATT_SST](Example_Images/SCATT_CHL_EXP.png)
+![SCATT_SST](Example_Images/SCATT_SST_EXP.png)
 ![SCATT_CHL](Example_Images/SCATT_CHL_EXP.png)
 
 ### 2D maps
