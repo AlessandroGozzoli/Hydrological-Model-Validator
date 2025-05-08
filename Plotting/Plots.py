@@ -8,8 +8,6 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from scipy.stats import spearmanr
-from sklearn.linear_model import TheilSenRegressor
 
 def plot_daily_means(output_path, daily_means_dict, variable_name, BIAS_Bavg, BA=False):
     """
