@@ -81,21 +81,34 @@ This section provides tools for both exploratory analysis and quantitative valid
 
 ## Installation and explanation of the scripts
 
-The required scripts for data **cleanup** and **analysis** are provided within the folder.
+The necessary scripts for **data preprocessing**, **analysis**, and future **biogeochemical exploration** are provided in this repository.
 
-### **Data_reader_setupper.py**
+---
 
-By running this script the necessary **satellite** data is retrieved and read identifying both missing days and fields within the timeseries. This data is then saved as either a single .mat file or multiple .nc files. This is due to the interpolator being impossible to convert in Python. As such a simple MATLAB script is provided to interpolate model data onto the satellite data using a **bilinear** interpolator. This might be changed in a future update by providing the choice to either interpolate model data onto the satellite data or to interpolate the satellite data with itself. 
+### `Data_reader_setupper.py`
 
-### **SST_data_analyzer.py** and **CHL_data_analyzer.py**
+This script retrieves and processes the required **satellite datasets**, identifying both **missing days** and **gaps** within the time series. The cleaned data can be saved either as a single `.mat` file or as multiple `.nc` files, depending on user preference.
 
-By running this script the Basin Averages values are analysed to provide results about possible BIAS and over/underperformance of the model compared to the satellite data.
-These results are validated using multiple **Hydrological validation coefficients** provided in the paper by Krause et al. (see Bibliography)
+Due to limitations in replicating the interpolation process in Python, a dedicated **MATLAB** script is included for bilinear interpolation of **model data onto the satellite grid**. Future updates may include an option to choose between interpolating model data onto the satellite grid or self-interpolating the satellite dataset to fill gaps.
 
-### **Benthic_layer.py*** (To be done)
+---
 
-By running this script the **Sea Surface Temperature** is combined with the **Salinity** data from the biogeochemical simulation to compute the **Pressure Field**. The **Benthic Layer** values are then extracted to analyse the evolution of **Deep Water Formation** within the **North Adriatic**.
-The coordinates of the Benthic Layer are then used to extract the **Biogeochemical** values at the same point, providing a map of the main chemical species at this boundary layer.
+### `SST_data_analyzer.py` & `CHL_data_analyzer.py`
+
+These scripts analyze **Basin Average** time series for **Sea Surface Temperature (SST)** and **Chlorophyll (CHL)** fields, evaluating model performance against satellite observations.
+
+The analysis includes:
+- Bias detection (seasonal and overall)
+- Scatter plots and time series comparisons
+- Hydrological model validation using a suite of **efficiency metrics**, based on methodologies described by Krause et al. (see the Bibliography).
+
+---
+
+### `Benthic_layer.py` *(Upcoming)*
+
+This upcoming script will integrate **Sea Surface Temperature** with **Salinity** data from the biogeochemical simulation to compute the **Pressure Field**, enabling the identification and extraction of **Benthic Layer** values. This will allow for the study of **Deep Water Formation** processes in the **Northern Adriatic Sea**.
+
+Once identified, the benthic coordinates will be used to extract **biogeochemical concentrations** at those specific depths, providing spatial and temporal maps of key **chemical species** at the sediment-water interface.
 
 ---
 
