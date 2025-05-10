@@ -183,7 +183,7 @@ The **test case** file are the **satellite data** and **model data** for the **y
 
 ### Benthic Layer Computation
 
-![BENTHIC_MAP](Example_Images/2D_BENTHIC_EXP.png)
+![BENTHIC_MAP](Example_Images/2D_BENTHIC_EXAMPLE.png)
 
 ### 2D Biogeochemical Map at the Benthic Layer
 
