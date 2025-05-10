@@ -1,6 +1,7 @@
 import numpy as np
 from netCDF4 import Dataset as ds
 from pathlib import Path
+import re
 
 from Costants import days_in_months_non_leap, days_in_months_leap, ysec
 
@@ -118,3 +119,22 @@ def convert_to_monthly_data(yearly_data):
 
     # Return the dictionary containing monthly data for each year
     return monthly_data_dict
+
+def format_unit(unit):
+    # First, handle chemical subscripts in numerator and denominator (e.g., O2 -> O_2)
+    def add_subscripts(s):
+        return re.sub(r'([A-Za-z]{1,2})(\d+)', r'\1_{\2}', s)
+
+    # Then handle exponents (e.g., m3 -> m^3) in denominator
+    def handle_exponents(s):
+        return re.sub(r'([a-zA-Z])(\d+)', r'\1^{\2}', s)
+
+    if '/' in unit:
+        numerator, denominator = unit.split('/')
+        numerator = add_subscripts(numerator.strip())
+        denominator = handle_exponents(denominator.strip())
+        return f'$\\frac{{{numerator}}}{{{denominator}}}$'
+    else:
+        unit = add_subscripts(unit)
+        unit = handle_exponents(unit)
+        return f'${unit}$'

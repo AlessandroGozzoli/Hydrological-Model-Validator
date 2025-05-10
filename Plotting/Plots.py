@@ -8,6 +8,11 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from datetime import datetime
+import os
+from Corollary import format_unit
 
 def plot_daily_means(output_path, daily_means_dict, variable_name, BIAS_Bavg, BA=False):
     """
@@ -351,3 +356,145 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         plt.draw()
         plt.pause(2)
         plt.close()
+        
+def Benthic_depth(Bmost, output_path):
+    """
+    Plots the benthic layer depth from the Bmost 2D array on a map using Cartopy,
+    equivalent to MATLAB's 'equidistant cylindrical' projection.
+    """
+    if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
+        raise ValueError("Bmost must be a 2D NumPy array")
+        
+    # Set all 0 values to NaN
+    Bmost = np.where(Bmost == 0, np.nan, Bmost)
+
+    # Constants (grid origin and resolution)
+    x_origin = 12.200
+    x_step = 0.0100
+    y_origin = 43.774
+    y_step = 0.0073
+    epsilon = 0.06
+
+    Yrow, Xcol = Bmost.shape
+
+    # Generate latitude and longitude arrays
+    lats = y_origin + np.arange(Yrow) * y_step + .2*epsilon
+    lons = x_origin + np.arange(Xcol) * x_step + .4*epsilon  # Shift longitude by epsilon for visual consistency
+
+    # Define map bounds (same as MATLAB m_proj 'lon'/'lat' range)
+    min_lat, max_lat = lats.min() + epsilon, lats.max() + epsilon
+    min_lon, max_lon = lons.min() - epsilon, lons.max() + epsilon
+
+    # Create map with Plate Carrée projection (equidistant cylindrical)
+    plt.figure(figsize=(10, 10))  # Square figure
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
+
+    # Plot the data as filled contours
+    contour_levels = np.linspace(np.nanmin(Bmost), np.nanmax(Bmost), 26)  # Define contour levels
+    contour = ax.contourf(lons, lats, Bmost, levels=contour_levels, cmap='jet', extend='both', transform=ccrs.PlateCarree())
+
+    # Add coastlines and borders with custom styling
+    ax.coastlines(linewidth=1.5)
+    ax.add_feature(cfeature.BORDERS, linestyle=':')
+
+    # Set the title for the plot
+    ax.set_title("North Adriatic Model Benthic Layer Depth", fontsize=16, fontweight='bold')
+
+    # Add gridlines with labels
+    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, color='gray', linestyle='--')
+
+    # Create the colorbar with custom position and ticks
+    colorbar_width = 0.65  # 70% of the figure width
+    colorbar_height = 0.025  # 1.2% of the figure height
+    left_position = (1 - colorbar_width) / 2  # Center horizontally by adjusting left position
+    bottom_position = 0.175  # 15% from the bottom of the figure for the colorbar
+
+    # Create the colorbar axes and place it at the desired position
+    cbar_ax = plt.gcf().add_axes([left_position, bottom_position, colorbar_width, colorbar_height])
+
+    # Create a new BoundaryNorm for the colorbar
+    norm = mcolors.BoundaryNorm(np.linspace(np.nanmin(Bmost), np.nanmax(Bmost), 11), contour.cmap.N)
+    cbar = plt.colorbar(contour, cax=cbar_ax, orientation='horizontal', norm=norm, extend='both')
+    cbar.set_label('Benthic Layer Depth (layers)', fontsize=12)
+    cbar.set_ticks(np.linspace(np.nanmin(Bmost), np.nanmax(Bmost), 6).astype(int))  # Set ticks every 6th value
+
+    # Increase the font size of the tick labels
+    cbar.ax.tick_params(direction='in', length=18, labelsize=10)
+
+    # Thicken the borders of the subplot (axes)
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
+        spine.set_edgecolor('black')
+
+    # Show the plot with custom styling
+    filename = "NA - Benthic Depth.png"
+    save_path = Path(output_path, filename)
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(2)
+    plt.close()
+    
+def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, latp, bfm2plot, Mname, ystr, selected_unit, selected_description, output_path):
+    
+    epsilon=0.06
+    
+    plt.figure(figsize=(10, 10))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_extent([MinLambda, MaxLambda, MinPhi, MaxPhi], crs=ccrs.PlateCarree())
+
+    TbP = P_2d[t, :, :]
+
+    # Define the fixed range for the colormap and contours
+    vmin, vmax = 0, 350
+    levels = np.linspace(vmin, vmax, 41)  # Define 20 contour levels from 0 to 350
+
+    # Create the contour plot with a fixed range
+    contour = ax.contourf(lonp+.4*epsilon, latp+.2*epsilon, TbP, levels=levels, cmap='jet', vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree())
+
+    ax.coastlines(linewidth=1.5)
+    ax.add_feature(cfeature.BORDERS, linestyle=':')
+    
+    ax.set_title(f"{selected_description} | {Mname[t]} - {ystr}", fontsize=16, fontweight='bold')
+    
+    ax.gridlines(draw_labels=True, dms=True, color='gray', linestyle='--')
+
+    # Create the colorbar with custom position and ticks
+    colorbar_width = 0.65  # 70% of the figure width
+    colorbar_height = 0.025  # 1.2% of the figure height
+    left_position = (1 - colorbar_width) / 2  # Center horizontally by adjusting left position
+    bottom_position = 0.175  # 15% from the bottom of the figure for the colorbar
+
+    # Create the colorbar axes and place it at the desired position
+    cbar_ax = plt.gcf().add_axes([left_position, bottom_position, colorbar_width, colorbar_height])
+    
+    # Convert the selected units in latex for the colorbar
+    field_units = format_unit(selected_unit)
+    
+    # Create a new BoundaryNorm for the colorbar
+    norm = mcolors.BoundaryNorm(np.linspace(vmin, vmax, 11), contour.cmap.N)
+    cbar = plt.colorbar(contour, cax=cbar_ax, orientation='horizontal', norm=norm, extend='both')
+    cbar.set_label(rf'$\left[{field_units[1:-1]}\right]$', fontsize=14)
+    cbar.set_ticks(np.linspace(vmin, vmax, 8).astype(int))  # Set ticks every 6th value
+    
+    # Increase the font size of the tick labels
+    cbar.ax.tick_params(direction='in', length=18, labelsize=10)
+
+    # Thicken the borders of the subplot (axes)
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
+        spine.set_edgecolor('black')
+    
+    # ----- OUTPUT PATH AND FOLDER -----
+    timestamp = datetime.now().strftime("run_%Y-%m-%d")
+    chem_output_path = os.path.join(output_path, timestamp, ystr)
+    os.makedirs(chem_output_path, exist_ok=True)
+    
+    filename = f"NAmod - {bfm2plot} - {ystr} - {Mname[t]}"
+    save_path = Path(chem_output_path, filename)
+    plt.savefig(save_path)
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(2)
+    plt.close()

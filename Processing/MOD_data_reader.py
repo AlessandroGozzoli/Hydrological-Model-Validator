@@ -6,6 +6,14 @@ from netCDF4 import Dataset
 from Corollary import leapyear
 from pathlib import Path
 import xarray as xr
+import sys
+
+WDIR = os.getcwd()
+PlotDIR = Path(WDIR, "Plotting")
+sys.path.append(str(PlotDIR))
+print("Attemping to access ", PlotDIR)
+
+from Plots import Benthic_chemical_plot
 
 def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
     """Reads and processes model CHL data from netCDF files."""
@@ -226,3 +234,101 @@ def Bavg_sst(Tspan, ysec, Dmod, Sat_sst, Mfsm):
             BASSTsat.append(np.nanmean(Ssst))
 
     return BASSTmod, BASSTsat
+
+def read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description):
+    # ----- FILENAME FRAGMENTS -----
+    ffrag1 = "new15_1m_"
+    ffrag2 = "0101_"
+    ffrag3 = "1231_grid_bfm"
+
+    Epsilon = 0.06  # Plotting domain expansion
+
+    latp, lonp, P_2d = None, None, None
+    
+    Mname = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] 
+
+    for year in ysec:
+        # -----SETUP-----
+        ystr = str(year)
+        print(f"Retrieving year: {ystr}")
+
+        #-----FILENAME FRAGMENTS-----
+
+        ffrag1="new15_1m_";
+        ffrag2="0101_";
+        ffrag3="1231_grid_bfm";
+
+        file = os.path.join(MDIR, f"output{ystr}", f"ADR{ystr}{ffrag1}{ystr}{ffrag2}{ystr}{ffrag3}.nc")
+        filegz = file + ".gz"
+
+        # -----UNZIP-----
+        print("Unzipping the file...")
+        with gzip.open(filegz, 'rb') as f_in:
+            with open(file, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        print("File succesfully unzipped")
+
+        # -----READ LAT, LON, DEPTH-----
+        with Dataset(file, 'r') as nc:
+            ytemp = nc.variables['nav_lat'][:]
+            xtemp = nc.variables['nav_lon'][:]
+            d = nc.variables['deptht'][:]
+
+        Yrow, Xcol = ytemp.shape
+        x1st = 12.200
+        xstep = 0.0100
+        y1st = 43.774
+        ystep = 0.0073
+
+        # -----GENERATE FIXED LAT/LON GRIDS-----
+        ytemp1d = np.array([y1st + j * ystep for j in range(Yrow)])
+        xtemp1d = np.array([x1st + i * xstep for i in range(Xcol)])
+        ytemp = np.tile(ytemp1d[:, np.newaxis], (1, Xcol))
+        xtemp = np.tile(xtemp1d[np.newaxis, :], (Yrow, 1))
+
+        # -----CREATE 3D COORDINATE ARRAYS-----
+        lat = np.repeat(ytemp[np.newaxis, :, :], len(d), axis=0)
+        lon = np.repeat(xtemp[np.newaxis, :, :], len(d), axis=0)
+
+        print("The geolocalized dataset has been initialized!")
+
+        Epsilon = 0.06
+        MinPhi = np.nanmin(ytemp1d) + Epsilon
+        MaxPhi = np.nanmax(ytemp1d) + Epsilon
+        MinLambda = np.nanmin(xtemp1d) - Epsilon
+        MaxLambda = np.nanmax(xtemp1d) + Epsilon
+
+        latp = lat[0, :, :]
+        lonp = lon[0, :, :]
+
+        # -----LOAD FIELD-----
+        with Dataset(file, 'r') as nc:
+            P_orig = nc.variables[bfm2plot][:]
+
+        os.remove(file)
+
+        Tlev = P_orig.shape[0]
+        print(f"The {selected_description} field has been found!")
+
+        # -----NaN MASK-----
+        P = P_orig.copy()
+        P[:, mask3d == 0] = np.nan
+        print(f"The mask has been applied to the {selected_description} field!")
+
+        # -----EXTRACT BOTTOM LAYER FIELDS-----
+        P_2d = np.zeros((Tlev, mask3d.shape[1], mask3d.shape[2]))
+        for i in range(mask3d.shape[2]):
+            for j in range(mask3d.shape[1]):
+                k = int(Bmost[j, i]) - 1
+                P_2d[:, j, i] = P[:, k, j, i]
+        
+        print(f"The Bentic Layer data for the {selected_description} has been obtained!")
+        
+        # -----PLOT MONTHLY AVERAGES-----
+        print(f"Beginning to plot the monthly mean value for the year {ystr}...")
+        for t in range(Tlev):
+            Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, latp, bfm2plot, Mname, ystr, selected_unit, selected_description, output_path)
+            
+        print("The monthly mean plots have been created!")
+        print('-'*45)
