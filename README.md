@@ -108,7 +108,7 @@ The analysis includes:
 
 This upcoming script will integrate **Sea Surface Temperature** with **Salinity** data from the biogeochemical simulation to compute the **Pressure Field**, enabling the identification and extraction of **Benthic Layer** values. This will allow for the study of **Deep Water Formation** processes in the **Northern Adriatic Sea**.
 
-Once identified, the benthic coordinates will be used to extract **biogeochemical concentrations** at those specific depths, providing spatial and temporal maps of key **chemical species** at the sediment-water interface.
+Once identified, the benthic coordinates are used to extract **biogeochemical concentrations** at those specific depths, providing spatial and temporal maps of key **chemical species** at the sediment-water interface.
 
 ---
 
@@ -180,6 +180,10 @@ The **test case** file are the **satellite data** and **model data** for the **y
 ### 2D Deep Water Pressure Fields
 
 ![PRESS_MAP](Example_Images/2D_PRESS_EXP.png)
+
+### Benthic Layer Computation
+
+![BENTHIC_MAP](Example_Images/2D_BENTHIC_EXP.png)
 
 ### 2D Biogeochemical Map at the Benthic Layer
 

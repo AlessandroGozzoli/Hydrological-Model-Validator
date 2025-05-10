@@ -1,3 +1,37 @@
+# **Version:** 2.10  
+**Date:** 24/04/2025  
+
+## Summary
+
+Initial version (v1.0) of the **Benthic Geochemical Analysis** script completed.
+
+## Benthic Geochemical Analysis Script
+
+This first iteration of the **Benthic Layer Analysis** script introduces foundational functionality for exploring geochemical dynamics at the sediment-water interface using output from the **BFM-NEMO coupled model**.
+
+### Features:
+- Computes the deepest active layer (out of 48 vertical layers) in each model grid cell across the domain.
+- Enables visualization of the model basin bathymetry and deepest layer distribution.
+- Allows users to select a chemical species from the simulation for spatial plotting.
+- Generates **georeferenced 2D contour maps** of selected species at the benthic interface, enriched with coastlines.
+- Default contour resolution is 51 levels (configurable in code) for the geochemical species, Benthic Depth plot uses 26.
+
+## Future Development
+
+This script represents the first half of the full analysis pipeline. Future updates will introduce:
+- Computation and visualization of the **pressure field** within the water column.
+- Diagnostic tools for investigating **deep water formation processes** in the Northern Adriatic Sea.
+
+## Known Issues
+
+- **Taylor Diagrams** still use static RMSD ranges — dynamic scaling is planned.
+- **Taylor and Target plots** continue to depend on pre-defined `.csv` configuration files.
+- **Chlorophyll regression analysis** occasionally produces anomalous values — further investigation is underway.
+- **LaTeX rendering** in colorbar labels may break under certain conditions.
+- While **dynamic colorbar scaling** may improve usability, the current fixed scaling highlights extremes effectively; additional testing is ongoing.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 2.9  
 **Date:** 24/04/2025  
 
