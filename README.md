@@ -107,7 +107,7 @@ The analysis includes:
 
 ---
 
-# Benthic Layer Analysis Script
+### `Benthic Layer Analysis Script`
 
 The `Benthic_layer.py` script extracts the depth value of the Benthic Layer from the dataset. With this depth information, the script uses it as a key coordinate to pull out relevant fields. These fields are then visualized through various plots, allowing for further exploration and analysis of the data.
 
