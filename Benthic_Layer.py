@@ -67,7 +67,7 @@ print("Loading the plotting modules...")
 PlottingDIR = Path(WDIR, "Plotting")
 sys.path.append(str(PlottingDIR))  # Add the folder to the system path
 
-from Plots import Benthic_depth
+from Plots import Benthic_depth, Benthic_chemical_plot
 
 print("\033[92m✅ The plotting modules have been loaded!\033[0m")
 print('-'*45)
@@ -105,7 +105,7 @@ print('*'*45)
 
 ###############################################################################
 ##                                                                           ##
-##                       PRESSURE FIELD COMPUTATION                          ##
+##                         BENTHIC MASK COMPUTATION                          ##
 ##                                                                           ##
 ###############################################################################
 
@@ -119,7 +119,7 @@ for j in range(mask3d.shape[1]):
 
 # Squeeze in case it's needed
 Bmost = np.squeeze(Bmost)
-print("\033[92m✅ Benthic coordinates obatines! \033[0m")
+print("\033[92m✅ Benthic coordinates obatined! \033[0m")
 
 print("Plotting the Benthic layer...")
 
@@ -132,78 +132,58 @@ Benthic_depth(Bmost, output_path)
 print("\033[92m✅ Benthic Layer depth plotted! \033[0m")
 print('*'*45)
 
+print("Creating a 2D mask for surface plots...")
+Bleast = np.zeros((mask3d.shape[1], mask3d.shape[2]))
+
+for j in range(mask3d.shape[1]):
+    for i in range(mask3d.shape[2]):  # Notice: should be shape[2] not shape[1]
+        Bleast[j, i] = mask3d[0, j, i]
+
+# Squeeze in case it's needed
+Bleast = np.squeeze(Bleast)
+print("\033[92m✅ Surface coordinates obatined! \033[0m")
+
 ###############################################################################
 ##                                                                           ##
 ##                       PRESSURE FIELD COMPUTATION                          ##
 ##                                                                           ##
 ###############################################################################
 
+
+###############################################################################
+##                                                                           ##
+##                       GEOCHEMICAL FIELD PLOTTING                          ##
+##                                                                           ##
+###############################################################################
+
 # ----- ASK THE USER WHICH VARIABLE TO PLOT -----
 # Dictionary of valid variable codes and their descriptions
-bfm_variables = {
-    "Chl": ("Chlorophyll", "mg Chl/m3"),
+bfm__chem_variables = {
+    "Chla": ("Chlorophyll-a", "mg Chl/m3"),
     "O2o": ("Oxygen", "mmol O2/m3"),
     "N1p": ("Phosphate", "mmol P/m3"),
     "N3n": ("Nitrate", "mmol N/m3"),
     "N4n": ("Ammonium", "mmol N/m3"),
-    "O4n": ("NitrogenSink", "mmol N/m3"),
-    "N5s": ("Silicate", "mmol Si/m3"),
-    "N6r": ("Reduction Equivalents", "mmol S--/m3"),
-    "B1c": ("Aerobic and Anaerobic Bacteria (C)", "mg C/m3"),
-    "B1n": ("Aerobic and Anaerobic Bacteria (N)", "mmol N/m3"),
-    "B1p": ("Aerobic and Anaerobic Bacteria (P)", "mmol P/m3"),
     "P1c": ("Diatoms (C)", "mg C/m3"),
-    "P1n": ("Diatoms (N)", "mmol N/m3"),
-    "P1p": ("Diatoms (P)", "mmol P/m3"),
-    "P1l": ("Diatoms (Chl)", "mg Chl/m3"),
-    "P1s": ("Diatoms (Si)", "mmol Si/m3"),
     "P2c": ("Flagellates (C)", "mg C/m3"),
-    "P2n": ("Flagellates (N)", "mmol N/m3"),
-    "P2p": ("Flagellates (P)", "mmol P/m3"),
-    "P2l": ("Flagellates (Chl)", "mg Chl/m3"),
     "P3c": ("PicoPhytoplankton (C)", "mg C/m3"),
-    "P3n": ("PicoPhytoplankton (N)", "mmol N/m3"),
-    "P3p": ("PicoPhytoplankton (P)", "mmol P/m3"),
-    "P3l": ("PicoPhytoplankton (Chl)", "mg Chl/m3"),
     "P4c": ("Large Phytoplankton (C)", "mg C/m3"),
-    "P4n": ("Large Phytoplankton (N)", "mmol N/m3"),
-    "P4p": ("Large Phytoplankton (P)", "mmol P/m3"),
-    "P4l": ("Large Phytoplankton (Chl)", "mg Chl/m3"),
     "Z3c": ("Carnivorous Mesozooplankton (C)", "mg C/m3"),
-    "Z3n": ("Carnivorous Mesozooplankton (N)", "mmol N/m3"),
-    "Z3p": ("Carnivorous Mesozooplankton (P)", "mmol P/m3"),
     "Z4c": ("Omnivorous Mesozooplankton (C)", "mg C/m3"),
-    "Z4n": ("Omnivorous Mesozooplankton (N)", "mmol N/m3"),
-    "Z4p": ("Omnivorous Mesozooplankton (P)", "mmol P/m3"),
     "Z5c": ("Microzooplankton (C)", "mg C/m3"),
-    "Z5n": ("Microzooplankton (N)", "mmol N/m3"),
-    "Z5p": ("Microzooplankton (P)", "mmol P/m3"),
     "Z6c": ("Heterotrophic Nanoflagellates (HNAN) (C)", "mg C/m3"),
-    "Z6n": ("Heterotrophic Nanoflagellates (HNAN) (N)", "mmol N/m3"),
-    "Z6p": ("Heterotrophic Nanoflagellates (HNAN) (P)", "mmol P/m3"),
-    "R1c": ("Labile Dissolved Organic Matter (C)", "mg C/m3"),
-    "R1n": ("Labile Dissolved Organic Matter (N)", "mmol N/m3"),
-    "R1p": ("Labile Dissolved Organic Matter (P)", "mmol P/m3"),
-    "R2c": ("Semi-labile Dissolved Organic Carbon", "mg C/m3"),
-    "R3c": ("Semi-refractory Dissolved Organic Carbon", "mg C/m3"),
     "R6c": ("Particulate Organic Matter (C)", "mg C/m3"),
-    "R6n": ("Particulate Organic Matter (N)", "mmol N/m3"),
-    "R6p": ("Particulate Organic Matter (P)", "mmol P/m3"),
-    "R6s": ("Particulate Organic Matter (Si)", "mmol Si/m3"),
-    "O3c": ("Dissolved Inorganic Carbon (C)", "mg C/m3"),
-    "O3h": ("Dissolved Inorganic Carbon (eq)", "mmol eq/m3"),
-    "O5c": ("Calcite (C)", "mg C/m3")
 }
 
 print("The chemical species contained in the BFM model are: ")
-for code, (description, unit) in sorted(bfm_variables.items()):
+for code, (description, unit) in sorted(bfm__chem_variables.items()):
     print(f"{code:5} {description}")
 
 while True:
     bfm2plot = input("Enter the chemical species you'd like to plot (e.g., 'Chl', 'N3n', 'P1c'): ").strip()
-    if bfm2plot in bfm_variables:
+    if bfm2plot in bfm__chem_variables:
         # Retrieve the description and unit
-        description, unit = bfm_variables[bfm2plot]
+        description, unit = bfm__chem_variables[bfm2plot]
         print(f"✅ Selected: {bfm2plot} - {description} [{unit}]")
         
         # Store them in a variable if you need them for further use
@@ -217,13 +197,27 @@ while True:
 print('-'*45)
 
 # ----- READ AND PLOTS THE VARIABLE -----
-timestamp = datetime.now().strftime("run_%Y-%m-%d")
-output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", bfm2plot)
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", bfm2plot, "BENTHIC")
 os.makedirs(output_path, exist_ok=True)
 
-print(f"Beginning the retrieval of the {selected_description} data...")
+print(f"Beginning the retrieval of the {selected_description} bottom data...")
      
 read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description) 
 
-print(f"The {selected_description} monthly mean values for the whole dataset have been plotted!")   
+print(f"The {selected_description} monthly mean values for the whole bottom dataset have been plotted!")   
+print('-'*45) 
+
+print(" WARNING ")
+print(" The surface plots for the {selected_decription} dataset will use the same range as the Bethic Layer's ones.")
+print(" This is done to provide an immediate qualitative comparison between the concentration/population of the ")
+print(" field at the top and bottom of the water column.")
+print(f"Moving onto the plotting of the surface {selected_description} data...")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", bfm2plot, "SURFACE")
+os.makedirs(output_path, exist_ok=True)
+
+print(f"Beginning the retrieval of the {selected_description} surface data...")
+     
+read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bleast, output_path, selected_unit, selected_description) 
+
+print(f"The {selected_description} monthly mean values for the whole surface dataset have been plotted!")   
 print('*'*45) 
