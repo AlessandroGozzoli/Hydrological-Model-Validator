@@ -72,10 +72,13 @@ This section provides tools for both exploratory analysis and quantitative valid
   - Modified
   - Relative
 
-### 3. Benthic Layer Analysis (To be done)
+### 3. Benthic Layer Analysis
 
-- Pressure field computation
-- Extraction of the Biocheochemical indices at the Benthic Layer
+- Density field computation using:
+  - Simplified Equation of State
+  - Equation of State for the Seawater (1980)
+  - Thermodynamic Equation of State (2010)
+- Extraction of the Biocheochemical indices at the Benthic Layer and the Sea Surface
 
 ---
 
@@ -104,11 +107,18 @@ The analysis includes:
 
 ---
 
-### `Benthic_layer.py` *(Upcoming)*
+# Benthic Layer Analysis Script
 
-This upcoming script will integrate **Sea Surface Temperature** with **Salinity** data from the biogeochemical simulation to compute the **Pressure Field**, enabling the identification and extraction of **Benthic Layer** values. This will allow for the study of **Deep Water Formation** processes in the **Northern Adriatic Sea**.
+The `Benthic_layer.py` script extracts the depth value of the Benthic Layer from the dataset. With this depth information, the script uses it as a key coordinate to pull out relevant fields. These fields are then visualized through various plots, allowing for further exploration and analysis of the data.
 
-Once identified, the benthic coordinates are used to extract **biogeochemical concentrations** at those specific depths, providing spatial and temporal maps of key **chemical species** at the sediment-water interface.
+The script then uses these fields to compute the **Density** field from the **Temperature** and **Salinity** values derived from the **BFM** simulation by applying three different **Equations of State** to the data. These include:
+
+- **Simplified Equation of State**
+- **Equation of State for Seawater (1980)**
+- **Thermodynamic Equation of State (2010)**
+
+The use of multiple equations allows for a comparative analysis of how each performs in representing the water density.
+
 
 ---
 
@@ -141,6 +151,8 @@ Install these using `pip` or conda if they are not already available in your env
 - [`skill_metrics`](https://github.com/PeterRochford/skill_metrics)
 - [`scikit-learn`](https://scikit-learn.org/)
 - [`statsmodels`](https://www.statsmodels.org/)
+- [`re`](https://docs.python.org/3/library/re.html)
+- [`gsw`](https://pypi.org/project/gsw/)
 
 ---
 
@@ -177,9 +189,11 @@ The **test case** file are the **satellite data** and **model data** for the **y
 
 ![EFFICIENCY](Example_Images/EFF_EXP.png)
 
-### 2D Deep Water Pressure Fields
+### 2D Deep Water Density Fields
 
-![PRESS_MAP](Example_Images/2D_PRESS_EXP.png)
+![EOS](Example_Images/EOS.png)
+![EOS-80](Example_Images/EOS80.png)
+![TEOS-10](Example_Images/TEOS10.png)
 
 ### Benthic Layer Computation
 
@@ -187,7 +201,7 @@ The **test case** file are the **satellite data** and **model data** for the **y
 
 ### 2D Biogeochemical Map at the Benthic Layer
 
-![BIO_MAP](Example_Images/2D_BIO_EXP.png)
+![BIO_MAP](Example_Images/2D_O2O_EXP.png)
 
 ---
 
@@ -198,3 +212,7 @@ The **test case** file are the **satellite data** and **model data** for the **y
 [**Comparison of different efficiency criteria for hydrological model assessment (Krause P. et al., 2005)**](https://www.researchgate.net/publication/26438340_Comparison_of_Different_Efficiency_Criteria_for_Hydrologic_Models)
 
 [**Summary diagrams for coupled hydrodynamic-ecosystem model skill assessment (Jolliff et al., 2008)**](https://www.researchgate.net/publication/222660103_Summary_diagrams_for_coupled_hydrodynamic-ecosystem_model_skill_assessment)
+
+[**The International Thermodynamic Equation of Seawater 2010 (TEOS-10): Calculation and Use of Thermodynamic Properties (McDougall et al., 2010)**](https://www.researchgate.net/publication/216028042_The_International_Thermodynamic_Equation_of_Seawater_2010_TEOS-10_Calculation_and_Use_of_Thermodynamic_Properties)
+
+[**Defining a Simplified Yet “Realistic” Equation of State for Seawater (Roquet et al., 2015)**](https://journals.ametsoc.org/view/journals/phoc/45/10/jpo-d-15-0080.1.xml?utm_source=chatgpt.com)
