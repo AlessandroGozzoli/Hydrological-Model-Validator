@@ -15,6 +15,12 @@ print("Attemping to access ", PlotDIR)
 
 from Plots import Benthic_chemical_plot
 
+ProcessDIR = Path(WDIR, "Processing")
+sys.path.append(str(ProcessDIR))
+print("Attemping to access ", ProcessDIR)
+
+from Corollary import compute_density
+
 def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
     """Reads and processes model CHL data from netCDF files."""
     
@@ -235,11 +241,16 @@ def Bavg_sst(Tspan, ysec, Dmod, Sat_sst, Mfsm):
 
     return BASSTmod, BASSTsat
 
-def read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description):
+def read_bfm(BDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description):
     # ----- FILENAME FRAGMENTS -----
     ffrag1 = "new15_1m_"
     ffrag2 = "0101_"
     ffrag3 = "1231_grid_bfm"
+    
+    # ----- ACCESSING THE MODEL DATA FOLDER -----
+    print("Accessing the Model Data folder...")
+    MDIR = Path(BDIR, "MODEL")
+    print(f"Model data folder is {MDIR}")
 
     Epsilon = 0.06  # Plotting domain expansion
 
@@ -258,7 +269,7 @@ def read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selec
         ffrag1="new15_1m_";
         ffrag2="0101_";
         ffrag3="1231_grid_bfm";
-
+        
         file = os.path.join(MDIR, f"output{ystr}", f"ADR{ystr}{ffrag1}{ystr}{ffrag2}{ystr}{ffrag3}.nc")
         filegz = file + ".gz"
 
@@ -332,3 +343,131 @@ def read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selec
             
         print("The monthly mean plots have been created!")
         print('-'*45)
+    
+def read_bentic_sst_sal(BDIR, Ybeg, Yend, ysec, mask3d, Bmost, output_path):
+
+    # ----- FILENAME FRAGMENTS -----
+    ffrag1 = "new15_1m_"
+    ffrag2 = "0101_"
+    ffrag3 = "1231_grid_T"
+
+    # ----- ACCESSING THE MODEL DATA FOLDER -----
+    print("Accessing the Model Data folder...")
+    MDIR = Path(BDIR, "MODEL")
+    print(f"Model data folder is {MDIR}")
+
+    Epsilon = 0.06  # Plotting domain expansion
+    Mname = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    for year in ysec:
+        ystr = str(year)
+        print(f"Retrieving year: {ystr}")
+
+        file = os.path.join(MDIR, f"output{ystr}", f"ADR{ystr}{ffrag1}{ystr}{ffrag2}{ystr}{ffrag3}.nc")
+        filegz = file + ".gz"
+
+        # -----UNZIP-----
+        print("Unzipping the file...")
+        with gzip.open(filegz, 'rb') as f_in:
+            with open(file, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        print("File successfully unzipped")
+        print('-'*45)
+
+        print("Geolocalizing the dataset...")
+        # -----READ LAT, LON, DEPTH-----
+        with Dataset(file, 'r') as nc:
+            ytemp = nc.variables['nav_lat'][:]
+            xtemp = nc.variables['nav_lon'][:]
+            d = nc.variables['deptht'][:]
+
+        Yrow, Xcol = ytemp.shape
+        x1st = 12.200
+        xstep = 0.0100
+        y1st = 43.774
+        ystep = 0.0073
+
+        ytemp1d = np.array([y1st + j * ystep for j in range(Yrow)])
+        xtemp1d = np.array([x1st + i * xstep for i in range(Xcol)])
+        ytemp = np.tile(ytemp1d[:, np.newaxis], (1, Xcol))
+        xtemp = np.tile(xtemp1d[np.newaxis, :], (Yrow, 1))
+
+        lat = np.repeat(ytemp[np.newaxis, :, :], len(d), axis=0)
+        lon = np.repeat(xtemp[np.newaxis, :, :], len(d), axis=0)
+
+        print("The geolocalized dataset has been initialized!")
+        print('-'*45)
+
+        MinPhi = np.nanmin(ytemp1d) + Epsilon
+        MaxPhi = np.nanmax(ytemp1d) + Epsilon
+        MinLambda = np.nanmin(xtemp1d) - Epsilon
+        MaxLambda = np.nanmax(xtemp1d) + Epsilon
+
+        latp = lat[0, :, :]
+        lonp = lon[0, :, :]
+
+        # -----READ TEMPERATURE AND SALINITY-----
+        with Dataset(file, 'r') as nc:
+            print("Loading Temperature...")
+            temp_data = nc.variables['votemper'][:]
+            print("Temperature dataset obtained!")
+            print("Loading Salinity...")
+            sal_data = nc.variables['vosaline'][:]
+            print("Salinity dataset obtained!")
+
+        Tlev = temp_data.shape[0]
+
+        # -----APPLY MASK-----
+        temp_data[:, mask3d == 0] = np.nan
+        sal_data[:, mask3d == 0] = np.nan
+
+        # -----EXTRACT BOTTOM TEMPERATURE AND SALINITY-----
+        temp_2d = np.zeros((Tlev, mask3d.shape[1], mask3d.shape[2]))
+        sal_2d = np.zeros((Tlev, mask3d.shape[1], mask3d.shape[2]))
+        for i in range(mask3d.shape[2]):
+            for j in range(mask3d.shape[1]):
+                k = int(Bmost[j, i]) - 1
+                temp_2d[:, j, i] = temp_data[:, k, j, i]
+                sal_2d[:, j, i] = sal_data[:, k, j, i]
+
+        print("Bottom temperature and salinity fields have been extracted!")
+        print("-"*45)
+
+        # -----COMPUTE DENSITY-----
+        print("Comuting the density field...")
+        density_EOS = compute_density(temp_2d, sal_2d, Bmost, method="EOS")
+        print("Density field computed using the simplified density formula!")
+        density_EOS80 = compute_density(temp_2d, sal_2d, Bmost, method="EOS80")
+        print("Density field computed using the EOS-80 density formula!")
+        density_TEOS10 = compute_density(temp_2d, sal_2d, Bmost, method="TEOS10")
+        print("Density field computed using the TEOS-10 density formula!")
+        print("-"*45)
+
+        # -----PLOT TEMPERATURE, SALINITY, AND PRESSURE-----
+        plot_vars = {
+            'votemper': (temp_2d, '°C', 'Temperature'),
+            'vosaline': (sal_2d, 'psu', 'Salinity'),
+            'vodensity_EOS': (density_EOS, 'kg/m3', 'Density [Simplified EOS]'),
+            'vodensity_EOS80': (density_EOS80, 'kg/m3', 'Density [EOS-80]'),
+            'vodensity_TEOS10': (density_TEOS10, 'kg/m3', 'Density [TEOS-10]')
+        }
+
+        for key, (P_2d, unit, desc) in plot_vars.items():
+            outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", desc)
+            os.makedirs(outdir, exist_ok=True)
+
+            print(f"Plotting {desc} for year {ystr}...")
+            for t in range(Tlev):
+                Benthic_chemical_plot(
+                    MinLambda, MaxLambda, MinPhi, MaxPhi,
+                    P_2d, t, lonp, latp,
+                    key, Mname, ystr,
+                    unit, desc,
+                    outdir
+                )
+            print(f"{desc} plots completed.")
+            print('-' * 45)
+
+        # Clean up
+        os.remove(file)
