@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 ###############################################################################
 ###############################################################################
 
-print("#### WELCOME TO THE BENTHIC LAYER ANALYSIS SCRPT ####")
+print("#### WELCOME TO THE BENTHIC LAYER ANALYSIS SCRIPT ####")
 
 ###############################################################################
 ##                                                                           ##
@@ -58,7 +58,7 @@ sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
 
 from Costants import Ybeg, Yend, ysec
 
-from MOD_data_reader import read_bfm
+from MOD_data_reader import read_bfm, read_bentic_sst_sal
 
 print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
 print("-"*45)
@@ -67,7 +67,7 @@ print("Loading the plotting modules...")
 PlottingDIR = Path(WDIR, "Plotting")
 sys.path.append(str(PlottingDIR))  # Add the folder to the system path
 
-from Plots import Benthic_depth, Benthic_chemical_plot
+from Plots import Benthic_depth
 
 print("\033[92m✅ The plotting modules have been loaded!\033[0m")
 print('-'*45)
@@ -86,11 +86,6 @@ print('*'*45)
 
 # ----- BASE DATA DIRECTORY -----
 BDIR = Path(WDIR, "Data")
-
-# ----- ACCESSING THE MODEL DATA FOLDER -----
-print("Accessing the Model Data folder...")
-MDIR = Path(BDIR, "MODEL")
-print(f"Model data folder is {MDIR}")
 
 FDIR = Path(BDIR, "OUTPUT/PLOTS/BFM")
 
@@ -125,7 +120,7 @@ print("Plotting the Benthic layer...")
 
 # Create a timestamped folder for this run
 timestamp = datetime.now().strftime("run_%Y-%m-%d")
-output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "DEPTH", timestamp)
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Depth", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 Benthic_depth(Bmost, output_path)
@@ -145,10 +140,16 @@ print("\033[92m✅ Surface coordinates obatined! \033[0m")
 
 ###############################################################################
 ##                                                                           ##
-##                       PRESSURE FIELD COMPUTATION                          ##
+##                        DENSITY FIELD COMPUTATION                          ##
 ##                                                                           ##
 ###############################################################################
 
+print("Beginning to process the temperature and salinity fields to compute the density field...")
+
+read_bentic_sst_sal(BDIR, Ybeg, Yend, ysec, mask3d, Bmost, output_path)
+
+print("Temperature, salinity and density field at the Benthic Layer have been plotted!")
+print('*'*45)
 
 ###############################################################################
 ##                                                                           ##
@@ -202,7 +203,7 @@ os.makedirs(output_path, exist_ok=True)
 
 print(f"Beginning the retrieval of the {selected_description} bottom data...")
      
-read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description) 
+read_bfm(BDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description) 
 
 print(f"The {selected_description} monthly mean values for the whole bottom dataset have been plotted!")   
 print('-'*45) 
@@ -217,7 +218,7 @@ os.makedirs(output_path, exist_ok=True)
 
 print(f"Beginning the retrieval of the {selected_description} surface data...")
      
-read_bfm(MDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bleast, output_path, selected_unit, selected_description) 
+read_bfm(BDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bleast, output_path, selected_unit, selected_description) 
 
 print(f"The {selected_description} monthly mean values for the whole surface dataset have been plotted!")   
 print('*'*45) 
