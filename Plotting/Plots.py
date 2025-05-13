@@ -13,6 +13,8 @@ import cartopy.feature as cfeature
 from datetime import datetime
 import os
 from Corollary import format_unit
+from matplotlib.colors import BoundaryNorm
+from matplotlib.cm import ScalarMappable
 
 def plot_daily_means(output_path, daily_means_dict, variable_name, BIAS_Bavg, BA=False):
     """
@@ -437,60 +439,110 @@ def Benthic_depth(Bmost, output_path):
     plt.close()
     
 def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, latp, bfm2plot, Mname, ystr, selected_unit, selected_description, output_path):
-    
-    epsilon=0.06
-    
+    epsilon = 0.06
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.set_extent([MinLambda, MaxLambda, MinPhi, MaxPhi], crs=ccrs.PlateCarree())
 
     TbP = P_2d[t, :, :]
 
-    # Define the fixed range for the colormap and contours
-    vmin, vmax = 0, 350
-    levels = np.linspace(vmin, vmax, 41)  # Define 20 contour levels from 0 to 350
+    # Set vmin/vmax and contour levels
+    if bfm2plot == 'O2o':
+        vmin, vmax = 0, 350
+        num_ticks = 8
+    elif bfm2plot == 'Chla':
+        vmin, vmax = 0, 16
+        num_ticks = 5
+    elif bfm2plot == 'N1p':
+        vmin, vmax = 0, 0.4
+        num_ticks = 5
+    elif bfm2plot == 'N3n':
+        vmin, vmax = 0, 30
+        num_ticks = 6
+    elif bfm2plot == 'N4n':
+        vmin, vmax = 0, 10
+        num_ticks = 6
+    elif bfm2plot == 'P1c':
+        vmin,vmax = 0, 300
+        num_ticks = 6
+    elif bfm2plot == 'P2c':
+        vmin, vmax = 0, 200
+        num_ticks = 6
+    elif bfm2plot == 'P3c':
+        vmin, vmax = 0, 30
+        num_ticks = 6
+    elif bfm2plot == 'P4c':
+        vmin, vmax = 0, 300
+        num_ticks = 6
+    elif bfm2plot == 'Z3c':
+        vmin, vmax = 0, 5
+        num_ticks = 6
+    elif bfm2plot == 'Z4c':
+        vmin, vmax = 0, 20
+        num_ticks = 6
+    elif bfm2plot == 'Z5c':
+        vmin, vmax = 0, 100
+        num_ticks = 6
+    elif bfm2plot == 'Z6c':
+        vmin, vmax = 0, 60
+        num_ticks = 8
+    elif bfm2plot == 'R6c':
+        vmin, vmax = 0, 500
+        num_ticks = 6
+    else:
+        # Used to find out the fixed range to use in the colomap
+        # Insert a new fixed range to improve display of phenomena
+        vmin, vmax = float(np.nanmin(TbP)), float(np.nanmax(TbP))
+        num_ticks = 6  # default fallback
 
-    # Create the contour plot with a fixed range
-    contour = ax.contourf(lonp+.4*epsilon, latp+.2*epsilon, TbP, levels=levels, cmap='jet', vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree())
+    levels = np.linspace(vmin, vmax, 41)
+
+    # Plot using regular 'jet' colormap
+    ax.contourf(
+        lonp + 0.4 * epsilon,
+        latp + 0.2 * epsilon,
+        TbP,
+        levels=levels,
+        cmap='jet',
+        vmin=vmin,
+        vmax=vmax,
+        extend='max',
+        transform=ccrs.PlateCarree()
+    )
 
     ax.coastlines(linewidth=1.5)
     ax.add_feature(cfeature.BORDERS, linestyle=':')
-    
+
     ax.set_title(f"{selected_description} | {Mname[t]} - {ystr}", fontsize=16, fontweight='bold')
-    
     ax.gridlines(draw_labels=True, dms=True, color='gray', linestyle='--')
 
-    # Create the colorbar with custom position and ticks
-    colorbar_width = 0.65  # 70% of the figure width
-    colorbar_height = 0.025  # 1.2% of the figure height
-    left_position = (1 - colorbar_width) / 2  # Center horizontally by adjusting left position
-    bottom_position = 0.175  # 15% from the bottom of the figure for the colorbar
-
-    # Create the colorbar axes and place it at the desired position
+    # --- Colorbar setup ---
+    colorbar_width = 0.65
+    colorbar_height = 0.025
+    left_position = (1 - colorbar_width) / 2
+    bottom_position = 0.175
     cbar_ax = plt.gcf().add_axes([left_position, bottom_position, colorbar_width, colorbar_height])
-    
-    # Convert the selected units in latex for the colorbar
+
+    colorbar_cmap = plt.get_cmap('jet')
+    colorbar_norm = BoundaryNorm(levels, ncolors=colorbar_cmap.N)
+    mappable = ScalarMappable(norm=colorbar_norm, cmap=colorbar_cmap)
+
     field_units = format_unit(selected_unit)
-    
-    # Create a new BoundaryNorm for the colorbar
-    norm = mcolors.BoundaryNorm(np.linspace(vmin, vmax, 11), contour.cmap.N)
-    cbar = plt.colorbar(contour, cax=cbar_ax, orientation='horizontal', norm=norm, extend='both')
+    cbar = plt.colorbar(mappable, cax=cbar_ax, orientation='horizontal', extend='max')
     cbar.set_label(rf'$\left[{field_units[1:-1]}\right]$', fontsize=14)
-    cbar.set_ticks(np.linspace(vmin, vmax, 8).astype(int))  # Set ticks every 6th value
-    
-    # Increase the font size of the tick labels
+    cbar.set_ticks(np.linspace(vmin, vmax, num_ticks))
     cbar.ax.tick_params(direction='in', length=18, labelsize=10)
 
-    # Thicken the borders of the subplot (axes)
+    # Thicken subplot borders
     for spine in ax.spines.values():
         spine.set_linewidth(2)
         spine.set_edgecolor('black')
-    
-    # ----- OUTPUT PATH AND FOLDER -----
+
+    # --- Output and save ---
     timestamp = datetime.now().strftime("run_%Y-%m-%d")
     chem_output_path = os.path.join(output_path, timestamp, ystr)
     os.makedirs(chem_output_path, exist_ok=True)
-    
+
     filename = f"NAmod - {bfm2plot} - {ystr} - {Mname[t]}"
     save_path = Path(chem_output_path, filename)
     plt.savefig(save_path)
