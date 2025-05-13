@@ -368,7 +368,7 @@ def Benthic_depth(Bmost, output_path):
         raise ValueError("Bmost must be a 2D NumPy array")
         
     # Set all 0 values to NaN
-    Bmost = np.where(Bmost == 0, np.nan, Bmost)
+    Bmost = np.where(Bmost == 0, np.nan, (Bmost) * 2)  # Convert layer index to depth in meters
 
     # Constants (grid origin and resolution)
     x_origin = 12.200
@@ -401,7 +401,7 @@ def Benthic_depth(Bmost, output_path):
     ax.add_feature(cfeature.BORDERS, linestyle=':')
 
     # Set the title for the plot
-    ax.set_title("North Adriatic Model Benthic Layer Depth", fontsize=16, fontweight='bold')
+    ax.set_title("Benthic Layer Depth", fontsize=16, fontweight='bold')
 
     # Add gridlines with labels
     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, color='gray', linestyle='--')
@@ -418,7 +418,7 @@ def Benthic_depth(Bmost, output_path):
     # Create a new BoundaryNorm for the colorbar
     norm = mcolors.BoundaryNorm(np.linspace(np.nanmin(Bmost), np.nanmax(Bmost), 11), contour.cmap.N)
     cbar = plt.colorbar(contour, cax=cbar_ax, orientation='horizontal', norm=norm, extend='both')
-    cbar.set_label('Benthic Layer Depth (layers)', fontsize=12)
+    cbar.set_label('[m]', fontsize=12)
     cbar.set_ticks(np.linspace(np.nanmin(Bmost), np.nanmax(Bmost), 6).astype(int))  # Set ticks every 6th value
 
     # Increase the font size of the tick labels
@@ -489,11 +489,25 @@ def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, l
     elif bfm2plot == 'R6c':
         vmin, vmax = 0, 500
         num_ticks = 6
+    elif bfm2plot == 'votemper':
+        vmin, vmax = 5, 25
+        num_ticks = 5
+    elif bfm2plot == 'vosaline':
+        vmin, vmax = 36, 39
+        num_ticks = 7
+    elif bfm2plot == 'vodensity_EOS' or bfm2plot == 'vodensity_EOS80' or bfm2plot == 'vodensity_TEOS10':
+        vmin, vmax = 1025, 1030
+        num_ticks = 6
     else:
         # Used to find out the fixed range to use in the colomap
         # Insert a new fixed range to improve display of phenomena
         vmin, vmax = float(np.nanmin(TbP)), float(np.nanmax(TbP))
         num_ticks = 6  # default fallback
+        
+    if bfm2plot == 'vosaline' or bfm2plot == 'votemper' or bfm2plot == 'vodensity_EOS' or bfm2plot == 'vodensity_EOS80' or bfm2plot == 'vodensity_TEOS10':
+        extended = 'both'
+    else:
+        extended = 'max'
 
     levels = np.linspace(vmin, vmax, 41)
 
@@ -506,9 +520,20 @@ def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, l
         cmap='jet',
         vmin=vmin,
         vmax=vmax,
-        extend='max',
+        extend=extended,
         transform=ccrs.PlateCarree()
     )
+    
+    if bfm2plot == 'vodensity_EOS' or bfm2plot == 'vodensity_EOS80' or bfm2plot == 'vodensity_TEOS10':
+        ax.contour(
+            lonp + 0.4 * epsilon,
+            latp + 0.2 * epsilon,
+            TbP,
+            levels=[1025, 1026, 1027, 1028, 1029, 1030],
+            colors='black',  # draw black contour lines
+            linewidths=1,   # optional: control line thickness
+            transform=ccrs.PlateCarree()
+            )
 
     ax.coastlines(linewidth=1.5)
     ax.add_feature(cfeature.BORDERS, linestyle=':')
@@ -528,7 +553,7 @@ def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, l
     mappable = ScalarMappable(norm=colorbar_norm, cmap=colorbar_cmap)
 
     field_units = format_unit(selected_unit)
-    cbar = plt.colorbar(mappable, cax=cbar_ax, orientation='horizontal', extend='max')
+    cbar = plt.colorbar(mappable, cax=cbar_ax, orientation='horizontal', extend=extended)
     cbar.set_label(rf'$\left[{field_units[1:-1]}\right]$', fontsize=14)
     cbar.set_ticks(np.linspace(vmin, vmax, num_ticks))
     cbar.ax.tick_params(direction='in', length=18, labelsize=10)
