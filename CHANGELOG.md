@@ -3,6 +3,49 @@
 
 ## Summary
 
+The **Benthic Layer Analysis** script has been expanded to **version 2.0** with significant enhancements to data extraction, analysis, and visualization.
+
+This update builds upon the initial version, adding functionality for the extraction and plotting of **temperature** and **salinity** data at the benthic layer. Additionally, the script now computes and visualizes the **density field** using three distinct **equations of state**, providing more accurate insights into deep water formation. As a result, the pressure field will no longer be included in the project, as the density field is deemed a more reliable representation of the evolution of dense water formation.
+
+### Key Enhancements:
+
+- **Temperature and Salinity Maps:**  
+  The temperature and salinity values at the benthic layer are now extracted using a method similar to that employed for biogeochemical fields. These values are georeferenced and plotted using the same function as used for the biogeochemical species, ensuring consistent map generation.
+
+- **Density Computation & Plotting:**  
+  Temperature and salinity data are now processed to compute the **density field**, using the following three equations of state:
+  - Simplified equation of state
+  - Equation of State for Seawater (1980)
+  - Thermodynamic Equation of State (2010)
+
+  All three density fields are plotted using a fixed color range to allow for easy comparison of the differences between the equations of state.
+
+Paper are provided in the **Bibliography** section of the README for the user to read to better understand differences in these 3 different **Equations of State**.
+
+### Visual Enhancements:
+
+- Plots now feature **fixed color ranges**, making it easier to identify and interpret the phenomena illustrated by the maps and plots.
+
+## Future Developments:
+
+- Ongoing improvements to the density computation.
+- Additional enhancements to data visualization and analytical functions.
+
+## Known Issues
+
+- **Taylor Diagrams** still use static RMSD ranges — dynamic scaling is planned.
+- **Taylor and Target plots** continue to depend on pre-defined `.csv` configuration files.
+- **Chlorophyll regression analysis** occasionally produces anomalous values — further investigation is underway.
+- **LaTeX rendering** in colorbar labels may break under certain conditions.
+- While **dynamic colorbar scaling** may improve usability, the current fixed scaling highlights extremes effectively; additional testing is ongoing.
+
+--------------------------------------------------------------------------------------
+
+# **Version:** 2.10  
+**Date:** 24/04/2025  
+
+## Summary
+
 Initial version (v1.0) of the **Benthic Geochemical Analysis** script completed.
 
 ## Benthic Geochemical Analysis Script
