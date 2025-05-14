@@ -67,7 +67,8 @@ from Plots import (
                    plot_daily_means, 
                    plot_metric, 
                    scatter_plot,
-                   scatter_plot_by_season
+                   scatter_plot_by_season,
+                   plot_monthly_comparison_boxplot
                    )
 
 from Taylor_diagrams import (
@@ -256,6 +257,12 @@ print("Plotting the seasonal data as scatterplots...")
 scatter_plot_by_season(output_path, BACHL_L3, 'CHL', BA=False)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 print('*'*45)
+
+# ----- WHISKERBOX PLOTS -----
+
+print("Plotting the whisker-box plots...")
+plot_monthly_comparison_boxplot(BACHLmonthly_L3, variable_name='Chlorophyll [level 3]', unit='mg/m3')
+print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 ###############################################################################
 ##                                                                           ##
@@ -591,6 +598,12 @@ print("Plotting the seasonal data as scatterplots...")
 scatter_plot_by_season(output_path, BACHL_L4, 'CHL', BA=False)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 print('*'*45)
+
+# ----- WHISKERBOX PLOTS -----
+
+print("Plotting the whisker-box plots...")
+plot_monthly_comparison_boxplot(BACHLmonthly_L4, variable_name='Chlorophyll [level 4]', unit='mg/m3')
+print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 ###############################################################################
 ##                                                                           ##
