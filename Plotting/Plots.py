@@ -359,6 +359,77 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         plt.pause(2)
         plt.close()
         
+def plot_monthly_comparison_boxplot(data_dict, variable_name='Variable', unit=''):
+    """
+    Plots a monthly boxplot comparison for two data sources (e.g., model vs satellite),
+    automatically identifying the sources based on key names.
+
+    Parameters:
+        data_dict (dict): Dictionary with two sub-dictionaries, each containing:
+                          {year: [month_1_array, ..., month_12_array]}
+        variable_name (str): Name of the variable to plot (e.g., 'SST')
+        unit (str): Unit of the variable (e.g., '°C', 'mg/m³')
+    """
+
+    # --- Dynamic key detection based on naming conventions ---
+    model_keys = [key for key in data_dict if 'mod' in key.lower()]
+    sat_keys = [key for key in data_dict if 'sat' in key.lower()]
+
+    if len(model_keys) != 1 or len(sat_keys) != 1:
+        raise ValueError("Could not uniquely identify model and satellite keys based on 'mod' and 'sat' keywords.")
+
+    model_key = model_keys[0]
+    sat_key = sat_keys[0]
+
+    # --- Setup for plotting ---
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    all_data = []
+    all_labels = []
+
+    for month_idx in range(12):
+        # --- Model data ---
+        model_values = []
+        for year in data_dict[model_key]:
+            array = np.asarray(data_dict[model_key][year][month_idx])
+            model_values.append(array.flatten())
+        model_all = np.concatenate(model_values)
+        model_all = model_all[~np.isnan(model_all)]
+        all_data.append(model_all)
+        all_labels.append(f'{month_names[month_idx]}\nModel')
+
+        # --- Satellite data ---
+        sat_values = []
+        for year in data_dict[sat_key]:
+            array = np.asarray(data_dict[sat_key][year][month_idx])
+            sat_values.append(array.flatten())
+        sat_all = np.concatenate(sat_values)
+        sat_all = sat_all[~np.isnan(sat_all)]
+        all_data.append(sat_all)
+        all_labels.append(f'{month_names[month_idx]}\nSatellite')
+
+    # --- Plotting ---
+    fig, ax = plt.subplots(figsize=(16, 6))
+    box = ax.boxplot(all_data,
+                     patch_artist=True,
+                     labels=all_labels,
+                     medianprops=dict(color='black'))
+
+    # Alternate blue/orange colors for model/sat
+    colors = ['blue', 'orange'] * 12
+    for patch, color in zip(box['boxes'], colors):
+        patch.set_facecolor(color)
+
+    # Styling
+    ax.set_title(f'Monthly {variable_name} Comparison: Model vs Satellite')
+    ylabel = f'{variable_name} ({unit})' if unit else variable_name
+    ax.set_ylabel(ylabel)
+    ax.grid(True, linestyle='--', alpha=0.5)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+        
 def Benthic_depth(Bmost, output_path):
     """
     Plots the benthic layer depth from the Bmost 2D array on a map using Cartopy,
