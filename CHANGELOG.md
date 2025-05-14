@@ -1,5 +1,42 @@
+# **Version:** 2.11  
+**Date:** 14/05/2025  
+
+## Summary
+
+Whisker-box plots have been implemented for satellite Basin Average SST and CHL datasets.
+
+## Whisker Plots
+
+A new visualization tool — the **whisker-box plot** — has been added to both the SST and CHL analysis scripts. These plots provide a clearer view of statistical distributions, highlighting mean values and outliers in the Basin Average datasets. Their primary purpose is to enhance model performance evaluation by offering a more nuanced look at dataset variability.
+
+## Future Developments
+
+With the implementation of this feature, the **2.x** development cycle is considered **complete**.
+
+The next major update will initiate **Version 3.0**, which will focus on:
+- **Refactoring all functions** to improve computational efficiency and streamline logic.
+- **Introducing new libraries**, such as [**Seaborn**](https://seaborn.pydata.org/), for more advanced and elegant plotting.
+- **Ensuring result consistency**, with side-by-side testing to confirm output reliability compared to previous versions.
+- **Resolving known issues and bugs** from earlier versions.
+- **Expanding documentation**, including:
+  - Clearer comments and structure within the codebase.
+  - A **step-by-step guide** for running the test case.
+  - A **pytest** module to automate testing of computational functions.
+
+Version 3.0 will mark a shift toward a more maintainable, scalable, and user-friendly project structure.
+
+## Known Issues
+
+- **Taylor Diagrams** still use static RMSD ranges — dynamic scaling is planned.
+- **Taylor and Target plots** continue to depend on pre-defined `.csv` configuration files.
+- **Chlorophyll regression analysis** occasionally produces anomalous values — further investigation is underway.
+- **LaTeX rendering** in colorbar labels may break under certain conditions.
+- While **dynamic colorbar scaling** may improve usability, the current fixed scaling highlights extremes effectively; additional testing is ongoing.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 2.10  
-**Date:** 24/04/2025  
+**Date:** 13/05/2025  
 
 ## Summary
 
@@ -42,7 +79,7 @@ Paper are provided in the **Bibliography** section of the README for the user to
 --------------------------------------------------------------------------------------
 
 # **Version:** 2.10  
-**Date:** 24/04/2025  
+**Date:** 10/05/2025  
 
 ## Summary
 
@@ -76,7 +113,7 @@ This script represents the first half of the full analysis pipeline. Future upda
 --------------------------------------------------------------------------------------
 
 # **Version:** 2.9  
-**Date:** 24/04/2025  
+**Date:** 06/05/2025  
 
 ## Summary
 
