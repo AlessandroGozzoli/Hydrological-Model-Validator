@@ -3,7 +3,6 @@ from netCDF4 import Dataset as ds
 from pathlib import Path
 import re
 import gsw  # TEOS-10/EOS-80 library
-from scipy.constants import g  # Gravity constant in m/s²
 
 from Costants import days_in_months_non_leap, days_in_months_leap, ysec
 
