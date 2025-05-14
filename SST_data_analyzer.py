@@ -68,7 +68,8 @@ from Plots import (
                    plot_daily_means, 
                    plot_metric, 
                    scatter_plot,
-                   scatter_plot_by_season
+                   scatter_plot_by_season,
+                   plot_monthly_comparison_boxplot
                    )
 
 from Taylor_diagrams import (
@@ -308,20 +309,24 @@ print("*"*45)
 
 print("Plotting remaining plots...")
 
-# Time series and scatter plots
+# ----- CREATE THE FOLDER TO SAVE THE PLOTS -----
+
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "OTHER", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
+# ----- TIMESERIES PLOTS -----
+
 print("Computing the BIAS...")
 BIAS_Bavg = BASSTsat - BASSTmod
 print("\033[92m✅ BIAS computed! \033[0m")
 print("-"*45)
 
-# Create a timestamped folder for this run
-timestamp = datetime.now().strftime("run_%Y-%m-%d")
-output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "OTHER", "SST", timestamp)
-os.makedirs(output_path, exist_ok=True)
-
 print("Plotting the time-series...")
 plot_daily_means(output_path, BASST, 'SST', BIAS_Bavg, BA=True)
 print("\033[92m✅ Time-series plotted succesfully!\033[0m")
+
+# ----- SCATTERPLOTS -----
 
 print("Plotting the scatter plot...")
 scatter_plot(output_path, BASST, 'SST', BA=False)
@@ -330,6 +335,12 @@ print("\033[92m✅ Scatter plot plotted succesfully!\033[0m")
 print("Plotting the seasonal data as scatterplots...")
 scatter_plot_by_season(output_path, BASST, 'SST', BA=False)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
+
+# ----- WHISKERBOX PLOTS -----
+
+print("Plotting the whisker-box plots...")
+plot_monthly_comparison_boxplot(BASSTmonthly, variable_name='Sea Surface Temperature', unit='°C')
+print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 ###############################################################################
 ##                                                                           ##
