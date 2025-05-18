@@ -252,30 +252,30 @@ print("\033[92m✅ BIAS computed! \033[0m")
 print("-"*45)
 
 print("Plotting the timeseries...")
-timeseries_basin_average(output_path, BACHL_L3, 'CHL', BIAS_Bavg, BA=True)
+timeseries_basin_average(output_path, BACHL_L3, 'CHL_L3', BIAS_Bavg, BA=True)
 print("\033[92m✅ Time series plotted! \033[0m")
 
 # ----- SCATTERPLOTS -----
 
 print("Plotting the scatter plot...")
-scatter_plot(output_path, BACHL_L3, 'CHL', BA=False)
+scatter_plot(output_path, BACHL_L3, 'CHL_L3', BA=False)
 print("\033[92m✅ Scatter plot succesfully plotted! \033[0m")
 
 print("Plotting the seasonal data as scatterplots...")
-scatter_plot_by_season(output_path, BACHL_L3, 'CHL', BA=False)
+scatter_plot_by_season(output_path, BACHL_L3, 'CHL_L3', BA=False)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 print('*'*45)
 
 # ----- WHISKERBOX PLOTS -----
 
 print("Plotting the whisker-box plots...")
-plot_monthly_comparison_boxplot(output_path, BACHLmonthly_L3, variable_name='Chlorophyll [level 3]', unit='mg/m3')
+plot_monthly_comparison_boxplot(output_path, BACHLmonthly_L3, variable_name='CHL_L3')
 print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 # ----- VIOLIN PLOTS -----
 
 print("Plotting the violinplots...")
-plot_monthly_comparison_violinplot(output_path, BACHLmonthly_L3, variable_name='Surface Chlorophyll (Level 3)', unit='mg/m3')
+plot_monthly_comparison_violinplot(output_path, BACHLmonthly_L3, variable_name='CHL_L3')
 print("\033[92m✅ Violinplots plotted succesfully!\033[0m")
 
 ###############################################################################
@@ -292,10 +292,10 @@ output_path = os.path.join(BaseDIR, "OUTPUT", "PLOTS", "TAYLOR", "CHL", "l3", ti
 os.makedirs(output_path, exist_ok=True)
 
 # Plotting the Taylor Diagram
-comprehensive_taylor_diagram(BACHL_yearly_L3, output_path, variable_name='Chlorophyll [level 3]')
+comprehensive_taylor_diagram(BACHL_yearly_L3, output_path, variable_name='CHL_L3')
 print("\033[92m✅ Yearly Taylor diagram plotted! \033[0m")
 
-monthly_taylor_diagram(BACHLmonthly_L3, output_path, variable_name='Chlorophyll [level 3]')
+monthly_taylor_diagram(BACHLmonthly_L3, output_path, variable_name='CHL_L3')
 print("\033[92m✅ All of the monthly Taylor diagrams have been plotted! \033[0m")
 print("-"*45)
 
@@ -312,10 +312,10 @@ timestamp = datetime.now().strftime("run_%Y-%m-%d")
 output_path = os.path.join(BaseDIR, "OUTPUT", "PLOTS", "TARGET", "CHL", "l3", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
-comprehensive_target_diagram(BACHL_yearly_L3, output_path, variable_name='Chlorophyll [level 3]')
+comprehensive_target_diagram(BACHL_yearly_L3, output_path, variable_name='CHL_L3')
 print("\033[92m✅ Yearly target plot has been made! \033[0m")
 
-target_diagram_by_month(BACHLmonthly_L3, output_path, variable_name='Chlorophyll [level 3]')
+target_diagram_by_month(BACHLmonthly_L3, output_path, variable_name='CHL_L3')
 print("\033[92m✅ All of the monthly target plots have been made! \033[0m")
 print("*"*45)
 
@@ -506,30 +506,30 @@ print("\033[92m✅ BIAS computed! \033[0m")
 print("-"*45)
 
 print("Plotting the timeseries...")
-timeseries_basin_average(output_path, BACHL_L4, 'CHL', BIAS_Bavg, BA=True)
+timeseries_basin_average(output_path, BACHL_L4, 'CHL_L4', BIAS_Bavg, BA=True)
 print("\033[92m✅ Time series plotted! \033[0m")
 
 # ----- SCATTERPLOTS -----
 
 print("Plotting the scatter plot...")
-scatter_plot(output_path, BACHL_L4, 'CHL', BA=False)
+scatter_plot(output_path, BACHL_L4, 'CHL_L4', BA=False)
 print("\033[92m✅ Scatter plot succesfully plotted! \033[0m")
 
 print("Plotting the seasonal data as scatterplots...")
-scatter_plot_by_season(output_path, BACHL_L4, 'CHL', BA=False)
+scatter_plot_by_season(output_path, BACHL_L4, 'CHL_L4', BA=False)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 print('*'*45)
 
 # ----- WHISKERBOX PLOTS -----
 
 print("Plotting the whisker-box plots...")
-plot_monthly_comparison_boxplot(output_path, BACHLmonthly_L4, variable_name='Chlorophyll [level 4]', unit='mg/m3')
+plot_monthly_comparison_boxplot(output_path, BACHLmonthly_L4, variable_name='CHL_L4')
 print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 # ----- VIOLIN PLOTS -----
 
 print("Plotting the violinplots...")
-plot_monthly_comparison_violinplot(output_path, BACHLmonthly_L4, variable_name='Surface Chlorophyll (Level 4)', unit='mg/m3')
+plot_monthly_comparison_violinplot(output_path, BACHLmonthly_L4, variable_name='CHL_L4')
 print("\033[92m✅ Violinplots plotted succesfully!\033[0m")
 
 ###############################################################################
@@ -546,10 +546,10 @@ output_path = os.path.join(BaseDIR, "OUTPUT", "PLOTS", "TAYLOR", "CHL", "l4", ti
 os.makedirs(output_path, exist_ok=True)
 
 # Plotting the Taylor Diagram
-comprehensive_taylor_diagram(BACHL_yearly_L4, output_path, variable_name='Chlorophyll [level 4]')
+comprehensive_taylor_diagram(BACHL_yearly_L4, output_path, variable_name='CHL_L4')
 print("\033[92m✅ Yearly Taylor diagram plotted! \033[0m")
 
-monthly_taylor_diagram(BACHLmonthly_L4, output_path, variable_name='Chlorophyll [level 4]')
+monthly_taylor_diagram(BACHLmonthly_L4, output_path, variable_name='CHL_L4')
 print("\033[92m✅ All of the monthly Taylor diagrams have been plotted! \033[0m")
 print("-"*45)
 
@@ -566,10 +566,10 @@ timestamp = datetime.now().strftime("run_%Y-%m-%d")
 output_path = os.path.join(BaseDIR, "OUTPUT", "PLOTS", "TARGET", "CHL", "l4", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
-comprehensive_target_diagram(BACHL_yearly_L4, output_path, variable_name='Chlorophyll [level 4]')
+comprehensive_target_diagram(BACHL_yearly_L4, output_path, variable_name='CHL_L4')
 print("\033[92m✅ Yearly target plot has been made! \033[0m")
 
-target_diagram_by_month(BACHLmonthly_L4, output_path, variable_name='Chlorophyll [level 4]')
+target_diagram_by_month(BACHLmonthly_L4, output_path, variable_name='CHL_L4')
 print("\033[92m✅ All of the monthly target plots have been made! \033[0m")
 print("*"*45)
 
