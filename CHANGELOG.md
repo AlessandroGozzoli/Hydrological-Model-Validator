@@ -1,11 +1,34 @@
+# **Version:** 3.0.1  
+**Date:** 18/05/2025  
+
+## Summary
+
+This is a minor update focused on expanding DataFrame usability within the SST and CHL analysis scripts and improving dataset loading performance.
+
+---
+
+## Expanded Use of Pandas DataFrames
+
+- SST and CHL analysis scripts now fully leverage **`pandas` DataFrames**, enabling:
+  - Seamless integration of the `datetime` dimension.
+  - More efficient time-based slicing into **monthly** and **yearly** datasets using native `pandas` methods.
+- Enhances clarity and performance for long-term and seasonal trend analysis.
+
+---
+
+## Faster Dataset Loading
+
+- Introduced **parallel loading** of SST datasets using `ThreadPoolExecutor` from Python’s [`concurrent.futures`](https://docs.python.org/3/library/concurrent.futures.html) module.
+- Significantly improves script runtime when dealing with large temporal datasets.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 3.0  
 **Date:** 18/05/2025  
 
 ## Summary
 
 This version introduces a major rework and optimization of the plotting functions used for model validation and comparison. It focuses on improving clarity, maintainability, and performance in both visual output and computational workflow.
-
----
 
 ## New Taylor Diagrams and Target Plots
 
@@ -15,15 +38,11 @@ This version introduces a major rework and optimization of the plotting function
   - **Taylor Diagrams**: Now include RMSD arcs and repositioned RMSD labels outside the plot area to avoid marker overlap.
   - **Target Plots**: Include color-coded performance zones to quickly assess model accuracy and bias.
 
----
-
 ## Violin Plots
 
 - Introduced **violin plots** as an alternative to **whisker-box plots**.
 - Violin plots offer a smoother visual of data distribution but are less informative regarding outliers.
 - This plot type is included for completeness and comparative analysis.
-
----
 
 ## Seaborn Integration
 
@@ -32,8 +51,6 @@ This version introduces a major rework and optimization of the plotting function
   - Better integration with `pandas` DataFrames.
   - More expressive and customizable visualizations.
   - Improved consistency across plots.
-
----
 
 ## Separation of Computations
 
@@ -48,15 +65,11 @@ A significant refactor has begun to modularize core functionality:
 
 This modularization paves the way for cleaner, more testable code in preparation for the final **pytest** integration.
 
----
-
 ## Future Direction
 
 - Further optimize plotting routines for speed and clarity.
 - Begin reworking data loading and interpolation functions for faster runtime.
 - Explore full Python replacement of the current MATLAB `Interpolato.m` script.
-
----
 
 ## Known Issues
 
