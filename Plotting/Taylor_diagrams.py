@@ -1,181 +1,194 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
 import skill_metrics as sm
-import calendar
 from pathlib import Path
+import sys
+import os
 
-from Costants import (
-    Ybeg,
-    Tspan,
-    DinY,
-    ysec
-)
+WDIR = os.getcwd()
+ProcessingDIR = Path(WDIR, "Processing/")
+sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
+from Taylor_computations import compute_yearly_taylor_stats, build_all_points
 
-def comprehensive_taylor_diagram(taylor_dict, taylor_options, std_ref, output_path):
+def comprehensive_taylor_diagram(data_dict, output_path, variable_name):
     """
-    Generate and plot a Taylor diagram for the model and reference data in the provided taylor_dict.
-
-    Parameters:
-    taylor_dict (dict): Dictionary with model and reference data for each year.
-    Vedi target 11 per come definire markers
+    Generate and plot a Taylor diagram for model vs reference data in the provided taylor_dict.
     """
-    # Set the figure properties (optional)
-    rcParams["figure.figsize"] = [10.0, 8.4]
-    rcParams['lines.linewidth'] = 1  # line width for plots
-    rcParams.update({'font.size': 12})  # font size of axes text
+    stats_by_year, std_ref = compute_yearly_taylor_stats(data_dict)
 
-    # Close any previously open graphics windows
-    plt.close('all')
-
-    # Prepare the lists to hold statistics
-    # Compute standard deviation of reference data (satellite data) for the first year as an example
-    sat_key = [key for key in taylor_dict.keys() if 'sat' in key.lower()]
-    if len(sat_key) != 1:
-        raise ValueError("The input dictionary must contain exactly one key with 'sat' (satellite) data.")
-
-    sdev = [std_ref]  # Reference standard deviation (from satellite data)
-    crmsd = [0.0]  # Reference RMSD (set manually)
-    ccoef = [1.0]  # Reference correlation coefficient (set manually)
-    label = ["Ref"]  # Label for the reference data
-
-    # Dynamically compute the leap years based on the starting and ending year
-    leap_years = [year for year in ysec if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0))]
-
-    # Dynamically extract the model and satellite keys from the taylor_dict
-    model_key = [key for key in taylor_dict.keys() if 'mod' in key.lower()]
-
-    # Check if we found exactly one model key
-    if len(model_key) != 1:
-        raise ValueError("The input dictionary must contain exactly one key with 'mod' (model) data.")
-
-    # Loop through the years corresponding to Ybeg to Yend (e.g., 2000 to 2009)
-    for year in range(Tspan):  # Looping through years Ybeg to Yend
-        # Get the model data for the current year from the dynamically extracted model_key
-        model_data = taylor_dict[model_key[0]][year]
-
-        # Get the corresponding satellite data from the dynamically extracted sat_key
-        ref_data = taylor_dict[sat_key[0]][year]  # Access satellite data for the correct year
-
-        # If the year is not a leap year, remove the extra day (366th day)
-        if Ybeg + year not in leap_years:
-            model_data = model_data[:DinY]  # Remove the last day of model data
-            ref_data = ref_data[:DinY]  # Remove the last day of reference (satellite) data
-            
-        valid_indices = ~np.isnan(model_data) & ~np.isnan(ref_data)
-        
-        filtered_model_data = model_data[valid_indices]
-        filtered_ref_data = ref_data[valid_indices]
-
-        # Compute the Taylor statistics for each year
-        taylor_stats = sm.taylor_statistics(filtered_model_data, filtered_ref_data, 'data')
-
-        # Extract the statistics and append them to the lists
-        sdev = np.append(sdev, taylor_stats['sdev'][1])  # Model standard deviation
-        crmsd = np.append(crmsd, taylor_stats['crmsd'][1])  # Model RMSD
-        ccoef = np.append(ccoef, taylor_stats['ccoef'][1])  # Model correlation coefficient
-
-        label.append(Ybeg + year)  # Append the year label
-
-    # Convert lists to numpy arrays for easier manipulation
-    sdev = np.array(sdev)
-    crmsd = np.array(crmsd)
-    ccoef = np.array(ccoef)
-
-    # Produce the Taylor diagram
-    sm.taylor_diagram(sdev, crmsd, ccoef, markerLabel=label, 
-                      taylor_options_file=taylor_options)
+    # Add reference point
+    labels = ["Ref"] + [entry[0] for entry in stats_by_year]
+    sdev = np.array([std_ref] + [entry[1] for entry in stats_by_year])
+    crmsd = np.array([0.0] + [entry[2] for entry in stats_by_year])
+    ccoef = np.array([1.0] + [entry[3] for entry in stats_by_year])
     
-    plt.title("Comprehensive Taylor Diagram (Yearly performance)", pad = 40)
+    sdev = sdev / std_ref
+    crmsd = crmsd / std_ref
 
-    # Optionally, save or show the plot
+    marker_shapes = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
+
+    plt.figure(figsize=(8, 6), dpi=300)
+    plt.title(f"Taylor Diagram (Yearly Performance) | {variable_name}", pad=45, fontsize=18, fontweight='bold')
+
+    # Base diagram
+    sm.taylor_diagram(
+        sdev, crmsd, ccoef,
+        markersymbol='none',
+        markercolors={"face": "none", "edge": "none"},
+        markersize=0,
+        alpha=0,
+        styleobs='-',
+        colobs='r',
+        titleSTD='on',
+        titleRMS='off',
+        colrms=(0.0, 0.6, 0.0),
+        widthcor=1.5,
+        widthstd=1.5,
+        widthobs=2.5,
+        showlabelsrms='on',
+        rmslabelformat='0',
+        tickrmsangle=120,
+        labelweight='bold'
+    )
+    
+    ax = plt.gca()
+    ylim = ax.get_ylim()
+
+    # Put labels 5% below the bottom y-limit
+    label_y = ylim[0] - 0.11 * (ylim[1] - ylim[0])
+
+    # RMSD axis label
+    plt.text(sdev[0], label_y, "Ref", ha="center", va="center", fontsize=16, fontweight='bold', color='r')
+    plt.text(sdev[0]+0.5, label_y, 'RMSD', fontsize=12, ha='center', va='center', fontweight='bold', color=(0.0, 0.6, 0.0))
+
+    # Reference marker
+    sm.taylor_diagram(
+        np.array([1.0, 1.0]),
+        np.array([0.0, 0.0]),
+        np.array([1.0, 1.0]),
+        markersymbol='.',
+        markercolors={"face": 'r', "edge": 'r'},
+        markersize=25,
+        alpha=1.0,
+        overlay='on',
+        tickrms=[0.0]
+    )
+
+    # Data markers
+    for i, (x, y, c, label) in enumerate(zip(sdev[1:], crmsd[1:], ccoef[1:], labels[1:])):
+        sm.taylor_diagram(
+            np.array([x, x]),
+            np.array([y, y]),
+            np.array([c, c]),
+            markersymbol=marker_shapes[i % len(marker_shapes)],
+            markercolors={"face": "#BF636B", "edge": "#BF636B"},
+            markersize=10,
+            alpha=0.8,
+            styleobs='-',
+            colobs='r',
+            widthobs=2.5,
+            showlabelsrms='off',
+            overlay='on'
+        )
+
+    # Save and show
     output_path = Path(output_path)
-    filename = 'Taylor_diagram_summary.png'
-    save_path = output_path / filename
+    output_path.mkdir(parents=True, exist_ok=True)
+    save_path = output_path / 'Taylor_diagram_summary.png'
     plt.savefig(save_path)
     plt.show(block=False)
-    plt.draw()  # <-- Force rendering
+    plt.draw()
     plt.pause(3)
     plt.close()
 
-def monthly_taylor_diagram(taylor_dict, month_index, taylor_options_monthly, output_path):
+def monthly_taylor_diagram(data_dict, output_path, variable_name):
+    df, years = build_all_points(data_dict)
     """
-    Extracts satellite data for a specific month across all years
-    and computes its standard deviation.
-
-    Parameters:
-    taylor_dict (dict): Dictionary with model and reference monthly data.
-    month_index (int): Index of the month (0 = January, 11 = December).
-
-    Returns:
-    float: Standard deviation of the satellite data for the selected month.
+    Plot the Taylor diagram given the DataFrame of stats and years list.
+    Saves figure to output_path.
     """
+    MARKERS = [
+        "P", "o", "X", "s", "D", "^", "v", "p", "h", "*"
+    ]
+    MONTH_COLORS = [
+        "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd",
+        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22",
+        "#17becf", "#393b79", "#637939", "#8c6d31"
+    ]
 
-    # Dynamically extract the model and satellite keys from the taylor_dict
-    model_key = [key for key in taylor_dict.keys() if 'mod' in key.lower()]
-    sat_key = [key for key in taylor_dict.keys() if 'sat' in key.lower()]
-    
-    reference_monthly = taylor_dict[sat_key[0]]
-    
-    # Concatenate the data across all years for the given month
-    monthly_sat_data = np.concatenate([
-        reference_monthly[year][month_index] for year in reference_monthly
-    ])
-
-    # Compute standard deviation
-    std_ref = np.nanstd(monthly_sat_data)
-    
-    sdev = [std_ref]
-    crmsd = [0.0]  # Reference RMSD (set manually)
-    ccoef = [1.0]  # Reference correlation coefficient (set manually)
-    label = ["Ref"]  # Label for the reference data
-    
-    # Get the month name from the month index
-    month_name = calendar.month_name[month_index + 1]  # +1 because months are 1-indexed in `calendar`
-    
-    for year in range(Tspan):  # Looping through years Ybeg to Yend
-        # Get the model data for the current year and the ith month
-        model_data = taylor_dict[model_key[0]][year + Ybeg][month_index]
-
-        # Get the corresponding satellite data for the ith month
-        ref_data = taylor_dict[sat_key[0]][year + Ybeg][month_index]
-        
-        valid_indices = ~np.isnan(model_data) & ~np.isnan(ref_data)
-        
-        filtered_model_data = model_data[valid_indices]
-        filtered_ref_data = ref_data[valid_indices]
-
-        # Compute the Taylor statistics for each year
-        taylor_stats = sm.taylor_statistics(filtered_model_data, filtered_ref_data, 'data')
-        
-        # Extract the statistics and append them to the lists
-        sdev.append(taylor_stats['sdev'][1])  # Model standard deviation
-        crmsd.append(taylor_stats['crmsd'][1])  # Model RMSD
-        ccoef.append(taylor_stats['ccoef'][1])  # Model correlation coefficient
-
-        label.append(Ybeg + year)  # Append the year label
-
-    # You can process or store the model_data and ref_data here
-    print(f"The Taylor diagram for {month_name} has been plotted!")
-    
-    # Convert lists to numpy arrays for easier manipulation
-    sdev = np.array(sdev)
-    crmsd = np.array(crmsd)
-    ccoef = np.array(ccoef)
-
-    # Produce the Taylor diagram
-    sm.taylor_diagram(sdev, crmsd, ccoef, markerLabel=label, 
-                      taylor_options_file=taylor_options_monthly)
-    
-    # Add title with the month name
-    plt.title(f"Taylor Diagram for {month_name}", pad = 40)
-
-    # Optionally, save or show the plot
     output_path = Path(output_path)
-    filename = f'Taylor_diagram_{month_name}.png'
-    save_path = output_path / filename
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    plt.figure(figsize=(12, 10))
+    plt.title(f"Monthly Taylor Diagram (Normalized Stats) | {variable_name}", pad=65, fontsize=18, fontweight='bold')
+
+    # Draw full layout without markers
+    sm.taylor_diagram(
+        df["sdev"].values, df["crmsd"].values, df["ccoef"].values,
+        markersymbol='none',
+        markercolors={"face": "none", "edge": "none"},
+        markersize=0,
+        alpha=0,
+        styleobs='-',
+        colobs='r',
+        titleSTD='on',
+        titleRMS='off',
+        colrms=(0.0, 0.6, 0.0),
+        widthcor=1.5,
+        widthstd=1.5,
+        widthobs=2.5,
+        widthrms=2,
+        showlabelsrms='on',
+        rmslabelformat='0',
+        tickrmsangle=120,
+        labelweight='bold',
+        tickrms=[0.5, 1.0, 1.5]
+    )
+    
+    ax = plt.gca()
+    ylim = ax.get_ylim()
+
+    # Put labels 5% below the bottom y-limit
+    label_y = ylim[0] - 0.11 * (ylim[1] - ylim[0])
+    
+    ref = df[df["year"] == "Ref"].iloc[0]
+    plt.text(ref["sdev"], label_y, "Ref", ha="center", va="bottom", fontsize=13, fontweight='bold', color='r')
+    plt.text(ref["sdev"]+0.5, label_y, 'RMSD', fontsize=13, ha='center', va='bottom', fontweight='bold', color=(0.0, 0.6, 0.0))
+
+    # Reference marker
+    sm.taylor_diagram(
+        np.array([ref["sdev"], ref["sdev"]]),
+        np.array([ref["crmsd"], ref["crmsd"]]),
+        np.array([ref["ccoef"], ref["ccoef"]]),
+        markersymbol='.',
+        markercolors={"face": "r", "edge": "r"},
+        markersize=25,
+        alpha=1.0,
+        overlay='on',
+        tickrms=[0.0]
+    )
+
+    # Plot all other data points
+    non_ref = df[df["year"] != "Ref"]
+    for _, row in non_ref.iterrows():
+        month_color = MONTH_COLORS[row["month"]]
+        year_index = years.index(row["year"]) if row["year"] in years else -1
+        marker_shape = MARKERS[year_index % len(MARKERS)]
+
+        sm.taylor_diagram(
+            np.array([row["sdev"], row["sdev"]]),
+            np.array([row["crmsd"], row["crmsd"]]),
+            np.array([row["ccoef"], row["ccoef"]]),
+            markersymbol=marker_shape,
+            markercolors={"face": month_color, "edge": "black"},
+            markersize=12.5,
+            alpha=0.7,
+            overlay='on'
+        )
+
+    save_path = output_path / "Unified_Taylor_Diagram.png"
     plt.savefig(save_path)
     plt.show(block=False)
-    plt.draw()  # <-- Force rendering
+    plt.draw()
     plt.pause(3)
     plt.close()
