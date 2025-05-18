@@ -2,9 +2,7 @@ import numpy as np
 from netCDF4 import Dataset as ds
 from pathlib import Path
 import re
-import gsw  # TEOS-10/EOS-80 library
-
-from Costants import days_in_months_non_leap, days_in_months_leap, ysec
+import xarray as xr
 
 # Function to check if a year is a leap year
 def leapyear(year):
@@ -14,6 +12,61 @@ def leapyear(year):
         return 1
     return 0
 
+def extract_mod_sat_keys(taylor_dict):
+    mod_key = next((k for k in taylor_dict if 'mod' in k.lower()), None)
+    sat_key = next((k for k in taylor_dict if 'sat' in k.lower()), None)
+    if mod_key is None or sat_key is None:
+        raise ValueError("taylor_dict must contain keys with 'mod' and 'sat' data.")
+    return mod_key, sat_key
+
+def get_common_series_by_year(data_dict):
+    """
+    Extract and align model and satellite data by year from taylor_dict.
+
+    Returns:
+        List of tuples: (year, mod_values, sat_values)
+    """
+    common_series = []
+    
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+
+    for year in sorted(data_dict[mod_key].keys()):
+        mod_series = data_dict[mod_key][year].dropna()
+        sat_series = data_dict[sat_key][year].dropna()
+
+        combined = mod_series.to_frame('mod').join(sat_series.to_frame('sat'), how='inner').dropna()
+        if combined.empty:
+            print(f"Warning: No overlapping data for year {year}. Skipping.")
+            continue
+
+        common_series.append((str(year), combined['mod'].values, combined['sat'].values))
+
+    return common_series
+
+def get_common_series_by_year_month(data_dict):
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+    result = []  # list of (year, month, mod_values, sat_values)
+
+    years = sorted(data_dict[mod_key].keys())
+    for year in years:
+        for month_index in range(12):
+            try:
+                mod_vals = np.asarray(data_dict[mod_key][year][month_index])
+                sat_vals = np.asarray(data_dict[sat_key][year][month_index])
+            except (IndexError, KeyError):
+                continue
+
+            valid = ~np.isnan(mod_vals) & ~np.isnan(sat_vals)
+            if not np.any(valid):
+                continue
+
+            result.append((year, month_index, mod_vals[valid], sat_vals[valid]))
+
+    return result
+
+def get_valid_mask(mod_vals, sat_vals):
+    """Return boolean mask where both mod and sat values are not NaN."""
+    return ~np.isnan(mod_vals) & ~np.isnan(sat_vals)
 
 # Main function to calculate the true time series length in days
 def true_time_series_length(nf, chlfstart, chlfend, DinY):
@@ -82,44 +135,34 @@ def mask_reader(BaseDIR):
 
     return Mmask, Mfsm, Mfsm_3d, Mlat, Mlon
 
-# Function to convert yearly data to monthly data
-def convert_to_monthly_data(yearly_data):
 
-    # Initialize an empty dictionary to hold the monthly data
+def split_to_monthly(yearly_data):
+    """Converts yearly data into monthly data."""
     monthly_data_dict = {}
-
-    # Loop over each year's data
-    for i, year_data in enumerate(yearly_data):
-        year = ysec[i]
-        
-        # Determine the number of days in the year
-        if leapyear(year):
-            days_in_months = days_in_months_leap
-            expected_days = 366
-        else:
-            days_in_months = days_in_months_non_leap
-            expected_days = 365
-        
-        # Pad shorter years with NaNs if necessary
-        if len(year_data) < expected_days:
-            year_data = np.pad(year_data, (0, expected_days - len(year_data)), constant_values=np.nan)
-        
-        # Initialize a list to store the months for this year
+    
+    # Loop over each year
+    for year, year_data in yearly_data.items():
         year_months = []
-        start_idx = 0  # Start at the beginning of the year
         
-        # For each month, slice the data
-        for month_days in days_in_months:
-            end_idx = start_idx + month_days
-            month_data = year_data[start_idx:end_idx]
+        # Loop over each month
+        for month in range(1, 13):  # 1 to 12 for each month
+            # Extract data for the current month
+            month_data = year_data[year_data.index.month == month]
             year_months.append(month_data)
-            start_idx = end_idx  # Move to the next month
         
-        # Save the monthly data for the current year in the dictionary
+        # Store the monthly data for the current year
         monthly_data_dict[year] = year_months
-
-    # Return the dictionary containing monthly data for each year
+    
     return monthly_data_dict
+
+def split_to_yearly(series, unique_years):
+    """Splits a pandas Series into a dictionary by year based on the datetime index."""
+    yearly_data = {}
+    for year in unique_years:
+        # Extract data for the current year using the datetime index
+        year_data = series[series.index.year == year]
+        yearly_data[year] = year_data
+    return yearly_data
 
 def format_unit(unit):
     # First, handle chemical subscripts in numerator and denominator (e.g., O2 -> O_2)
@@ -140,42 +183,14 @@ def format_unit(unit):
         unit = handle_exponents(unit)
         return f'${unit}$'
 
-def compute_density(temp_2d, sal_2d, Bmost, method):
-    """
-    Compute density (in kg/m³) at benthic depth for each grid cell and time step.
-
-    Parameters:
-    - temp_2d: ndarray (T, Y, X) - Temperature at bottom layer
-    - sal_2d: ndarray (T, Y, X) - Salinity at bottom layer
-    - Bmost: ndarray (Y, X) - Index (1-based) of deepest valid level
-    - dz: float - vertical layer resolution in meters (default is 2m)
-    - method: str - Method to calculate density ('ESO', 'EOS80', or 'TEOS10')
-
-    Returns:
-    - density_2d: ndarray (T, Y, X) - Seawater density in kg/m³
-    """
-    
-    # Convert Bmost to 0-based index and then to depth (in meters)
-    depth = (Bmost) * 2.0  # shape (Y, X)
-
-    if method == "EOS":
-        # Simplified density formula (ESO)
-        alpha = 0.0002  # Thermal expansion coefficient
-        beta = 0.0008   # Haline contraction coefficient
-        rho0 = 1025     # Reference seawater density in kg/m³
-
-        # Simplified density calculation using the ESO equation
-        density = rho0 * (1 - alpha * (temp_2d - 10) + beta * (sal_2d - 35))
-
-    elif method == 'EOS80':
-        # For EOS80, use gsw's density function (specific to EOS-80)
-        density = (gsw.density.sigma0(sal_2d, temp_2d))+1000  # Potential density at surface (sigma0)
-        
-    elif method == 'TEOS10':
-        # For TEOS10, use gsw's TEOS-10 equation of state
-        density = gsw.density.rho(sal_2d, temp_2d, depth)  # Use rho for density in TEOS10
-
+def load_dataset(year, IDIR):
+    file_path = Path(IDIR) / f"Msst_{year}.nc"
+    if file_path.exists():
+        print(f"Opening {file_path.name}...")
+        return year, xr.open_dataset(file_path)
     else:
-        raise ValueError(f"Method {method} is not supported.")
+        print(f"Warning: {file_path.name} not found!")
+        return year, None
     
-    return density
+def round_up_to_nearest(x, base=1.0):
+        return base * np.ceil(x / base)
