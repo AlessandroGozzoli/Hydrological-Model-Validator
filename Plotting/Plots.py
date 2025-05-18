@@ -38,7 +38,8 @@ from Auxilliary import (get_min_max_for_identity_line,
                         get_variable_label_unit,
                         fit_huber,
                         fit_lowess,
-                        get_season_mask)
+                        get_season_mask,
+                        gather_monthly_data_across_years)
 
 ###############################################################################
 ##                                                                           ##
@@ -255,7 +256,7 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         })
 
         plt.figure(figsize=(10, 8), dpi=300)
-        ax = sns.scatterplot(x='Model', y='Satellite', data=df, color=color, alpha=0.7, label=f'{variable_name} {season_name}', s=50)
+        ax = sns.scatterplot(x='Model', y='Satellite', data=df, color=color, alpha=0.7, label=f'{variable} {season_name}', s=50)
 
         # Regression fits using helper functions
         x_vals, y_vals = fit_huber(mod_season, sat_season)
@@ -267,7 +268,7 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         min_val, max_val = get_min_max_for_identity_line(mod_season, sat_season)
         ax.plot([min_val, max_val], [min_val, max_val], 'b--', linewidth=2, label='Ideal Fit')
 
-        title = f'{variable_name} Scatter Plot (Model vs Satellite) - {season_name}'
+        title = f'{variable} Scatter Plot (Model vs Satellite) - {season_name}'
         if BA:
             title += ' (Basin Average)'
         ax.set_title(title, fontsize=20, fontweight='bold')
@@ -347,167 +348,128 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
         plt.pause(2)
         plt.close()
         
-def plot_monthly_comparison_boxplot(output_path, data_dict, variable_name='Variable', unit=''):
+def plot_monthly_comparison_boxplot(output_path, data_dict, variable_name):
     """
     Plots a monthly boxplot comparison for two data sources (e.g., model vs satellite),
     automatically identifying the sources based on key names.
 
     Parameters:
+        output_path (str or Path): Directory to save the plot.
         data_dict (dict): Dictionary with two sub-dictionaries, each containing:
                           {year: [month_1_array, ..., month_12_array]}
         variable_name (str): Name of the variable to plot (e.g., 'SST')
         unit (str): Unit of the variable (e.g., '°C', 'mg/m³')
     """
-    
-    # --- Dynamic key detection based on naming conventions ---
-    model_keys = [key for key in data_dict if 'mod' in key.lower()]
-    sat_keys = [key for key in data_dict if 'sat' in key.lower()]
 
-    if len(model_keys) != 1 or len(sat_keys) != 1:
-        raise ValueError("Could not uniquely identify model and satellite keys based on 'mod' and 'sat' keywords.")
+    # --- Identify model and satellite keys ---
+    model_key, sat_key = extract_mod_sat_keys(data_dict)
 
-    model_key = model_keys[0]
-    sat_key = sat_keys[0]
+    # --- Get readable label and unit ---
+    var_label, var_unit = get_variable_label_unit(variable_name)
 
-    # --- Setup for plotting ---
+    # --- Month names ---
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
-    # Prepare data for seaborn
+
+    # --- Prepare data for seaborn boxplot ---
     plot_data = []
-
     for month_idx in range(12):
-        # --- Model data ---
-        model_values = []
-        for year in data_dict[model_key]:
-            array = np.asarray(data_dict[model_key][year][month_idx])
-            model_values.append(array.flatten())
-        model_all = np.concatenate(model_values)
-        model_all = model_all[~np.isnan(model_all)]
-        
-        plot_data.extend([(model_val, f'{month_names[month_idx]} Model') for model_val in model_all])
+        # Model
+        model_all = gather_monthly_data_across_years(data_dict, model_key, month_idx)
+        plot_data.extend([(val, f'{month_names[month_idx]} Model') for val in model_all])
 
-        # --- Satellite data ---
-        sat_values = []
-        for year in data_dict[sat_key]:
-            array = np.asarray(data_dict[sat_key][year][month_idx])
-            sat_values.append(array.flatten())
-        sat_all = np.concatenate(sat_values)
-        sat_all = sat_all[~np.isnan(sat_all)]
-        
-        plot_data.extend([(sat_val, f'{month_names[month_idx]} Satellite') for sat_val in sat_all])
+        # Satellite
+        sat_all = gather_monthly_data_across_years(data_dict, sat_key, month_idx)
+        plot_data.extend([(val, f'{month_names[month_idx]} Satellite') for val in sat_all])
 
-    # Convert to DataFrame for Seaborn
+    # --- Convert to DataFrame for seaborn ---
     plot_df = pd.DataFrame(plot_data, columns=['Value', 'Label'])
 
     # --- Plotting ---
     plt.figure(figsize=(16, 6), dpi=300)
-    ax = sns.boxplot(x='Label', y='Value', data=plot_df, palette=['#5976A2', '#BF636B'] * 12, showfliers=True)
-    
-    # Styling
-    ax.set_title(f'Monthly {variable_name} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
-    ylabel = f'{variable_name} ({unit})' if unit else variable_name
+    ax = sns.boxplot(
+        x='Label', y='Value', data=plot_df,
+        palette=['#5976A2', '#BF636B'] * 12, showfliers=True
+    )
+
+    # --- Styling ---
+    ax.set_title(f'Monthly {var_label} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
+    ylabel = f'{var_label} {var_unit}'
     ax.set_ylabel(ylabel)
     ax.set_xlabel('')
     ax.grid(True, linestyle='--', alpha=0.5)
     plt.xticks(rotation=45)
     ax.tick_params(width=2)
-    
+
     for spine in ax.spines.values():
         spine.set_linewidth(2)
         spine.set_edgecolor('black')
-    
+
     plt.tight_layout()
 
-    # Save and show the plot
+    # --- Save and show plot ---
     output_path = Path(output_path)
-    filename = f'{variable_name}_boxplot.png'
+    filename = f'{var_label}_boxplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
     plt.show(block=False)
-    plt.draw()  # <-- Force rendering
+    plt.draw()
     plt.pause(3)
     plt.close()
     
-def plot_monthly_comparison_violinplot(output_path, data_dict, variable_name='Variable', unit=''):
+def plot_monthly_comparison_violinplot(output_path, data_dict, variable_name):
     """
-    Plots a monthly boxplot comparison for two data sources (e.g., model vs satellite),
+    Plots a monthly violin plot comparison for two data sources (e.g., model vs satellite),
     automatically identifying the sources based on key names.
-
-    Parameters:
-        data_dict (dict): Dictionary with two sub-dictionaries, each containing:
-                          {year: [month_1_array, ..., month_12_array]}
-        variable_name (str): Name of the variable to plot (e.g., 'SST')
-        unit (str): Unit of the variable (e.g., '°C', 'mg/m³')
     """
+    # --- Identify keys ---
+    model_key, sat_key = extract_mod_sat_keys(data_dict)
     
-    # --- Dynamic key detection based on naming conventions ---
-    model_keys = [key for key in data_dict if 'mod' in key.lower()]
-    sat_keys = [key for key in data_dict if 'sat' in key.lower()]
+    # --- Get readable label and unit ---
+    var_label, var_unit = get_variable_label_unit(variable_name)
 
-    if len(model_keys) != 1 or len(sat_keys) != 1:
-        raise ValueError("Could not uniquely identify model and satellite keys based on 'mod' and 'sat' keywords.")
-
-    model_key = model_keys[0]
-    sat_key = sat_keys[0]
-
-    # --- Setup for plotting ---
+    # --- Setup ---
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
-    # Prepare data for seaborn
     plot_data = []
 
     for month_idx in range(12):
-        # --- Model data ---
-        model_values = []
-        for year in data_dict[model_key]:
-            array = np.asarray(data_dict[model_key][year][month_idx])
-            model_values.append(array.flatten())
-        model_all = np.concatenate(model_values)
-        model_all = model_all[~np.isnan(model_all)]
-        
-        plot_data.extend([(model_val, f'{month_names[month_idx]} Model') for model_val in model_all])
+        # Model data
+        model_all = gather_monthly_data_across_years(data_dict, model_key, month_idx)
+        plot_data.extend([(val, f'{month_names[month_idx]} Model') for val in model_all])
 
-        # --- Satellite data ---
-        sat_values = []
-        for year in data_dict[sat_key]:
-            array = np.asarray(data_dict[sat_key][year][month_idx])
-            sat_values.append(array.flatten())
-        sat_all = np.concatenate(sat_values)
-        sat_all = sat_all[~np.isnan(sat_all)]
-        
-        plot_data.extend([(sat_val, f'{month_names[month_idx]} Satellite') for sat_val in sat_all])
+        # Satellite data
+        sat_all = gather_monthly_data_across_years(data_dict, sat_key, month_idx)
+        plot_data.extend([(val, f'{month_names[month_idx]} Satellite') for val in sat_all])
 
-    # Convert to DataFrame for Seaborn
+    # --- DataFrame for seaborn ---
     plot_df = pd.DataFrame(plot_data, columns=['Value', 'Label'])
 
-    # --- Plotting ---
+    # --- Plot ---
     plt.figure(figsize=(16, 6), dpi=300)
-    ax = sns.violinplot(x='Label', y='Value', data=plot_df, palette=['#5976A2', '#BF636B'] * 12, showfliers=True)
-    
+    ax = sns.violinplot(x='Label', y='Value', data=plot_df,
+                        palette=['#5976A2', '#BF636B'] * 12, cut=0)
+
     # Styling
-    ax.set_title(f'Monthly {variable_name} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
-    ylabel = f'{variable_name} ({unit})' if unit else variable_name
+    ax.set_title(f'Monthly {var_label} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
+    ylabel = f'{var_label} {var_unit}'
     ax.set_ylabel(ylabel)
     ax.set_xlabel('')
     ax.grid(True, linestyle='--', alpha=0.5)
     plt.xticks(rotation=45)
     ax.tick_params(width=2)
-    
     for spine in ax.spines.values():
         spine.set_linewidth(2)
         spine.set_edgecolor('black')
-    
     plt.tight_layout()
 
-    # Save and show the plot
+    # Save and show
     output_path = Path(output_path)
-    filename = f'{variable_name}_violinplot.png'
+    filename = f'{var_label}_violinplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
     plt.show(block=False)
-    plt.draw()  # <-- Force rendering
+    plt.draw()
     plt.pause(3)
     plt.close()
     
