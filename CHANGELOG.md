@@ -1,3 +1,72 @@
+# **Version:** 3.0  
+**Date:** 18/05/2025  
+
+## Summary
+
+This version introduces a major rework and optimization of the plotting functions used for model validation and comparison. It focuses on improving clarity, maintainability, and performance in both visual output and computational workflow.
+
+---
+
+## New Taylor Diagrams and Target Plots
+
+- **Normalization**: All monthly validation parameters are now normalized by their respective standard deviations, allowing for the unified display of all markers in a single diagram.
+- **Marker Logic Update**: Marker representations have been reworked based on a consistent logic [insert table when available].
+- **Enhanced Visualization**:
+  - **Taylor Diagrams**: Now include RMSD arcs and repositioned RMSD labels outside the plot area to avoid marker overlap.
+  - **Target Plots**: Include color-coded performance zones to quickly assess model accuracy and bias.
+
+---
+
+## Violin Plots
+
+- Introduced **violin plots** as an alternative to **whisker-box plots**.
+- Violin plots offer a smoother visual of data distribution but are less informative regarding outliers.
+- This plot type is included for completeness and comparative analysis.
+
+---
+
+## Seaborn Integration
+
+- Most plotting functions now utilize the [**Seaborn**](https://seaborn.pydata.org/) library.
+- Advantages include:
+  - Better integration with `pandas` DataFrames.
+  - More expressive and customizable visualizations.
+  - Improved consistency across plots.
+
+---
+
+## Separation of Computations
+
+A significant refactor has begun to modularize core functionality:
+
+- Extracted key routines from plotting scripts into a new **Auxiliary script**:
+  - **Label formatting** (e.g., variable names, units).
+  - **Key identification** from datasets.
+  - **Seasonal masks** and data groupings.
+  - **Statistical calculations** required for Taylor and Target diagrams.
+  - **Regression line generation** (Huber, LOWESS, etc.).
+
+This modularization paves the way for cleaner, more testable code in preparation for the final **pytest** integration.
+
+---
+
+## Future Direction
+
+- Further optimize plotting routines for speed and clarity.
+- Begin reworking data loading and interpolation functions for faster runtime.
+- Explore full Python replacement of the current MATLAB `Interpolato.m` script.
+
+---
+
+## Known Issues
+
+- **RMSD Label Placement**: Labels are currently tied to a fixed first arc value. Further investigation into the `SkillMetrics` library is ongoing to determine how arc ranges are defined and whether label placement can be dynamically bound to them.
+- **Static RMSD Arc Ticks**: Taylor diagrams use the same arc ticks across plots. While this helps with consistency in test cases, dynamic adjustment would improve generality. Removing the `tickrms` override may solve this, but could also interfere with label alignment (see above).
+- **Unexpected Target Plot Results**: Initial performance scores from Target plots appear lower than anticipated. Ongoing testing will determine if this is a bug, data artifact, or an accurate model assessment.
+- **Chlorophyll regression analysis** occasionally produces anomalous values — further investigation is underway.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 2.11  
 **Date:** 14/05/2025  
 
