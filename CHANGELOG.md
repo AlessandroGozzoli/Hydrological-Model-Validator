@@ -1,3 +1,49 @@
+# **Version:** 3.1 
+**Date:** 18/05/2025  
+
+## Summary
+
+This update introduces a rework of the **Whiskerbox** and **Violin** plot functions and adds a new utility for streamlined variable extraction.
+
+## Plot Enhancements
+
+- **Whiskerbox** and **Violin** plots have been restructured to follow the same logic and structure used in the other plotting functions.
+- These plots now support:
+  - Automatic key extraction from nested dictionaries.
+  - Dynamic title and label formatting via existing auxiliary functions.
+
+## New Helper Function: `gather_monthly_data_across_years`
+
+- A new utility function, `gather_monthly_data_across_years`, has been implemented to facilitate data extraction across multiple years.
+- Currently tailored for **box/violin plot** input, but will be tested and adapted for wider use across additional plotting and computation workflows.
+
+## Future Direction
+
+- Further optimize plotting routines for speed and clarity.
+- Begin reworking data loading and interpolation functions for faster runtime.
+- Explore full Python replacement of the current MATLAB `Interpolato.m` script.
+- Improvements of changelogs listing the new functions that are added in each update. The added function in the previous 3.x.x updates are:
+	- ver 3.0.1:
+		- In `Corollary.py`:
+			- `get_common_series_by_year` (slices dataset based on years)
+			- `get_common_series_by_year_month` (slices dataset based on years and months)
+	- ver 3.0
+		- All of `Auxiliary.py` (functions to aid for the necessary computations regarding the plotting function, contains statistics and other)
+		- All of `Target_computations-py` (computations and normalisations necessary for the correct plotting of the Target Plots)
+		- All of `Taylor_computations.py` (computations and normalisations necessary for the correct plotting of the Taylor Diagrams)
+		- All of `Density.py` (bundles necessary density computations)
+		- In `Corollary.py`:
+			- `extract_mod_sat_keys` (allows for the identification/extraction of model and satellite dictionary keys)
+
+## Known Issues
+
+- **RMSD Label Placement**: Labels are currently tied to a fixed first arc value. Further investigation into the `SkillMetrics` library is ongoing to determine how arc ranges are defined and whether label placement can be dynamically bound to them.
+- **Static RMSD Arc Ticks**: Taylor diagrams use the same arc ticks across plots. While this helps with consistency in test cases, dynamic adjustment would improve generality. Removing the `tickrms` override may solve this, but could also interfere with label alignment (see above).
+- **Unexpected Target Plot Results**: Initial performance scores from Target plots appear lower than anticipated. Ongoing testing will determine if this is a bug, data artifact, or an accurate model assessment.
+- **Chlorophyll regression analysis** occasionally produces anomalous values — further investigation is underway.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 3.0.1  
 **Date:** 18/05/2025  
 
