@@ -19,7 +19,7 @@ ProcessDIR = Path(WDIR, "Processing")
 sys.path.append(str(ProcessDIR))
 print("Attemping to access ", ProcessDIR)
 
-from Corollary import compute_density
+from Density import compute_density
 
 def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
     """Reads and processes model CHL data from netCDF files."""
