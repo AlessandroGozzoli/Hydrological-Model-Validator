@@ -20,9 +20,17 @@ def get_min_max_for_identity_line(x, y):
 
 def get_variable_label_unit(variable_name):
     if variable_name == 'SST':
-        return 'Sea Surface Temperature', '[$°C$]'
-    elif variable_name == 'CHL':
-        return 'Chlorophyll', '[$mg/m^3$]'
+        variable='Sea Surface Temperature'
+        unit='[$°C$]'
+        return variable, unit
+    elif variable_name == 'CHL_L3':
+        variable = 'Chlorophyll (Level 3)'
+        unit = '[$mg/m^3$]'
+        return variable, unit
+    elif variable_name == 'CHL_L4':
+        variable = 'Chlorophyll (Level 4)'
+        unit = '[$mg/m^3$]'
+        return variable, unit 
     return variable_name, ''
 
 def fit_huber(mod_data, sat_data):
@@ -45,19 +53,31 @@ def fit_lowess(mod_data, sat_data, frac=0.3):
     return smoothed
 
 def get_season_mask(dates, season_name):
-    """
-    Returns a boolean mask for the given dates that selects days in the specified season.
-    Seasons supported: DJF, MAM, JJA, SON.
-    """
     if season_name == 'DJF':
-        # December, January, February (cross-year)
-        return ((dates.month == 12) | (dates.month == 1) | (dates.month == 2))
-    months = {
-        'MAM': [3, 4, 5],
-        'JJA': [6, 7, 8],
-        'SON': [9, 10, 11]
-    }
-    if season_name in months:
-        return dates.month.isin(months[season_name])
+        return (dates.month == 12) | (dates.month == 1) | (dates.month == 2)
+    elif season_name == 'MAM':
+        return (dates.month >= 3) & (dates.month <= 5)
+    elif season_name == 'JJA':
+        return (dates.month >= 6) & (dates.month <= 8)
+    elif season_name == 'SON':
+        return (dates.month >= 9) & (dates.month <= 11)
     else:
-        raise ValueError(f"Invalid season name: {season_name}. Choose from DJF, MAM, JJA, SON.")
+        raise ValueError(f"Invalid season name: {season_name}")
+        
+def gather_monthly_data_across_years(data_dict, key, month_idx):
+    """
+    Gathers, flattens, concatenates, and removes NaNs from all years' data
+    for a specific key and month index.
+
+    Parameters:
+        data_dict (dict): Dictionary with {year: [12-month arrays]}
+        key (str): Dictionary key for model or satellite
+        month_idx (int): Month index (0 = January, 11 = December)
+
+    Returns:
+        np.ndarray: Cleaned, 1D array of all valid data for that month
+    """
+    values = [np.asarray(data_dict[key][year][month_idx]).flatten()
+              for year in data_dict[key]]
+    all_data = np.concatenate(values)
+    return all_data[~np.isnan(all_data)]
