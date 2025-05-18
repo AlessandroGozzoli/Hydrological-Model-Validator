@@ -5,16 +5,12 @@
 
 This is a minor update focused on expanding DataFrame usability within the SST and CHL analysis scripts and improving dataset loading performance.
 
----
-
 ## Expanded Use of Pandas DataFrames
 
 - SST and CHL analysis scripts now fully leverage **`pandas` DataFrames**, enabling:
   - Seamless integration of the `datetime` dimension.
   - More efficient time-based slicing into **monthly** and **yearly** datasets using native `pandas` methods.
 - Enhances clarity and performance for long-term and seasonal trend analysis.
-
----
 
 ## Faster Dataset Loading
 
