@@ -1,155 +1,172 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import skill_metrics as sm
-import calendar
 from pathlib import Path
+import sys
+import os
 
-from Costants import Ybeg, Tspan, DinY, ysec
+from Auxilliary import fill_annular_region
 
-def target_diagram_by_month(taylor_dict, month_index, output_path):
+WDIR = os.getcwd()
+ProcessingDIR = Path(WDIR, "Processing/")
+sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
+from Target_computations import (compute_normalised_target_stats, 
+                                 compute_normalised_target_stats_by_month,
+                                 compute_target_extent_monthly,
+                                 compute_target_extent_yearly)
+
+def comprehensive_target_diagram(data_dict, output_path, variable_name):
     """
-    Generate and plot a Target diagram for the model and reference data in the provided taylor_dict,
-    using only the data for the specified month (0 = January, 1 = February, ..., 11 = December) from all years.
+    Generate and save a normalised Target diagram using preprocessed statistics.
 
     Parameters:
-    taylor_dict (dict): Dictionary containing monthly model and satellite data for each year.
-    month_index (int): The month to use for the target diagram (0 = January, 1 = February, ..., 11 = December).
+        taylor_dict (dict): Dictionary with model and satellite time series per year.
+        output_path (str or Path): Directory to save the output plot.
     """
-    # Validate the month input
-    if month_index < 0 or month_index > 11:
-        raise ValueError("Month must be between 0 and 11.")
 
-    # Get the month name from the month index
-    month_name = calendar.month_name[month_index + 1]  # +1 because months are 1-indexed in `calendar`
-
-    # Close any previously open graphics windows
     plt.close('all')
 
-    # Prepare the lists to hold statistics for the target diagram
-    bias = []
-    crmsd = []
-    rmsd = []
-    label = []
+    # Compute normalised statistics
+    bias, crmsd, rmsd, labels = compute_normalised_target_stats(data_dict)
     
-    # Dynamically extract the model and satellite keys from the taylor_dict
-    model_key = [key for key in taylor_dict.keys() if 'mod' in key.lower()]
-    sat_key = [key for key in taylor_dict.keys() if 'sat' in key.lower()]
+    marker_shapes = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
+    
+    extent = compute_target_extent_yearly(data_dict)
+    
+    # Create the figure and axes
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+    
+    # Fill the three performance zones
+    fill_annular_region(ax, 0.0, 0.5, color='lightgreen', alpha=0.4)   # Excellent zone
+    fill_annular_region(ax, 0.5, 0.7, color='khaki', alpha=0.4)        # Good zone
+    fill_annular_region(ax, 0.7, extent, color='lightcoral', alpha=0.3)   # Acceptable zone
 
-    # Loop through the years corresponding to Ybeg to Yend (e.g., 2000 to 2009)
-    for year in range(Tspan):  # Looping through years Ybeg to Yend
-        # Get the model data for the current year and the ith month
-        model_data = taylor_dict[model_key[0]][year + Ybeg][month_index]
+    # Set axes below other plot elements
+    ax.set_axisbelow(True)
+    
+    # Plot the base target diagram with transparent markers and specific circle lines
+    sm.target_diagram(1.0, extent, extent,
+                markerLabelColor=(0.0, 0.0, 0.0),
+                  alpha=0.0,
+                  markersize=0,
+                  circlelinespec='-.r')
 
-        # Get the corresponding satellite data for the ith month
-        ref_data = taylor_dict[sat_key[0]][year + Ybeg][month_index]
+    # Overlay additional circles if needed
+    sm.target_diagram(1.0, extent, extent,
+                  markerLabelColor=(0.0, 0.0, 0.0),
+                  alpha=0.0,
+                  markersize=0,
+                  circlelinespec=':b',
+                  circles=[0.5])
 
-        valid_indices = ~np.isnan(model_data) & ~np.isnan(ref_data)
-        
-        filtered_model_data = model_data[valid_indices]
-        filtered_ref_data = ref_data[valid_indices]
+    # Plot your data points with markers
+    for i, (b, c, r, label) in enumerate(zip(bias, crmsd, rmsd, labels)):
+        sm.target_diagram(b, c, r,
+                      markerLabelColor='r',
+                      markersymbol=marker_shapes[i % len(marker_shapes)],
+                      markersize=10,
+                      alpha=0.8,
+                      circles=[0.0],
+                      overlay='on')
 
-        # Compute the target statistics for each year
-        target_stats = sm.target_statistics(filtered_model_data, filtered_ref_data, 'data')
+    plt.title(f"Normalised Target Plot (Yearly Performance) | {variable_name}", pad=40, fontweight='bold')
+    
+    # Display the plot
+    plt.show()
 
-        # Extract the statistics and append them to the lists
-        bias.append(target_stats['bias'])  # Model bias
-        crmsd.append(target_stats['crmsd'])  # Model CRMSD
-        rmsd.append(target_stats['rmsd'])  # Model RMSD
-        label.append(str(Ybeg + year))  # Append the year label
-        
-    print(f"The Target plot for {month_name} has been plotted!")
-
-    # Convert lists to numpy arrays for easier manipulation
-    bias = np.array(bias)
-    crmsd = np.array(crmsd)
-    rmsd = np.array(rmsd)
-
-    # Produce the target diagram
-    sm.target_diagram(bias, crmsd, rmsd, markerLabel=label, markerLabelColor='r')
-
-    # Add title with the month name
-    plt.title(f"Target Plot for {month_name}", pad = 50)
-
-    # Optionally, save or show the plot
+    # Save
     output_path = Path(output_path)
-    filename = f'Target_plot_{month_name}.png'
-    save_path = output_path / filename
-    plt.savefig(save_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = "Target_plot_summary_norm.png"
+
+    plt.tight_layout()
+    plt.savefig(output_path / filename, dpi=300)
     plt.show(block=False)
-    plt.draw()  # <-- Force rendering
+    plt.close()
+
+def target_diagram_by_month(data_dict, output_path, variable_name):
+
+    MARKERS = ["o", "s", "D", "^", "v", "P", "*", "X", "h", "p", "<", ">"]
+    MONTH_COLORS = [
+        "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd",
+        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22",
+        "#17becf", "#393b79", "#637939", "#8c6d31"
+    ]
+
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    extent = compute_target_extent_monthly(data_dict)
+
+    plt.figure(figsize=(12, 10))
+    plt.title(f"Monthly Target Diagram (Normalized Stats) | {variable_name}", fontsize=18, pad=55, fontweight='bold')
+
+    sm.target_diagram(
+        np.array([1.0]),
+        np.array([extent]),
+        np.array([1.0]),
+        markerLabelColor='none',
+        markersize=0,
+        alpha=0.0,
+        circles = [0.5],
+        circlelinespec='b:'
+    )
+    sm.target_diagram(
+        np.array([1.0]),
+        np.array([extent]),
+        np.array([1.0]),
+        markerLabelColor='none',
+        markersize=0,
+        alpha=0.0,
+        circles=[0.7, 1.0] + list(np.arange(2.0, extent + 1e-6, 1.0)),
+        circlelinespec='r-.'
+        )
+
+    theta = np.linspace(0, 2 * np.pi, 300)
+    for r_start, r_end, color in [(0, 0.5, 'lightgreen'), (0.5, 0.7, 'khaki'), (0.7, extent, 'lightcoral')]:
+        x_outer = r_end * np.cos(theta)
+        y_outer = r_end * np.sin(theta)
+        x_inner = r_start * np.cos(theta)
+        y_inner = r_start * np.sin(theta)
+        plt.fill(np.concatenate([x_outer, x_inner[::-1]]),
+                 np.concatenate([y_outer, y_inner[::-1]]),
+                 color=color, alpha=0.4, zorder=0)
+
+    for month_index in range(12):
+        try:
+            bias, crmsd, rmsd, labels = compute_normalised_target_stats_by_month(data_dict, month_index)
+        except ValueError:
+            continue
+
+        marker = MARKERS[month_index % len(MARKERS)]
+        color = MONTH_COLORS[month_index % len(MONTH_COLORS)]
+
+        for b, c, r, label in zip(bias, crmsd, rmsd, labels):
+            sm.target_diagram(
+                np.array([b]), np.array([c]), np.array([r]),
+                markercolors={"face": color, "edge": "k"},
+                markersymbol=marker,
+                markersize=10,
+                alpha=0.8,
+                overlay='on',
+                circles=[0.0]
+            )
+    
+    ax = plt.gca()
+
+    # Change tick label font size
+    ax.tick_params(axis='both', labelsize=14)
+
+    # Change axis label font size (if axis labels exist)
+    ax.xaxis.label.set_size(16)
+    ax.yaxis.label.set_size(16)
+
+    save_path = output_path / "Unified_Target_Diagram.png"
+    plt.savefig(save_path, dpi=300)
+    plt.show(block=False)
+    plt.draw()
     plt.pause(3)
     plt.close()
 
-def comprehensive_target_diagram(taylor_dict, output_path):
-    """
-    Generate and plot a Target diagram for the model and reference data in the provided taylor_dict.
-
-    Parameters:
-    taylor_dict (dict): Dictionary with model and reference data for each year.
-    """
-    # Close any previously open graphics windows
-    plt.close('all')
-
-    # Prepare the lists to hold statistics for the target diagram
-    bias = []
-    crmsd = []
-    rmsd = []
-    label = []
-
-    # Dynamically extract the model and satellite keys from the taylor_dict
-    model_key = [key for key in taylor_dict.keys() if 'mod' in key.lower()]
-    sat_key = [key for key in taylor_dict.keys() if 'sat' in key.lower()]
-
-    # Check if we found exactly one model and one satellite key
-    if len(model_key) != 1 or len(sat_key) != 1:
-        raise ValueError("The input dictionary must contain one key with 'mod' (model) and one key with 'sat' (satellite) data.")
-
-    # Loop through the years corresponding to Ybeg to Yend (e.g., 2000 to 2009)
-    for year in range(Tspan):  # Looping through years Ybeg to Yend
-        # Get the model data for the current year from the dynamically extracted model_key
-        model_data = taylor_dict[model_key[0]][year]
-
-        # Get the corresponding satellite data from the dynamically extracted sat_key
-        ref_data = taylor_dict[sat_key[0]][year]  # Access satellite data for the correct year
-
-        # Dynamically compute the leap years based on the starting and ending year
-        leap_years = [year for year in ysec if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0))]
-
-        # If the year is not a leap year, remove the extra day (366th day)
-        if Ybeg + year not in leap_years:
-            model_data = model_data[:DinY]  # Remove the last day of model data
-            ref_data = ref_data[:DinY]  # Remove the last day of reference (satellite) data
-
-        valid_indices = ~np.isnan(model_data) & ~np.isnan(ref_data)
-        
-        filtered_model_data = model_data[valid_indices]
-        filtered_ref_data = ref_data[valid_indices]
-
-        # Compute the target statistics for each year
-        target_stats = sm.target_statistics(filtered_model_data, filtered_ref_data, 'data')
-
-        # Extract the statistics and append them to the lists
-        bias.append(target_stats['bias'])  # Model bias
-        crmsd.append(target_stats['crmsd'])  # Model CRMSD
-        rmsd.append(target_stats['rmsd'])  # Model RMSD
-        label.append(str(Ybeg + year))  # Append the year label
-
-    # Convert lists to numpy arrays for easier manipulation
-    bias = np.array(bias)
-    crmsd = np.array(crmsd)
-    rmsd = np.array(rmsd)
-
-    # Produce the target diagram
-    sm.target_diagram(bias, crmsd, rmsd, markerLabel=label, markerLabelColor='r')
-
-    plt.title("Comprehensive Target Plot (Yearly performance)", pad = 40)
-
-    # Optionally, save or show the plot
-    output_path = Path(output_path)
-    filename = 'Target_plot_summary.png'
-    save_path = output_path / filename
-    plt.savefig(save_path)
-    plt.show(block=False)
-    plt.draw()  # <-- Force rendering
-    plt.pause(3)
-    plt.close()
+    print("\033[92m✅ Unified Target Diagram has been plotted!\033[0m")
+    print("*" * 45)
