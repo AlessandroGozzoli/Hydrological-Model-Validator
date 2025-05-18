@@ -8,13 +8,18 @@ import os
 WDIR = os.getcwd()
 ProcessingDIR = Path(WDIR, "Processing/")
 sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
-from Taylor_computations import compute_yearly_taylor_stats, build_all_points
+from Taylor_computations import (compute_yearly_taylor_stats, 
+                                 build_all_points)
+
+from Auxilliary import get_variable_label_unit
 
 def comprehensive_taylor_diagram(data_dict, output_path, variable_name):
     """
     Generate and plot a Taylor diagram for model vs reference data in the provided taylor_dict.
     """
     stats_by_year, std_ref = compute_yearly_taylor_stats(data_dict)
+    
+    variable, unit = get_variable_label_unit(variable_name)
 
     # Add reference point
     labels = ["Ref"] + [entry[0] for entry in stats_by_year]
@@ -28,7 +33,7 @@ def comprehensive_taylor_diagram(data_dict, output_path, variable_name):
     marker_shapes = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
 
     plt.figure(figsize=(8, 6), dpi=300)
-    plt.title(f"Taylor Diagram (Yearly Performance) | {variable_name}", pad=45, fontsize=18, fontweight='bold')
+    plt.title(f"Taylor Diagram (Yearly Performance) | {variable}", pad=45, fontsize=18, fontweight='bold')
 
     # Base diagram
     sm.taylor_diagram(
@@ -115,12 +120,14 @@ def monthly_taylor_diagram(data_dict, output_path, variable_name):
         "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22",
         "#17becf", "#393b79", "#637939", "#8c6d31"
     ]
+    
+    variable, unit = get_variable_label_unit(variable_name)
 
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
     plt.figure(figsize=(12, 10))
-    plt.title(f"Monthly Taylor Diagram (Normalized Stats) | {variable_name}", pad=65, fontsize=18, fontweight='bold')
+    plt.title(f"Monthly Taylor Diagram (Normalized Stats) | {variable}", pad=65, fontsize=18, fontweight='bold')
 
     # Draw full layout without markers
     sm.taylor_diagram(
