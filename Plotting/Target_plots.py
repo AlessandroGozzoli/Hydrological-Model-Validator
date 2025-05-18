@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import os
 
-from Auxilliary import fill_annular_region
+from Auxilliary import fill_annular_region, get_variable_label_unit
 
 WDIR = os.getcwd()
 ProcessingDIR = Path(WDIR, "Processing/")
@@ -25,6 +25,8 @@ def comprehensive_target_diagram(data_dict, output_path, variable_name):
     """
 
     plt.close('all')
+    
+    variable, unit = get_variable_label_unit(variable_name)
 
     # Compute normalised statistics
     bias, crmsd, rmsd, labels = compute_normalised_target_stats(data_dict)
@@ -69,7 +71,7 @@ def comprehensive_target_diagram(data_dict, output_path, variable_name):
                       circles=[0.0],
                       overlay='on')
 
-    plt.title(f"Normalised Target Plot (Yearly Performance) | {variable_name}", pad=40, fontweight='bold')
+    plt.title(f"Normalised Target Plot (Yearly Performance) | {variable}", pad=40, fontweight='bold')
     
     # Display the plot
     plt.show()
@@ -92,6 +94,8 @@ def target_diagram_by_month(data_dict, output_path, variable_name):
         "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22",
         "#17becf", "#393b79", "#637939", "#8c6d31"
     ]
+    
+    variable, unit = get_variable_label_unit(variable_name)
 
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -99,7 +103,7 @@ def target_diagram_by_month(data_dict, output_path, variable_name):
     extent = compute_target_extent_monthly(data_dict)
 
     plt.figure(figsize=(12, 10))
-    plt.title(f"Monthly Target Diagram (Normalized Stats) | {variable_name}", fontsize=18, pad=55, fontweight='bold')
+    plt.title(f"Monthly Target Diagram (Normalized Stats) | {variable}", fontsize=18, pad=55, fontweight='bold')
 
     sm.target_diagram(
         np.array([1.0]),
