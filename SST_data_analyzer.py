@@ -260,13 +260,13 @@ print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 # ----- WHISKERBOX PLOTS -----
 
 print("Plotting the whisker-box plots...")
-plot_monthly_comparison_boxplot(output_path, BASST_monthly, variable_name='Sea Surface Temperature', unit='°C')
+plot_monthly_comparison_boxplot(output_path, BASST_monthly, variable_name='SST')
 print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 # ----- VIOLIN PLOTS -----
 
 print("Plotting the violinplots...")
-plot_monthly_comparison_violinplot(output_path, BASST_monthly, variable_name='Sea Surface Temperature', unit='°C')
+plot_monthly_comparison_violinplot(output_path, BASST_monthly, variable_name='SST')
 print("\033[92m✅ Violinplots plotted succesfully!\033[0m")
 
 ###############################################################################
@@ -285,12 +285,12 @@ output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TAYLOR", "SST", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 print("Plotting the SST Taylor diagram for yearly data...")
-comprehensive_taylor_diagram(BASST_yearly, output_path, variable_name='Sea Surface Temperature')
+comprehensive_taylor_diagram(BASST_yearly, output_path, variable_name='SST')
 print("\033[92m✅ Yearly data Taylor diagram has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data diagrams...")
-monthly_taylor_diagram(BASST_monthly, output_path, variable_name='Sea Surface Temperature')
+monthly_taylor_diagram(BASST_monthly, output_path, variable_name='SST')
 print("\033[92m✅ Monthly Taylor diagrams have been plotted!\033[0m")
 print("-"*45)
 
@@ -313,12 +313,12 @@ output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TARGET", "SST", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 print("Plotting the Target plot for the yearly data...")
-comprehensive_target_diagram(BASST_yearly, output_path, variable_name='Sea Surface Temperature')
+comprehensive_target_diagram(BASST_yearly, output_path, variable_name='SST')
 print("\033[92m✅ Yearly data Target plot has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data plots...")
-target_diagram_by_month(BASST_monthly, output_path, variable_name='Sea Surface Temperature')
+target_diagram_by_month(BASST_monthly, output_path, variable_name='SST')
 print("\033[92m✅ All of the Target plots has been plotted!\033[0m")
 print("*"*45)
 
@@ -354,18 +354,18 @@ for name, func, monthly_func in metric_functions:
     print(f"\033[93mComputing {name}...\033[0m")
 
     if name in ['ln NSE', 'E_rel', 'd_rel']:
-        mask = ~np.isnan(BASST['BAsat']) & ~np.isnan(BASST['BAmod'])
+        mask = ~np.isnan(BASST['BASSTsat']) & ~np.isnan(BASST['BASSTmod'])
 
         if name == 'ln NSE':
-            mask &= (BASST['BAsat'] > 0) & (BASST['BAmod'] > 0)
+            mask &= (BASST['BASSTsat'] > 0) & (BASST['BASSTmod'] > 0)
         if name in ['E_rel', 'd_rel']:
-            mask &= BASST['BAsat'] != 0
+            mask &= BASST['BASSTsat'] != 0
 
-        x = BASST['BAsat'][mask]
-        y = BASST['BAmod'][mask]
+        x = BASST['BASSTsat'][mask]
+        y = BASST['BASSTmod'][mask]
     else:
-        x = BASST['BAsat']
-        y = BASST['BAmod']
+        x = BASST['BASSTsat']
+        y = BASST['BASSTmod']
 
     total_val = func(x, y)
     monthly_vals = monthly_func(BASST_monthly)
