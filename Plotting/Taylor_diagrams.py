@@ -32,8 +32,8 @@ def comprehensive_taylor_diagram(data_dict, output_path, variable_name):
 
     marker_shapes = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
 
-    plt.figure(figsize=(8, 6), dpi=300)
-    plt.title(f"Taylor Diagram (Yearly Performance) | {variable}", pad=45, fontsize=18, fontweight='bold')
+    plt.figure(figsize=(7, 7), dpi=300)
+    plt.title(f"Taylor Diagram (Yearly Performance) | {variable}", pad=45, fontsize=16, fontweight='bold')
 
     # Base diagram
     sm.taylor_diagram(
@@ -126,7 +126,7 @@ def monthly_taylor_diagram(data_dict, output_path, variable_name):
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    plt.figure(figsize=(12, 10))
+    plt.figure(figsize=(12, 10), dpi=300)
     plt.title(f"Monthly Taylor Diagram (Normalized Stats) | {variable}", pad=65, fontsize=18, fontweight='bold')
 
     # Draw full layout without markers
