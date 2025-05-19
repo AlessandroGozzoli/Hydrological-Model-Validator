@@ -1,3 +1,20 @@
+# **Version:** 3.1.1
+**Date:** 19/05/2025 
+
+## Summary
+
+Small patch for both analyser scripts regarding typos and a patch for both `Target_plot.py` and `Taylor_diagrams.py` functions' scripts regarding a couple of bugs.
+
+## `Taylor_diagrams.py`
+
+Fixed a visualization issue for the `Taylor_diagrams.py` scripts for which the title would not be properly displayed in the saved image, the extension of the plot is extended to accommodate more space for the text.
+
+## `Target_plots.py`
+
+Fixed a bug due to which the yearly Target plot would be saved as a white image with nothing inside
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 3.1 
 **Date:** 18/05/2025  
 
