@@ -333,7 +333,7 @@ print("-" * 45)
 
 # Initialize the DataFrame
 months = list(calendar.month_name)[1:]  # ['January', ..., 'December']
-metrics = ['$r^2$', '$wr^2$', 'NSE', 'd', 'ln NSE', '$E_1$', '$d_1$', '$E_rel$', '$d_rel$']
+metrics = ['r²', 'wr²', 'NSE', 'd', 'ln NSE', 'E_1', 'd_1', 'E_{rel}', 'd_{rel}']
 efficiency_df = pd.DataFrame(index=metrics, columns=['Total'] + months)
 
 # List of metric functions and display names
@@ -345,8 +345,8 @@ metric_functions = [
     ('ln NSE', ln_nse, monthly_ln_nse),
     ('E_1', lambda x, y: nse_j(x, y, j=1), lambda m: monthly_nse_j(m, j=1)),
     ('d_1', lambda x, y: index_of_agreement_j(x, y, j=1), lambda m: monthly_index_of_agreement_j(m, j=1)),
-    ('E_rel', relative_nse, monthly_relative_nse),
-    ('d_rel', relative_index_of_agreement, monthly_relative_index_of_agreement),
+    ('E_{rel}', relative_nse, monthly_relative_nse),
+    ('d_{rel}', relative_index_of_agreement, monthly_relative_index_of_agreement),
 ]
 
 # Handle log-transformed and relative metrics (which need filtering)
@@ -406,8 +406,8 @@ plot_titles = {
     'ln NSE': 'Nash-Sutcliffe Efficiency (Logarithmic)',
     'E_1': 'Modified NSE ($E_1$, j=1)',
     'd_1': 'Modified Index of Agreement ($d_1$, j=1)',
-    'E_rel': r'Relative NSE ($E_{rel}$)',
-    'd_rel': r'Relative Index of Agreement ($d_{rel}$)',
+    'E_{rel}': r'Relative NSE ($E_{rel}$)',
+    'd_{rel}': r'Relative Index of Agreement ($d_{rel}$)',
 }
 
 # Plotting all metrics in a loop

@@ -330,7 +330,7 @@ print("-" * 45)
 
 # Initialize
 months = list(calendar.month_name)[1:]  # ['January', ..., 'December']
-metrics = ['$r^2$', '$wr^2$', 'NSE', 'd', 'ln NSE', '$E_1$', '$d_1$', '$E_rel$', '$d_rel$']
+metrics = ['r²', 'wr²', 'NSE', 'd', 'ln NSE', 'E_1', 'd_1', 'E_{rel}', 'd_{rel}']
 efficiency_df_L3 = pd.DataFrame(index=metrics, columns=['Total'] + months)
 
 # List of metric functions and names
@@ -342,8 +342,8 @@ metric_functions = [
     ('ln NSE', ln_nse, monthly_ln_nse),
     ('E_1', lambda x, y: nse_j(x, y, j=1), lambda m: monthly_nse_j(m, j=1)),
     ('d_1', lambda x, y: index_of_agreement_j(x, y, j=1), lambda m: monthly_index_of_agreement_j(m, j=1)),
-    ('E_rel', relative_nse, monthly_relative_nse),
-    ('d_rel', relative_index_of_agreement, monthly_relative_index_of_agreement),
+    ('E_{rel}', relative_nse, monthly_relative_nse),
+    ('d_{rel}', relative_index_of_agreement, monthly_relative_index_of_agreement),
 ]
 
 # Metric computation loop
@@ -401,8 +401,8 @@ plot_titles = {
     'ln NSE': 'Nash-Sutcliffe Efficiency (Logarithmic)',
     'E_1': 'Modified NSE ($E_1$, j=1)',
     'd_1': 'Modified Index of Agreement ($d_1$, j=1)',
-    'E_rel': r'Relative NSE ($E_{rel}$)',
-    'd_rel': r'Relative Index of Agreement ($d_{rel}$)',
+    'E_{rel}': r'Relative NSE ($E_{rel}$)',
+    'd_{rel}': r'Relative Index of Agreement ($d_{rel}$)',
 }
 
 # Plotting all metrics in a loop using efficiency_df
@@ -416,7 +416,7 @@ for metric_key, title in plot_titles.items():
     clean_title = re.sub(r'\s*\([^)]*\)', '', title)
     print(f"\033[92m✅ {clean_title} plotted!\033[0m")
 
-print("\033[92m✅ All efficiency metrics plots have been successfully created!\033[0m", output_path)
+print("\033[92m✅ All efficiency metrics plots have been successfully created!\033[0m")
 print("*" * 45)
 
 
@@ -584,7 +584,7 @@ print("-" * 45)
 
 # Initialize
 months = list(calendar.month_name)[1:]  # ['January', ..., 'December']
-metrics = ['$r^2$', '$wr^2$', 'NSE', 'd', 'ln NSE', '$E_1$', '$d_1$', '$E_rel$', '$d_rel$']
+metrics = ['r²', 'wr²', 'NSE', 'd', 'ln NSE', 'E_1', 'd_1', 'E_{rel}', 'd_{rel}']
 efficiency_df_L4 = pd.DataFrame(index=metrics, columns=['Total'] + months)
 
 # List of metric functions and names
@@ -596,8 +596,8 @@ metric_functions = [
     ('ln NSE', ln_nse, monthly_ln_nse),
     ('E_1', lambda x, y: nse_j(x, y, j=1), lambda m: monthly_nse_j(m, j=1)),
     ('d_1', lambda x, y: index_of_agreement_j(x, y, j=1), lambda m: monthly_index_of_agreement_j(m, j=1)),
-    ('E_rel', relative_nse, monthly_relative_nse),
-    ('d_rel', relative_index_of_agreement, monthly_relative_index_of_agreement),
+    ('E_{rel}', relative_nse, monthly_relative_nse),
+    ('d_{rel}', relative_index_of_agreement, monthly_relative_index_of_agreement),
 ]
 
 # Metric computation loop
@@ -655,8 +655,8 @@ plot_titles = {
     'ln NSE': 'Nash-Sutcliffe Efficiency (Logarithmic)',
     'E_1': 'Modified NSE ($E_1$, j=1)',
     'd_1': 'Modified Index of Agreement ($d_1$, j=1)',
-    'E_rel': r'Relative NSE ($E_{rel}$)',
-    'd_rel': r'Relative Index of Agreement ($d_{rel}$)',
+    'E_{rel}': r'Relative NSE ($E_{rel}$)',
+    'd_{rel}': r'Relative Index of Agreement ($d_{rel}$)',
 }
 
 # Plotting all metrics in a loop using the Level 4 DataFrame (efficiency_df_lvl4)
@@ -669,5 +669,5 @@ for metric_key, title in plot_titles.items():
     clean_title = re.sub(r'\s*\([^)]*\)', '', title)
     print(f"\033[92m✅ {clean_title} plotted for Level 4!\033[0m")
 
-print("\033[92m✅ All efficiency metrics plots have been successfully created for Level 4!\033[0m", output_path_lvl4)
+print("\033[92m✅ All efficiency metrics plots have been successfully created for Level 4!\033[0m")
 print("*" * 45)
