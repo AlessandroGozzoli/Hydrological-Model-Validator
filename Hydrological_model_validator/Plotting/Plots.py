@@ -16,7 +16,8 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 import calendar
-import itertools
+from typing import Union, Dict, Any
+from types import SimpleNamespace
 
 # Plotting Libraries
 import matplotlib.pyplot as plt
@@ -32,14 +33,24 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 # Custom Imports
-from Corollary import format_unit, extract_mod_sat_keys
+from Hydrological_model_validator.Plotting.formatting import (
+                        format_unit,
+                        get_min_max_for_identity_line,
+                        get_variable_label_unit)
 
-from Auxilliary import (get_min_max_for_identity_line, 
-                        get_variable_label_unit,
-                        fit_huber,
-                        fit_lowess,
-                        get_season_mask,
-                        gather_monthly_data_across_years)
+from Hydrological_model_validator.Processing.data_alignment import (extract_mod_sat_keys,
+                                                                    gather_monthly_data_across_years)
+
+from Hydrological_model_validator.Processing.stats_math_utils import (fit_huber,
+                                                                      fit_lowess)
+
+from Hydrological_model_validator.Processing.time_utils import get_season_mask
+
+from Hydrological_model_validator.Plotting.default_plot_options import (default_plot_options_ts,
+                                                                        default_plot_options_scatter,
+                                                                        default_scatter_by_season_options,
+                                                                        default_boxplot_options,
+                                                                        default_violinplot_options)
 
 ###############################################################################
 ##                                                                           ##
@@ -47,66 +58,76 @@ from Auxilliary import (get_min_max_for_identity_line,
 ##                                                                           ##
 ###############################################################################
 
-def timeseries_basin_average(output_path, daily_means_dict, variable_name, BIAS, BA=False):
+###############################################################################
+def timeseries_basin_average(
+    data_dict: Dict[str, Union[pd.Series, list]],
+    BIAS: Union[pd.Series, list],
+    **kwargs: Any
+) -> None:
     """
-    Plots the daily mean values for each dataset in the dictionary along with BIAS.
-
-    Parameters:
-    - output_path: Path to save the output plot.
-    - daily_means_dict: Dictionary where the keys are dataset names, and the values are 1D arrays 
-      containing the daily mean values.
-    - variable_name: Name of the variable being plotted (e.g., 'SST').
-    - BIAS: 1D array of bias values (model - satellite) over time.
-    - BA: Boolean indicating if it's Basin Average. If True, title will include "(Basin Average)".
+    Plots daily means and BIAS.
+    
+    All configurable parameters (including output_path, variable_name, etc.) are passed via kwargs.
+    If a parameter is not specified, it falls back to default_plot_options.
     """
 
-    sns.set(style="whitegrid")
-    sns.set_style("ticks")
-    color_palette = itertools.cycle(['#BF636B', '#5976A2', '#70A494', '#D98B5F', '#D3A4BD', '#7294D4'])
+    # Merge defaults and kwargs; kwargs overrides defaults
+    options = SimpleNamespace(**{**default_plot_options_ts, **kwargs})
 
-    title = f'Daily Mean Values for {variable_name} Datasets'
-    if BA:
+    # Validate critical options
+    if options.output_path is None:
+        raise ValueError("output_path must be specified either in kwargs or default options.")
+    if options.variable_name is None:
+        raise ValueError("variable_name must be specified either in kwargs or default options.")
+
+    # Extract variable and unit if missing
+    if options.variable is None or options.unit is None:
+        var, u = get_variable_label_unit(options.variable_name)
+        if options.variable is None:
+            options.variable = var
+        if options.unit is None:
+            options.unit = u
+
+    title = f'Daily Mean Values for {options.variable_name} Datasets'
+    if options.BA:
         title += ' (Basin Average)'
 
-    mod_key, sat_key = extract_mod_sat_keys(daily_means_dict)
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
     label_lookup = {
         mod_key: "Model Output",
         sat_key: "Satellite Observations"
-        }
-    
-    variable, unit = get_variable_label_unit(variable_name)
+    }
 
-    fig = plt.figure(figsize=(20, 10), dpi=300)
+    fig = plt.figure(figsize=options.figsize, dpi=options.dpi)
     gs = GridSpec(2, 1, height_ratios=[8, 4])
 
-    # First subplot: daily means
+    # First subplot
     ax1 = fig.add_subplot(gs[0])
-    for key, daily_mean in daily_means_dict.items():
+    for key, daily_mean in data_dict.items():
         label = label_lookup.get(key, key)
-        color = next(color_palette)
+        color = next(options.color_palette)
 
-        # Ensure data is a Series
         if not isinstance(daily_mean, pd.Series):
             daily_mean = pd.Series(daily_mean)
 
-        sns.lineplot(data=daily_mean, label=label, ax=ax1, lw=2, color=color)
+        sns.lineplot(data=daily_mean, label=label, ax=ax1, lw=options.line_width, color=color)
 
-    ax1.set_title(title, fontsize=20, fontweight='bold')
-    ax1.set_ylabel(f'{variable} {unit}', fontsize=14)
+    ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+    ax1.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
     ax1.tick_params(width=2)
-    ax1.legend(loc='upper left', fontsize=12)
+    ax1.legend(loc='upper left', fontsize=options.legend_fontsize)
     ax1.grid(True, linestyle='--')
     for spine in ax1.spines.values():
         spine.set_linewidth(2)
         spine.set_edgecolor('black')
 
-    # Second subplot: BIAS
+    # Second subplot
     ax2 = fig.add_subplot(gs[1])
     if not isinstance(BIAS, pd.Series):
         BIAS = pd.Series(BIAS)
     sns.lineplot(data=BIAS, color='k', ax=ax2)
-    ax2.set_title(f'BIAS ({variable_name})', fontsize=18, fontweight='bold')
-    ax2.set_ylabel(f'BIAS {unit}', fontsize=14)
+    ax2.set_title(f'BIAS ({options.variable_name})', fontsize=options.bias_title_fontsize, fontweight='bold')
+    ax2.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
     ax2.tick_params(width=2)
     ax2.grid(True, linestyle='--')
     for spine in ax2.spines.values():
@@ -114,98 +135,160 @@ def timeseries_basin_average(output_path, daily_means_dict, variable_name, BIAS,
         spine.set_edgecolor('black')
 
     plt.tight_layout()
-    output_path = Path(output_path)
-    filename = f'{variable_name}_timeseries.png'
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = f'{options.variable_name}_timeseries.png'
     save_path = output_path / filename
-    plt.savefig(save_path)
+    plt.savefig(save_path, **options.savefig_kwargs)
     plt.show(block=False)
     plt.draw()
     plt.close()
+###############################################################################
     
-def scatter_plot(output_path, daily_means_dict, variable_name, BA=False):
+###############################################################################
+def scatter_plot(
+    data_dict: Dict[str, Union[pd.Series, list]],
+    **kwargs: Any
+) -> None:
     """
     Creates a scatter plot comparing the model and satellite data for each dataset
-    in the daily_means_dict. Automatically identifies which is which based on key names.
+    in daily_means_dict. Most parameters are passed as **kwargs with defaults.
 
-    Parameters:
-    - output_path: Path where the plot will be saved.
-    - daily_means_dict: Dictionary with keys as dataset names and values as 1D arrays or Series.
-    - variable_name: Short variable code (e.g., 'SST', 'CHL').
-    - BA: If True, adds 'Basin Average' to the title.
+    Required:
+    - daily_means_dict: Dict with keys as dataset names and values as 1D arrays or Series.
+
+    Optional (via kwargs):
+    - output_path (str or Path): Where to save plot.
+    - variable_name (str): Variable short name e.g. 'SST'.
+    - BA (bool): Whether to add 'Basin Average' to title.
+    - figsize (tuple): Figure size.
+    - dpi (int): Figure DPI.
+    - color (str): Scatter plot color.
+    - alpha (float): Scatter plot transparency.
+    - marker_size (int): Scatter plot marker size.
+    - title_fontsize (int)
+    - label_fontsize (int)
+    - line_width (int): Width of y=x line.
+    - tick_labelsize (int)
+    - legend_fontsize (int)
+    - pause_time (int or float): Seconds to pause plot display.
+
+    Returns:
+    None
     """
 
-    # Extract model and satellite keys and data
-    mod_key, sat_key = extract_mod_sat_keys(daily_means_dict)
-    BAmod = pd.Series(daily_means_dict[mod_key])
-    BAsat = pd.Series(daily_means_dict[sat_key])
+    # Merge defaults and kwargs; kwargs overrides defaults
+    options = SimpleNamespace(**{**default_plot_options_scatter, **kwargs})
 
-    # Handle variable naming and units
-    variable, unit = get_variable_label_unit(variable_name)
+    # Validate critical options
+    if options.output_path is None:
+        raise ValueError("output_path must be specified either in kwargs or default options.")
+    if options.variable_name is None:
+        raise ValueError("variable_name must be specified either in kwargs or default options.")
+
+    # Extract variable and unit if missing
+    if not hasattr(options, 'variable') or options.variable is None or \
+       not hasattr(options, 'unit') or options.unit is None:
+        var, u = get_variable_label_unit(options.variable_name)
+        if not hasattr(options, 'variable') or options.variable is None:
+            options.variable = var
+        if not hasattr(options, 'unit') or options.unit is None:
+            options.unit = u
+
+    # Extract model and satellite keys
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+    BAmod = pd.Series(data_dict[mod_key])
+    BAsat = pd.Series(data_dict[sat_key])
 
     # Prepare DataFrame for plotting
-    df = pd.DataFrame({
-        'Model': BAmod,
-        'Satellite': BAsat
-    })
+    df = pd.DataFrame({'Model': BAmod, 'Satellite': BAsat})
 
-    # Set style
     sns.set(style="whitegrid", context='notebook')
     sns.set_style("ticks")
 
-    # Create figure
-    fig = plt.figure(figsize=(10, 8), dpi=300)
-    gs = GridSpec(1, 1)
-    ax1 = fig.add_subplot(gs[0])
+    fig = plt.figure(figsize=options.figsize, dpi=options.dpi)
+    ax1 = fig.add_subplot(1, 1, 1)
 
-    # Plot
-    sns.scatterplot(x='Model', y='Satellite', data=df, color='#5976A2', alpha=0.7, ax=ax1, s=50)
+    sns.scatterplot(
+        x='Model',
+        y='Satellite',
+        data=df,
+        color=options.color,
+        alpha=options.alpha,
+        s=options.marker_size,
+        ax=ax1
+    )
 
-    # Title and labels
-    title = f'Scatter Plot of {variable} (Model vs. Satellite)'
-    if BA:
+    title = f'Scatter Plot of {options.variable} (Model vs. Satellite)'
+    if options.BA:
         title += ' (Basin Average)'
-    ax1.set_title(title, fontsize=20, fontweight='bold')
-    ax1.set_xlabel(f'{variable} (Model) {unit}', fontsize=15)
-    ax1.set_ylabel(f'{variable} (Satellite) {unit}', fontsize=15)
 
-    # y = x line
+    ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+    ax1.set_xlabel(f'{options.variable} (Model) {options.unit}', fontsize=options.label_fontsize)
+    ax1.set_ylabel(f'{options.variable} (Satellite) {options.unit}', fontsize=options.label_fontsize)
+
     min_val, max_val = get_min_max_for_identity_line(df['Model'], df['Satellite'])
-    ax1.plot([min_val, max_val], [min_val, max_val], 'k--', label='y = x (Ideal)', linewidth=2)
+    ax1.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=options.line_width, label='y = x (Ideal)')
 
-    ax1.tick_params(width=2, labelsize=13)
+    ax1.tick_params(width=2, labelsize=options.tick_labelsize)
     ax1.grid(True, linestyle='--')
 
     for spine in ax1.spines.values():
         spine.set_linewidth(2)
         spine.set_edgecolor('black')
 
-    ax1.legend(fontsize=12)
+    ax1.legend(fontsize=options.legend_fontsize)
+
     plt.tight_layout()
 
-    # Save and display
-    output_path = Path(output_path)
-    filename = f'{variable_name}_scatterplot.png'
+    # Ensure output directory exists
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = f'{options.variable_name}_scatterplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
+
     plt.show(block=False)
     plt.draw()
-    plt.pause(3)
+    plt.pause(options.pause_time)
     plt.close()
-    
-def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=False):
+###############################################################################
+
+###############################################################################    
+def scatter_plot_by_season(daily_means_dict, **kwargs):
     """
     Creates seasonal scatter plots (DJF, MAM, JJA, SON) comparing model vs satellite values,
-    assuming the data starts from 01/01/2000 and is daily and continuous.
-    Additionally, generates a comprehensive plot with all seasons combined.
+    plus a combined scatter plot for all seasons.
 
-    Parameters:
-    - output_path: Path to save the plots.
-    - daily_means_dict: Dictionary with 'mod' and 'sat' keys and 1D daily mean value arrays.
-    - variable_name: Name of the variable (e.g., 'SST').
-    - BA: Boolean for Basin Average (adds to title).
+    Inputs:
+    - daily_means_dict: dict with 'mod' and 'sat' keys and 1D daily mean arrays or Series
+    - kwargs: options for customization, merged with defaults
+    
+    Options in kwargs:
+    - output_path: str or Path (required)
+    - variable_name: str (required)
+    - BA: bool, add "(Basin Average)" to title
+    - figsize, dpi, season_colors, alpha, marker_size, font sizes, line_width, tick_labelsize, pause_time
     """
 
-    # Assign dates starting from Jan 1, 2000
+    # Merge defaults and kwargs; kwargs overrides defaults
+    options = SimpleNamespace(**{**default_scatter_by_season_options, **kwargs})
+
+    # Validate critical options
+    if options.output_path is None:
+        raise ValueError("output_path must be specified either in kwargs or default options.")
+    if options.variable_name is None:
+        raise ValueError("variable_name must be specified either in kwargs or default options.")
+
+    # Extract variable and unit if missing
+    if not hasattr(options, 'variable') or not hasattr(options, 'unit') or options.variable is None or options.unit is None:
+        var, u = get_variable_label_unit(options.variable_name)
+        if not hasattr(options, 'variable') or options.variable is None:
+            options.variable = var
+        if not hasattr(options, 'unit') or options.unit is None:
+            options.unit = u
+
+    # Assign dates assuming continuous daily from 2000-01-01
     sample_array = next(iter(daily_means_dict.values()))
     dates = pd.date_range(start="2000-01-01", periods=len(sample_array), freq='D')
 
@@ -214,20 +297,11 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
     BAmod = np.array(daily_means_dict[mod_key])
     BAsat = np.array(daily_means_dict[sat_key])
 
-    # Define seasons and colors
-    seasons = {
-        'DJF': 'gray',
-        'MAM': 'green',
-        'JJA': 'red',
-        'SON': 'gold'
-    }
-    palette = ['#808080', '#008000', '#FF0000', '#FFD700']
+    # Define seasons and colors (allow override)
+    seasons = options.season_colors
 
-    # Get variable descriptive name and unit
-    variable, unit = get_variable_label_unit(variable_name)
-
-    # Ensure output directory exists
-    output_path = Path(output_path)
+    # Prepare output directory
+    output_path = Path(options.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
     all_mod_points, all_sat_points, all_colors = [], [], []
@@ -255,151 +329,158 @@ def scatter_plot_by_season(output_path, daily_means_dict, variable_name, BA=Fals
             'Season': [season_name] * len(mod_season)
         })
 
-        plt.figure(figsize=(10, 8), dpi=300)
-        ax = sns.scatterplot(x='Model', y='Satellite', data=df, color=color, alpha=0.7, label=f'{variable} {season_name}', s=50)
+        plt.figure(figsize=options.figsize, dpi=options.dpi)
+        ax = sns.scatterplot(
+            x='Model', y='Satellite', data=df,
+            color=color, alpha=options.alpha,
+            label=f'{options.variable} {season_name}', s=options.marker_size
+        )
 
-        # Regression fits using helper functions
+        # Regression fits
         x_vals, y_vals = fit_huber(mod_season, sat_season)
-        ax.plot(x_vals, y_vals, color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)')
+        ax.plot(x_vals, y_vals, color='black', linestyle='-', linewidth=options.line_width, label='Linear Fit (Huber)')
 
         smoothed = fit_lowess(mod_season, sat_season)
-        ax.plot(smoothed[:, 0], smoothed[:, 1], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
+        ax.plot(smoothed[:, 0], smoothed[:, 1], color='magenta', linestyle='-.', linewidth=options.line_width, label='Smoothed Fit (LOWESS)')
 
         min_val, max_val = get_min_max_for_identity_line(mod_season, sat_season)
-        ax.plot([min_val, max_val], [min_val, max_val], 'b--', linewidth=2, label='Ideal Fit')
+        ax.plot([min_val, max_val], [min_val, max_val], 'b--', linewidth=options.line_width, label='Ideal Fit')
 
-        title = f'{variable} Scatter Plot (Model vs Satellite) - {season_name}'
-        if BA:
+        title = f'{options.variable} Scatter Plot (Model vs Satellite) - {season_name}'
+        if options.BA:
             title += ' (Basin Average)'
-        ax.set_title(title, fontsize=20, fontweight='bold')
-        ax.set_xlabel(f'{variable} (Model - {season_name}) {unit}', fontsize=15)
-        ax.set_ylabel(f'{variable} (Satellite - {season_name}) {unit}', fontsize=15)
-        ax.legend(fontsize=12)
-        ax.tick_params(axis='both', labelsize=13, width=2)
+
+        ax.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+        ax.set_xlabel(f'{options.variable} (Model - {season_name}) {options.unit}', fontsize=options.label_fontsize)
+        ax.set_ylabel(f'{options.variable} (Satellite - {season_name}) {options.unit}', fontsize=options.label_fontsize)
+        ax.legend(fontsize=options.legend_fontsize)
+        ax.tick_params(axis='both', labelsize=options.tick_labelsize, width=options.line_width)
 
         for spine in ax.spines.values():
-            spine.set_linewidth(2)
+            spine.set_linewidth(options.line_width)
             spine.set_edgecolor('black')
 
         ax.grid(True, linestyle='--')
         plt.tight_layout()
 
-        filename = f"{variable_name}_{season_name}_scatterplot.png"
+        filename = f"{options.variable_name}_{season_name}_scatterplot.png"
         plt.savefig(output_path / filename)
         plt.show(block=False)
         plt.draw()
-        plt.pause(2)
+        plt.pause(options.pause_time)
         plt.close()
 
         all_mod_points.extend(mod_season)
         all_sat_points.extend(sat_season)
         all_colors.extend([color] * len(mod_season))
 
-    # Plot all seasons combined
+    # Combined plot
     all_mod_points = np.array(all_mod_points)
     all_sat_points = np.array(all_sat_points)
 
     if len(all_mod_points) > 0:
-        plt.figure(figsize=(10, 8), dpi=300)
+        plt.figure(figsize=options.figsize, dpi=options.dpi)
         scatter_df = pd.DataFrame({
             'Model': all_mod_points,
             'Satellite': all_sat_points,
             'Season': all_colors
         })
 
-        ax = sns.scatterplot(x='Model', y='Satellite', data=scatter_df, hue='Season', palette=palette, alpha=0.7, s=50)
+        ax = sns.scatterplot(
+            x='Model', y='Satellite', data=scatter_df,
+            hue='Season', palette=list(seasons.values()),
+            alpha=options.alpha, s=options.marker_size
+        )
 
         min_val_all, max_val_all = get_min_max_for_identity_line(all_mod_points, all_sat_points)
-        ax.plot([min_val_all, max_val_all], [min_val_all, max_val_all], 'b--', linewidth=2, label='Ideal Fit')
+        ax.plot([min_val_all, max_val_all], [min_val_all, max_val_all], 'b--', linewidth=options.line_width, label='Ideal Fit')
 
         x_vals_all, y_vals_all = fit_huber(all_mod_points, all_sat_points)
-        ax.plot(x_vals_all, y_vals_all, color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)')
+        ax.plot(x_vals_all, y_vals_all, color='black', linestyle='-', linewidth=options.line_width, label='Linear Fit (Huber)')
 
         smoothed_all = fit_lowess(all_mod_points, all_sat_points)
-        ax.plot(smoothed_all[:, 0], smoothed_all[:, 1], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
+        ax.plot(smoothed_all[:, 0], smoothed_all[:, 1], color='magenta', linestyle='-.', linewidth=options.line_width, label='Smoothed Fit (LOWESS)')
 
         handles = [
-            Line2D([0], [0], marker='o', color='w', markerfacecolor='gray', markersize=10, label='DJF'),
-            Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='MAM'),
-            Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='JJA'),
-            Line2D([0], [0], marker='o', color='w', markerfacecolor='gold', markersize=10, label='SON'),
-            Line2D([0], [0], color='b', linestyle='--', linewidth=2, label='Ideal Fit'),
-            Line2D([0], [0], color='black', linestyle='-', linewidth=2, label='Linear Fit (Huber)'),
-            Line2D([0], [0], color='magenta', linestyle='-.', linewidth=2, label='Smoothed Fit (LOWESS)')
+            Line2D([0], [0], marker='o', color='w', markerfacecolor=clr, markersize=10, label=season)
+            for season, clr in seasons.items()
+        ] + [
+            Line2D([0], [0], color='b', linestyle='--', linewidth=options.line_width, label='Ideal Fit'),
+            Line2D([0], [0], color='black', linestyle='-', linewidth=options.line_width, label='Linear Fit (Huber)'),
+            Line2D([0], [0], color='magenta', linestyle='-.', linewidth=options.line_width, label='Smoothed Fit (LOWESS)')
         ]
-        ax.legend(handles=handles, loc='upper left', fontsize=12)
+        ax.legend(handles=handles, loc='upper left', fontsize=options.legend_fontsize)
 
-        ax.set_title(f'{variable} Scatter Plot (Model vs Satellite) - All Seasons', fontsize=20, fontweight='bold')
-        ax.set_xlabel(f'{variable} (Model - All Seasons) {unit}', fontsize=15)
-        ax.set_ylabel(f'{variable} (Satellite - All Seasons) {unit}', fontsize=15)
-        ax.tick_params(axis='both', labelsize=13, width=2)
+        ax.set_title(f'{options.variable} Scatter Plot (Model vs Satellite) - All Seasons', fontsize=options.title_fontsize, fontweight='bold')
+        ax.set_xlabel(f'{options.variable} (Model - All Seasons) {options.unit}', fontsize=options.label_fontsize)
+        ax.set_ylabel(f'{options.variable} (Satellite - All Seasons) {options.unit}', fontsize=options.label_fontsize)
+        ax.tick_params(axis='both', labelsize=options.tick_labelsize, width=options.line_width)
 
         for spine in ax.spines.values():
-            spine.set_linewidth(2)
+            spine.set_linewidth(options.line_width)
             spine.set_edgecolor('black')
 
         ax.grid(True, linestyle='--')
         plt.tight_layout()
 
-        comprehensive_filename = f"{variable_name}_all_seasons_scatterplot.png"
+        comprehensive_filename = f"{options.variable_name}_all_seasons_scatterplot.png"
         plt.savefig(output_path / comprehensive_filename)
         plt.show(block=False)
         plt.draw()
-        plt.pause(2)
+        plt.pause(options.pause_time)
         plt.close()
+###############################################################################
         
-def plot_monthly_comparison_boxplot(output_path, data_dict, variable_name):
-    """
-    Plots a monthly boxplot comparison for two data sources (e.g., model vs satellite),
-    automatically identifying the sources based on key names.
+###############################################################################
+def plot_monthly_comparison_boxplot(data_dict, **kwargs):
+    # Merge defaults and kwargs; kwargs overrides defaults
+    options = SimpleNamespace(**{**default_boxplot_options, **kwargs})
 
-    Parameters:
-        output_path (str or Path): Directory to save the plot.
-        data_dict (dict): Dictionary with two sub-dictionaries, each containing:
-                          {year: [month_1_array, ..., month_12_array]}
-        variable_name (str): Name of the variable to plot (e.g., 'SST')
-        unit (str): Unit of the variable (e.g., '°C', 'mg/m³')
-    """
+    # Validate critical options
+    if options.output_path is None:
+        raise ValueError("output_path must be specified either in kwargs or default options.")
+    if options.variable_name is None:
+        raise ValueError("variable_name must be specified either in kwargs or default options.")
 
-    # --- Identify model and satellite keys ---
+    # Identify model and satellite keys
     model_key, sat_key = extract_mod_sat_keys(data_dict)
 
-    # --- Get readable label and unit ---
-    var_label, var_unit = get_variable_label_unit(variable_name)
+    # Get variable label and unit
+    var_label, var_unit = get_variable_label_unit(options.variable_name)
 
-    # --- Month names ---
+    # Month names
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-    # --- Prepare data for seaborn boxplot ---
+    # Prepare data for seaborn boxplot
     plot_data = []
     for month_idx in range(12):
-        # Model
         model_all = gather_monthly_data_across_years(data_dict, model_key, month_idx)
         plot_data.extend([(val, f'{month_names[month_idx]} Model') for val in model_all])
 
-        # Satellite
         sat_all = gather_monthly_data_across_years(data_dict, sat_key, month_idx)
         plot_data.extend([(val, f'{month_names[month_idx]} Satellite') for val in sat_all])
 
-    # --- Convert to DataFrame for seaborn ---
     plot_df = pd.DataFrame(plot_data, columns=['Value', 'Label'])
 
-    # --- Plotting ---
-    plt.figure(figsize=(16, 6), dpi=300)
+    # Plotting
+    plt.figure(figsize=options.figsize, dpi=options.dpi)
     ax = sns.boxplot(
         x='Label', y='Value', data=plot_df,
-        palette=['#5976A2', '#BF636B'] * 12, showfliers=True
+        palette=options.palette,
+        showfliers=options.showfliers
     )
 
-    # --- Styling ---
-    ax.set_title(f'Monthly {var_label} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
+    # Styling
+    ax.set_title(f'Monthly {var_label} Comparison: Model vs Satellite',
+                 fontsize=options.title_fontsize,
+                 fontweight=options.title_fontweight)
     ylabel = f'{var_label} {var_unit}'
-    ax.set_ylabel(ylabel)
-    ax.set_xlabel('')
-    ax.grid(True, linestyle='--', alpha=0.5)
-    plt.xticks(rotation=45)
-    ax.tick_params(width=2)
+    ax.set_ylabel(ylabel, fontsize=options.ylabel_fontsize)
+    ax.set_xlabel(options.xlabel)
+    ax.grid(True, linestyle='--', alpha=options.grid_alpha)
+    plt.xticks(rotation=options.xtick_rotation)
+    ax.tick_params(width=options.tick_width)
 
     for spine in ax.spines.values():
         spine.set_linewidth(2)
@@ -407,72 +488,78 @@ def plot_monthly_comparison_boxplot(output_path, data_dict, variable_name):
 
     plt.tight_layout()
 
-    # --- Save and show plot ---
-    output_path = Path(output_path)
+    # Save and show plot
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
     filename = f'{var_label}_boxplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
     plt.show(block=False)
     plt.draw()
-    plt.pause(3)
+    plt.pause(options.pause_time)
     plt.close()
+###############################################################################
     
-def plot_monthly_comparison_violinplot(output_path, data_dict, variable_name):
-    """
-    Plots a monthly violin plot comparison for two data sources (e.g., model vs satellite),
-    automatically identifying the sources based on key names.
-    """
-    # --- Identify keys ---
-    model_key, sat_key = extract_mod_sat_keys(data_dict)
-    
-    # --- Get readable label and unit ---
-    var_label, var_unit = get_variable_label_unit(variable_name)
+###############################################################################
+def plot_monthly_comparison_violinplot(data_dict, **kwargs):
+    # Merge defaults and kwargs
+    options = SimpleNamespace(**{**default_violinplot_options, **kwargs})
 
-    # --- Setup ---
+    # Validate critical options
+    if options.output_path is None:
+        raise ValueError("output_path must be specified either in kwargs or default options.")
+    if options.variable_name is None:
+        raise ValueError("variable_name must be specified either in kwargs or default options.")
+
+    # Extract variable label and unit if missing
+    variable, unit = get_variable_label_unit(options.variable_name)
+
+    # Identify model and satellite keys
+    model_key, sat_key = extract_mod_sat_keys(data_dict)
+
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    plot_data = []
 
+    plot_data = []
     for month_idx in range(12):
-        # Model data
         model_all = gather_monthly_data_across_years(data_dict, model_key, month_idx)
         plot_data.extend([(val, f'{month_names[month_idx]} Model') for val in model_all])
 
-        # Satellite data
         sat_all = gather_monthly_data_across_years(data_dict, sat_key, month_idx)
         plot_data.extend([(val, f'{month_names[month_idx]} Satellite') for val in sat_all])
 
-    # --- DataFrame for seaborn ---
     plot_df = pd.DataFrame(plot_data, columns=['Value', 'Label'])
 
-    # --- Plot ---
-    plt.figure(figsize=(16, 6), dpi=300)
+    plt.figure(figsize=options.figsize, dpi=options.dpi)
     ax = sns.violinplot(x='Label', y='Value', data=plot_df,
-                        palette=['#5976A2', '#BF636B'] * 12, cut=0)
+                        palette=options.palette, cut=options.cut)
 
-    # Styling
-    ax.set_title(f'Monthly {var_label} Comparison: Model vs Satellite', fontsize=16, fontweight='bold')
-    ylabel = f'{var_label} {var_unit}'
-    ax.set_ylabel(ylabel)
-    ax.set_xlabel('')
-    ax.grid(True, linestyle='--', alpha=0.5)
-    plt.xticks(rotation=45)
-    ax.tick_params(width=2)
+    ax.set_title(f'Monthly {variable} Comparison: Model vs Satellite',
+                 fontsize=options.title_fontsize, fontweight=options.title_fontweight)
+    ax.set_ylabel(f'{variable} {unit}', fontsize=options.ylabel_fontsize)
+    ax.set_xlabel('', fontsize=options.xlabel_fontsize)
+    ax.grid(True, linestyle='--', alpha=options.grid_alpha)
+    plt.xticks(rotation=options.xtick_rotation)
+    ax.tick_params(width=options.tick_width)
+
     for spine in ax.spines.values():
-        spine.set_linewidth(2)
+        spine.set_linewidth(options.spine_linewidth)
         spine.set_edgecolor('black')
+
     plt.tight_layout()
 
-    # Save and show
-    output_path = Path(output_path)
-    filename = f'{var_label}_violinplot.png'
-    save_path = output_path / filename
-    plt.savefig(save_path)
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = f'{variable}_violinplot.png'
+    plt.savefig(output_path / filename)
+
     plt.show(block=False)
     plt.draw()
-    plt.pause(3)
+    plt.pause(options.pause_time)
     plt.close()
-    
+###############################################################################    
+
+###############################################################################
 # Function to plot the overall metric and the monthly metrics
 def plot_metric(metric_name, overall_value, monthly_values, y_label, output_path):
     months = [calendar.month_name[i + 1] for i in range(12)]
@@ -540,7 +627,9 @@ def plot_metric(metric_name, overall_value, monthly_values, y_label, output_path
     plt.draw()
     plt.pause(3)
     plt.close()
-        
+###############################################################################      
+
+###############################################################################
 def Benthic_depth(Bmost, output_path):
     """
     Plots the benthic layer depth from the Bmost 2D array on a map using Cartopy,
@@ -619,7 +708,9 @@ def Benthic_depth(Bmost, output_path):
     plt.draw()
     plt.pause(2)
     plt.close()
-    
+###############################################################################
+
+###############################################################################
 def Benthic_chemical_plot(MinLambda, MaxLambda, MinPhi, MaxPhi, P_2d, t, lonp, latp, bfm2plot, Mname, ystr, selected_unit, selected_description, output_path):
     epsilon = 0.06
     plt.figure(figsize=(10, 10))
