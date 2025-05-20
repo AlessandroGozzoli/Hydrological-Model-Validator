@@ -1,3 +1,102 @@
+# **Version:** 4.0 - UNSTABLE  
+**Date:** 20/05/2025
+
+## Summary
+
+This release marks a major overhaul of the project, transitioning it from standalone scripts into a fully modular Python package. The deprecated `Corollary.py` and `Auxilliary.py` scripts have been restructured and their functions relocated to more logically organized modules. Several changes to the package structure and default plotting options are introduced to enhance usability and maintainability.
+
+---
+
+## Major Changes
+
+### **Hydrological_model_validator as a Python Package**
+
+- The core structure of the `Hydrological_model_validator` project has been reworked into a Python package, making it easier to install and use as a library.
+- A new `Setup.py` script has been introduced, enabling installation of necessary dependencies. However, as not all dependencies are included, manual installation of additional libraries (as listed in the README) is still required.
+- The `Processing` and `Plotting` modules have been reorganized as submodules, allowing users to import specific functions from their respective scripts.
+- The `Path` command from the `pathlib` Python library has been deprecated across the codebase, though it will remain in test case scripts for accessing data directories.
+
+---
+
+## Deprecations
+
+- The `Corollary.py` and `Auxilliary.py` scripts are now officially deprecated due to the complexity and overabundance of functions. These functionalities have been moved to more specialized scripts to improve organization and maintainability.
+
+---
+
+## New Functionality: Modularized Script Collections
+
+To better organize the deprecated functions from `Corollary.py` and `Auxilliary.py`, new themed scripts have been introduced within the `Processing` and `Plotting` modules. These changes ensure better modularity and improve the user experience by grouping related functions. The new scripts are as follows:
+
+### **Processing Module:**
+- `time_utils.py`:  
+  - `leapyear`  
+  - `true_true_time_series_length`  
+  - `split_to_monthly`, `split_to_yearly`  
+  - `get_common_years`  
+  - `get_season_mask`
+
+- `data_alignment.py`:  
+  - `get_valid_mask`, `get_valid_mask_pandas`  
+  - `align_pandas_series`, `align_numpy_series`  
+  - `get_common_series_by_year`, `get_common_series_by_year_month`  
+  - `extract_mod_sat_key`  
+  - `gather_monthly_data_across_years`
+
+- `file_io.py`:  
+  - `mask_reader`  
+  - `load_dataset`
+
+- `stat_math_utils.py`:  
+  - `fit_huber`  
+  - `fit_lowess`  
+  - `round_up_to_nearest`
+
+- `utils.py`:  
+  - `find_key`
+
+### **Plotting Module:**
+- `formatting.py`:  
+  - `format_unit`  
+  - `get_variable_from_label_unit`  
+  - `fill_anular_region`  
+  - `get_min_max_for_identity_line`  
+  - `_style_axis_custom`
+
+These scripts will be expanded as necessary to accommodate additional functions and improve usability.
+
+---
+
+## Default Plotting Options
+
+- All previous options used in the plotting functions are now set as defaults. If the user does not provide custom options, the package will automatically apply these default settings, improving ease of use and flexibility for customizations. This will be further enhanced in the upcoming test case update.
+
+---
+
+## Test Case Scripts
+
+- Test case scripts have been relocated to a dedicated folder alongside the data folder. This structure allows for better organization and easier management of test data moving forward.
+
+---
+
+## UNSTABLE
+
+- **Important Notice**: This release is **extremely unstable** due to the fundamental changes in file paths and the overall structure of the package. Many old paths used to fetch functions have been broken, and some functions are still in the process of being integrated into the new structure.
+- It is advised to **avoid using this release for anything beyond basic plotting functions**. Upcoming updates will address these issues and re-implement missing functionalities, restoring full compatibility.
+
+---
+
+## Future Work
+
+- The immediate focus is to re-enable all core functions within the new package structure and restore their usability as quickly as possible.
+- Future updates will:
+  - Move default options for `Target` and `Taylor` plots into a centralized configuration file.
+  - Rework the `Benthic_layer.py` test case script to separate computational and plotting functions, which are currently intertwined.
+  - Provide the option to save plot data in both `.csv` and `.nc` formats.
+  - Optimize the data reading/setup scripts, with a focus on improving performance and finally integrating the interpolator into the Python ecosystem.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 3.1.1
 **Date:** 19/05/2025 
 
