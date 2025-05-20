@@ -89,9 +89,6 @@ def comprehensive_taylor_diagram(data_dict, output_path, variable_name):
             markercolors={"face": "#BF636B", "edge": "#BF636B"},
             markersize=10,
             alpha=0.8,
-            styleobs='-',
-            colobs='r',
-            widthobs=2.5,
             showlabelsrms='off',
             overlay='on'
         )
