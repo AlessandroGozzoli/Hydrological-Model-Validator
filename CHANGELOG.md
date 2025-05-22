@@ -1,11 +1,76 @@
+# **Version:** 4.0.0-β - UNSTABLE  
+**Date:** 22/05/2025
+
+## Summary
+
+This alpha release continues the structural and functional overhaul of the project. Key updates include replacing `assert` statements with explicit `RaiseErrors` for robustness, the full integration of default plotting options, and improved documentation through consistent function headers. Additionally, the `SST` and `CHL` analysis test cases are now operational again following updates to the internal function paths.
+
+> This version is still **UNSTABLE**. While core scripts for SST and CHL analysis are functioning, most other scripts remain incompatible due to unrefactored paths and legacy syntax. Use is advised only for testing specific updated modules.
+
+## Major Changes
+
+### `RaiseErrors` Replace `assert` Statements
+
+- All validation previously handled through `assert` statements has been replaced with `raise ValueError(...)` or appropriate exceptions.
+- This ensures checks remain active even when scripts are executed in optimized (`-O`) mode, increasing the robustness and reliability of the library at the cost of some runtime performance.
+
+### Default Plotting Options Refactored
+
+- Plotting functions used in `SST_data_analyzer.py` and `CHL_data_analyzer.py` now fully rely on centralized **default options**.
+- Legacy hardcoded options have been moved to a dedicated defaults file, allowing users to override or extend behavior more flexibly.
+- The default `dpi` remains set at **300** to maintain publication-quality output, but this will be lowered in the final release for faster rendering.
+
+### 📘 Function Headers and Documentation
+
+- All plotting functions (excluding Taylor and Target plots) and newly added scripts now include comprehensive headers:
+  - Function purpose
+  - Expected inputs and return types
+  - Supported keyword arguments (`kwargs`)
+  - Example usage
+- This marks the beginning of a broader documentation effort to improve code clarity and onboarding for new contributors.
+
+### Reactivated Test Cases
+
+- Both `SST` and `CHL` test case scripts are now functional again after internal path corrections.
+- The `setup.py` file has been updated accordingly, though users are still advised to install missing dependencies manually for full compatibility.
+
+## Fixed Issues
+
+- **Taylor Diagram Tick Labeling**
+  - RMSD ticks are now configurable via a `tickRMS` parameter.
+  - The first tick value determines both the tick spacing and the RMSD label position, resolving longstanding issues of fixed/static placement.
+
+- **Validation of Target and Regression Plot Behavior**
+  - Following extensive review and expert consultation, the anomalous behavior observed in `Target Plots` and `Regression Lines` for `L4 CHL` data is confirmed to be **data-driven**, not a bug.
+  - Validation artifacts are present in the dataset itself; a `pytest` test suite will be released in the near future to systematically verify these findings.
+
+## Future Work
+
+### Near-Term Roadmap
+
+- Add headers and docstrings to `Taylor` and `Target` plot functions, improving readability and consistency.
+- Refactor internal `for` loops using `itertools` to reduce redundancy and optimize performance.
+
+### Upcoming Feature Development
+
+- Begin refactoring of the `Benthic_layer.py` test script:
+  - Modularize computation and plotting functions
+  - Implement monthly volume calculations for deep water formation  
+    (_based on upcoming work from Oddo et al._)
+
+- Add functionality to export plotting data as both `.csv` and `.nc` files (currently postponed due to priority conflicts).
+
+- Launch support for `L3s` data in Sea Surface Temperature analysis.
+  - This will **deprecate** support for `L4` data due to unsatisfactory reliability and quality of results.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.0.0-α - UNSTABLE  
 **Date:** 20/05/2025
 
 ## Summary
 
 This release marks a major overhaul of the project, transitioning it from standalone scripts into a fully modular Python package. The deprecated `Corollary.py` and `Auxilliary.py` scripts have been restructured and their functions relocated to more logically organized modules. Several changes to the package structure and default plotting options are introduced to enhance usability and maintainability.
-
----
 
 ## Major Changes
 
@@ -16,13 +81,9 @@ This release marks a major overhaul of the project, transitioning it from standa
 - The `Processing` and `Plotting` modules have been reorganized as submodules, allowing users to import specific functions from their respective scripts.
 - The `Path` command from the `pathlib` Python library has been deprecated across the codebase, though it will remain in test case scripts for accessing data directories.
 
----
-
 ## Deprecations
 
 - The `Corollary.py` and `Auxilliary.py` scripts are now officially deprecated due to the complexity and overabundance of functions. These functionalities have been moved to more specialized scripts to improve organization and maintainability.
-
----
 
 ## New Functionality: Modularized Script Collections
 
@@ -65,26 +126,18 @@ To better organize the deprecated functions from `Corollary.py` and `Auxilliary.
 
 These scripts will be expanded as necessary to accommodate additional functions and improve usability.
 
----
-
 ## Default Plotting Options
 
 - All previous options used in the plotting functions are now set as defaults. If the user does not provide custom options, the package will automatically apply these default settings, improving ease of use and flexibility for customizations. This will be further enhanced in the upcoming test case update.
-
----
 
 ## Test Case Scripts
 
 - Test case scripts have been relocated to a dedicated folder alongside the data folder. This structure allows for better organization and easier management of test data moving forward.
 
----
-
 ## UNSTABLE
 
 - **Important Notice**: This release is **extremely unstable** due to the fundamental changes in file paths and the overall structure of the package. Many old paths used to fetch functions have been broken, and some functions are still in the process of being integrated into the new structure.
 - It is advised to **avoid using this release for anything beyond basic plotting functions**. Upcoming updates will address these issues and re-implement missing functionalities, restoring full compatibility.
-
----
 
 ## Future Work
 
