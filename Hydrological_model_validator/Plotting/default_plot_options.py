@@ -1,26 +1,27 @@
 import itertools
-from pathlib import Path
 
+###############################################################################
 default_plot_options_ts = {
-    "output_path": Path("./plots"),        # default output folder
-    "variable_name": "UnknownVar",         # default variable name if not provided
     "BA": False,
     "variable": None,
     "unit": None,
     "figsize": (20, 10),
     "dpi": 300,
-    "color_palette": itertools.cycle(['#BF636B', '#5976A2', '#70A494', '#D98B5F', '#D3A4BD', '#7294D4']),
+    "color_palette": itertools.cycle(['#BF636B', '#5976A2']),
     "title_fontsize": 20,
     "label_fontsize": 14,
     "legend_fontsize": 12,
     "bias_title_fontsize": 18,
-    "line_width": 2,
+    "line_width": 1,
     "savefig_kwargs": {},
 }
+###############################################################################
 
+###############################################################################
 default_plot_options_scatter = {
     "output_path": "./plots",
-    "variable_name": "SST",
+    "variable": None,
+    "unit": None,
     "BA": False,
     "figsize": (10, 8),
     "dpi": 300,
@@ -34,10 +35,13 @@ default_plot_options_scatter = {
     "legend_fontsize": 12,
     "pause_time": 3,
 }
+###############################################################################
 
+###############################################################################
 default_scatter_by_season_options = {
     'output_path': None,
-    'variable_name': None,
+    "variable": None,
+    "unit": None,
     'BA': False,
     'figsize': (10, 8),
     'dpi': 300,
@@ -56,10 +60,13 @@ default_scatter_by_season_options = {
     'tick_labelsize': 13,
     'pause_time': 2,
 }
+###############################################################################
 
+###############################################################################
 default_boxplot_options = {
     'output_path': None,
-    'variable_name': None,
+    "variable": None,
+    "unit": None,
     'figsize': (16, 6),
     'dpi': 300,
     'palette': ['#5976A2', '#BF636B'] * 12,
@@ -73,10 +80,13 @@ default_boxplot_options = {
     'tick_width': 2,
     'pause_time': 3,
 }
+###############################################################################
 
+###############################################################################
 default_violinplot_options = {
     'output_path': None,
-    'variable_name': None,
+    "variable": None,
+    "unit": None,
     'figsize': (16, 6),
     'dpi': 300,
     'palette': ['#5976A2', '#BF636B'] * 12,
@@ -91,3 +101,42 @@ default_violinplot_options = {
     'spine_linewidth': 2,
     'pause_time': 3,
 }
+###############################################################################
+
+###############################################################################
+default_efficiency_plot_options = {
+    'metric_name': '',
+    'title': '',
+    'overall_value': 0.0,
+    'y_label': '',
+    'output_path': None,
+    'figsize': (10, 6),
+    'dpi': 300,
+    'line_color': 'blue',
+    'line_width': 1.75,
+    'zero_line': {
+        'show': True,
+        'style': '-.',
+        'width': 3,
+        'color': 'red',
+        'label': 'Zero Reference'
+    },
+    'overall_line': {
+        'style': '--',
+        'width': 2,
+        'color': 'black',
+        'label': 'Overall'
+    },
+    'marker_size': 10,
+    'marker_edge_color': 'black',
+    'marker_edge_width': 1.2,
+    'title_fontsize': 14,
+    'ylabel_fontsize': 12,
+    'xtick_rotation': 45,
+    'tick_width': 2,
+    'legend_loc': 'lower right',
+    'grid_style': '--',
+    'spine_width': 2,
+    'pause_time': 3,
+}
+###############################################################################
