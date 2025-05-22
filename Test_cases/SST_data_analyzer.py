@@ -31,7 +31,6 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 # Libraries for paths
 import os
 from pathlib import Path
-import sys
 
 # Utility libraries
 import numpy as np
@@ -50,68 +49,50 @@ import re
 ###############################################################################
 
 print("Loading the necessary modules...")
-WDIR = os.getcwd()
-os.chdir(WDIR)  # Set the working directory
 
 print("Loading the Pre-Processing modules and constants...")
-ProcessingDIR = Path(WDIR, "Processing/")
-sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
-
-from Costants import ysec
-from Corollary import split_to_monthly, split_to_yearly, load_dataset
-
+from Hydrological_model_validator.Processing.time_utils import split_to_monthly, split_to_yearly
 print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
 print("-"*45)
 
+print("Loading the file I/O modules and constants...")
+from Hydrological_model_validator.Processing.file_io import load_dataset
+print("\033[92m✅ File I/O modules have been loaded!\033[0m")
+print("-"*45)
+
 print("Loading the plotting modules...")
-PlottingDIR = Path(WDIR, "Plotting")
-sys.path.append(str(PlottingDIR))  # Add the folder to the system path
-
-from Plots import (
-                   timeseries_basin_average, 
-                   plot_metric, 
-                   scatter_plot,
-                   scatter_plot_by_season,
-                   plot_monthly_comparison_boxplot,
-                   plot_monthly_comparison_violinplot
-                   )
-
-from Taylor_diagrams import (
-                             comprehensive_taylor_diagram,
-                             monthly_taylor_diagram
-                             )
-
-from Target_plots import (
-                          comprehensive_target_diagram,
-                          target_diagram_by_month
-                          )
-
-taylor_options = str(Path(PlottingDIR, 'taylor_option_config.csv'))
-
+from Hydrological_model_validator.Plotting.Plots import (timeseries,
+                                                           scatter_plot,
+                                                           seasonal_scatter_plot,
+                                                           whiskerbox,
+                                                           violinplot,
+                                                           efficiency_plot)
+from Hydrological_model_validator.Plotting.Taylor_diagrams import (comprehensive_taylor_diagram,
+                                                                   monthly_taylor_diagram)
+from Hydrological_model_validator.Plotting.Target_plots import (comprehensive_target_diagram,
+                                                                target_diagram_by_month)
 print("\033[92m✅ The plotting modules have been loaded!\033[0m")
 print('-'*45)
 
 print("Loading the validation modules...")
-from Efficiency_metrics import (
-                                r_squared,
-                                weighted_r_squared,
-                                nse,
-                                index_of_agreement,
-                                ln_nse,
-                                nse_j,
-                                index_of_agreement_j,
-                                relative_nse,
-                                relative_index_of_agreement,
-                                monthly_r_squared,
-                                monthly_weighted_r_squared,
-                                monthly_nse,
-                                monthly_index_of_agreement,
-                                monthly_ln_nse,
-                                monthly_nse_j,
-                                monthly_index_of_agreement_j,
-                                monthly_relative_nse,
-                                monthly_relative_index_of_agreement
-                                )
+from Hydrological_model_validator.Processing.Efficiency_metrics import (r_squared,
+                                                                        weighted_r_squared,
+                                                                        nse,
+                                                                        index_of_agreement,
+                                                                        ln_nse,
+                                                                        nse_j,
+                                                                        index_of_agreement_j,
+                                                                        relative_nse,
+                                                                        relative_index_of_agreement,
+                                                                        monthly_r_squared,
+                                                                        monthly_weighted_r_squared,
+                                                                        monthly_nse,
+                                                                        monthly_index_of_agreement,
+                                                                        monthly_ln_nse,
+                                                                        monthly_nse_j,
+                                                                        monthly_index_of_agreement_j,
+                                                                        monthly_relative_nse,
+                                                                        monthly_relative_index_of_agreement)
 print("\033[92m✅ The validation modules have been loaded!\033[0m")
 print('*'*45)
 
@@ -153,8 +134,24 @@ print("*"*45)
 print("Setting up the SST dictionary...")
 print('-'*45)
 
-# ----- DICTIONARY FOR SST -----
+# ----- INFER YEARS FROM FILE NAMES -----
+print("Scanning directory to determine available years...")
+nc_files = list(IDIR.glob("*.nc"))
 
+# Extract years using a regex pattern from filenames like 'Msst_2005.nc'
+year_pattern = re.compile(r'_(\d{4})\.nc$')
+years_found = sorted({int(match.group(1)) for file in nc_files if (match := year_pattern.search(file.name))})
+
+if not years_found:
+    raise ValueError("No files with year pattern '_YYYY.nc' found in the specified directory.")
+
+Ybeg, Yend = years_found[0], years_found[-1]
+ysec = list(range(Ybeg, Yend + 1))
+
+print("Setting up the SST dictionary...")
+print('-' * 45)
+
+print(f"Years detected: {ysec}")
 print("Getting the yearly model SST datasets...")
 
 with ThreadPoolExecutor() as executor:
@@ -244,29 +241,35 @@ print("\033[92m✅ BIAS computed! \033[0m")
 print("-"*45)
 
 print("Plotting the time-series...")
-timeseries_basin_average(output_path, BASST, 'SST', BIAS, BA=True)
+# Defaylt options
+timeseries(BASST, BIAS, variable_name='SST', BA=True, output_path=output_path)
+
 print("\033[92m✅ Time-series plotted succesfully!\033[0m")
 
 # ----- SCATTERPLOTS -----
 
 print("Plotting the scatter plot...")
-scatter_plot(output_path, BASST, 'SST', BA=False)
+# Defaylt options
+scatter_plot(BASST, variable_name='SST', BA=False, output_path=output_path)
 print("\033[92m✅ Scatter plot plotted succesfully!\033[0m")
 
 print("Plotting the seasonal data as scatterplots...")
-scatter_plot_by_season(output_path, BASST, 'SST', BA=False)
+# Defaylt options
+seasonal_scatter_plot(BASST, variable_name='SST', BA=False, output_path=output_path)
 print("\033[92m✅ Seasonal scatterplots plotted succesfully!\033[0m")
 
 # ----- WHISKERBOX PLOTS -----
 
 print("Plotting the whisker-box plots...")
-plot_monthly_comparison_boxplot(output_path, BASST_monthly, variable_name='SST')
+# Defaylt options
+whiskerbox(BASST_monthly, variable_name='SST', output_path=output_path)
 print("\033[92m✅ Whisker-box plotted succesfully!\033[0m")
 
 # ----- VIOLIN PLOTS -----
 
 print("Plotting the violinplots...")
-plot_monthly_comparison_violinplot(output_path, BASST_monthly, variable_name='SST')
+# Defaylt options
+violinplot(BASST_monthly, variable_name='SST', output_path=output_path)
 print("\033[92m✅ Violinplots plotted succesfully!\033[0m")
 
 ###############################################################################
@@ -285,12 +288,12 @@ output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TAYLOR", "SST", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 print("Plotting the SST Taylor diagram for yearly data...")
-comprehensive_taylor_diagram(BASST_yearly, output_path, variable_name='SST')
+comprehensive_taylor_diagram(BASST_yearly, output_path=output_path, variable_name='SST')
 print("\033[92m✅ Yearly data Taylor diagram has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data diagrams...")
-monthly_taylor_diagram(BASST_monthly, output_path, variable_name='SST')
+monthly_taylor_diagram(BASST_monthly, output_path=output_path, variable_name='SST')
 print("\033[92m✅ Monthly Taylor diagrams have been plotted!\033[0m")
 print("-"*45)
 
@@ -313,12 +316,12 @@ output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "TARGET", "SST", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 print("Plotting the Target plot for the yearly data...")
-comprehensive_target_diagram(BASST_yearly, output_path, variable_name='SST')
+comprehensive_target_diagram(BASST_yearly, output_path=output_path, variable_name='SST')
 print("\033[92m✅ Yearly data Target plot has been plotted!\033[0m")
 print("-"*45)
 
 print("Plotting the monthly data plots...")
-target_diagram_by_month(BASST_monthly, output_path, variable_name='SST')
+target_diagram_by_month(BASST_monthly, output_path=output_path, variable_name='SST')
 print("\033[92m✅ All of the Target plots has been plotted!\033[0m")
 print("*"*45)
 
@@ -415,7 +418,10 @@ for metric_key, title in plot_titles.items():
     total_value = efficiency_df.loc[metric_key, 'Total']
     monthly_values = efficiency_df.loc[metric_key, efficiency_df.columns[1:]].values.astype(float)
 
-    plot_metric(title, total_value, monthly_values, f'{metric_key}', output_path)
+    efficiency_plot(total_value, monthly_values, 
+                    title=f'{title}', 
+                    y_label=f'{metric_key}', 
+                    output_path=output_path)
     
     # Remove any parentheses and their contents for the print message
     clean_title = re.sub(r'\s*\([^)]*\)', '', title)
