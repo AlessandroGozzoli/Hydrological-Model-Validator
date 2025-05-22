@@ -3,7 +3,7 @@
 
 ## Summary
 
-This alpha release continues the structural and functional overhaul of the project. Key updates include replacing `assert` statements with explicit `RaiseErrors` for robustness, the full integration of default plotting options, and improved documentation through consistent function headers. Additionally, the `SST` and `CHL` analysis test cases are now operational again following updates to the internal function paths.
+This beta release continues the structural and functional overhaul of the project. Key updates include replacing `assert` statements with explicit `RaiseErrors` for robustness, the full integration of default plotting options, and improved documentation through consistent function headers. Additionally, the `SST` and `CHL` analysis test cases are now operational again following updates to the internal function paths.
 
 > This version is still **UNSTABLE**. While core scripts for SST and CHL analysis are functioning, most other scripts remain incompatible due to unrefactored paths and legacy syntax. Use is advised only for testing specific updated modules.
 
@@ -20,7 +20,7 @@ This alpha release continues the structural and functional overhaul of the proje
 - Legacy hardcoded options have been moved to a dedicated defaults file, allowing users to override or extend behavior more flexibly.
 - The default `dpi` remains set at **300** to maintain publication-quality output, but this will be lowered in the final release for faster rendering.
 
-### 📘 Function Headers and Documentation
+### Function Headers and Documentation
 
 - All plotting functions (excluding Taylor and Target plots) and newly added scripts now include comprehensive headers:
   - Function purpose
