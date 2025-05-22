@@ -2,133 +2,192 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skill_metrics as sm
 from pathlib import Path
-import sys
-import os
 
-from Auxilliary import fill_annular_region, get_variable_label_unit
+from .formatting import fill_annular_region, get_variable_label_unit
 
-WDIR = os.getcwd()
-ProcessingDIR = Path(WDIR, "Processing/")
-sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
-from Target_computations import (compute_normalised_target_stats, 
-                                 compute_normalised_target_stats_by_month,
-                                 compute_target_extent_monthly,
-                                 compute_target_extent_yearly)
-from Corollary import extract_mod_sat_keys
+from ..Processing.Target_computations import (compute_normalised_target_stats, 
+                                              compute_normalised_target_stats_by_month,
+                                              compute_target_extent_monthly,
+                                              compute_target_extent_yearly)
 
-def comprehensive_target_diagram(data_dict, output_path, variable_name):
-    """
-    Generate and save a normalised Target diagram using preprocessed statistics.
+from ..Processing.data_alignment import extract_mod_sat_keys
 
-    Parameters:
-        taylor_dict (dict): Dictionary with model and satellite time series per year.
-        output_path (str or Path): Directory to save the output plot.
-    """
+from ..Processing.utils import extract_options
 
-    plt.close('all')
-    
-    variable, unit = get_variable_label_unit(variable_name)
+from .default_target_options import (default_target_base_options,
+                                     default_target_overlay_options,
+                                     default_target_data_marker_options,
+                                     default_target_plt_options,
+                                     default_month_markers,
+                                     default_target_monthly_plt_options,
+                                     default_target_monthly_base_options,
+                                     default_target_monthly_data_marker_options)
 
-    # Compute normalised statistics
+###############################################################################
+def comprehensive_target_diagram(data_dict, **kwargs):
+    output_path = Path(kwargs.pop("output_path", "./"))
+
+    variable = kwargs.pop("variable", None)
+    unit = kwargs.pop("unit", None)
+    variable_name = kwargs.pop("variable_name", None)
+
+    if variable is None or unit is None:
+        if variable_name is not None:
+            variable, unit = get_variable_label_unit(variable_name)
+        else:
+            raise ValueError(
+                "You must provide either 'variable' and 'unit' or 'variable_name' in kwargs"
+            )
+
+    # Extract default options (you'll define these dicts externally)
+    base_opts = extract_options(kwargs, default_target_base_options, prefix="base_")
+    overlay_opts = extract_options(kwargs, default_target_overlay_options, prefix="overlay_")
+    data_marker_opts = extract_options(kwargs, default_target_data_marker_options, prefix="data_")
+    plt_opts = extract_options(kwargs, default_target_plt_options)
+
+    # Compute normalized statistics
     bias, crmsd, rmsd, labels = compute_normalised_target_stats(data_dict)
-    
-    marker_shapes = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
-    
+
+    marker_shapes = kwargs.pop("marker_shapes", ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"])
+
     extent = compute_target_extent_yearly(data_dict)
-    
-    # Create the figure and axes
-    fig, ax = plt.subplots(figsize=(7, 6), dpi=300)
-    
-    # Fill the three performance zones
-    fill_annular_region(ax, 0.0, 0.5, color='lightgreen', alpha=0.4)   # Excellent zone
-    fill_annular_region(ax, 0.5, 0.7, color='khaki', alpha=0.4)        # Good zone
-    fill_annular_region(ax, 0.7, extent, color='lightcoral', alpha=0.3)   # Acceptable zone
 
-    # Set axes below other plot elements
+    fig, ax = plt.subplots(figsize=plt_opts.get("figsize"), dpi=plt_opts.get("dpi"))
+
+    # Allow user to define threshold boundaries
+    zone_bounds = kwargs.get("zone_bounds", (0.5, 0.7))  # Default (0.5, 0.7)
+    assert len(zone_bounds) == 2 and all(isinstance(x, (int, float)) for x in zone_bounds), \
+        "'zone_bounds' must be a tuple of two numbers, e.g., (0.5, 0.7)"
+
+    bound1, bound2 = zone_bounds
+
+    # Draw shaded areas with customizable boundaries
+    ax = plt.gca()
+    for r_start, r_end, color in [
+        (0, bound1, 'lightgreen'),
+        (bound1, bound2, 'khaki'),
+        (bound2, extent, 'lightcoral')
+    ]:
+        fill_annular_region(ax, r_start, r_end, color=color, alpha=0.4)
+        
     ax.set_axisbelow(True)
-    
-    # Plot the base target diagram with transparent markers and specific circle lines
-    sm.target_diagram(1.0, extent, extent,
-                markerLabelColor=(0.0, 0.0, 0.0),
-                  alpha=0.0,
-                  markersize=0,
-                  circlelinespec='-.r')
 
-    # Overlay additional circles if needed
+    # Base transparent target diagram with circlelines
     sm.target_diagram(1.0, extent, extent,
-                  markerLabelColor=(0.0, 0.0, 0.0),
-                  alpha=0.0,
-                  markersize=0,
-                  circlelinespec=':b',
-                  circles=[0.5])
+                      markerLabelColor=base_opts.get('markerLabelColor'),
+                      alpha=base_opts.get('alpha'),
+                      markersize=base_opts.get('markersize'),
+                      circlelinespec=base_opts.get('circlelinespec'))
 
-    # Plot your data points with markers
+    # Overlay circles
+    sm.target_diagram(1.0, extent, extent,
+                      markerLabelColor=overlay_opts.get('markerLabelColor'),
+                      alpha=overlay_opts.get('alpha'),
+                      markersize=overlay_opts.get('markersize'),
+                      circlelinespec=overlay_opts.get('circlelinespec'),
+                      circles=overlay_opts.get('circles'))
+
+    # Plot data points
     for i, (b, c, r, label) in enumerate(zip(bias, crmsd, rmsd, labels)):
         sm.target_diagram(b, c, r,
-                      markerLabelColor='r',
-                      markersymbol=marker_shapes[i % len(marker_shapes)],
-                      markersize=10,
-                      alpha=0.8,
-                      circles=[0.0],
-                      overlay='on')
+                          markerLabelColor=data_marker_opts.get('markerLabelColor'),
+                          markersymbol=marker_shapes[i % len(marker_shapes)],
+                          markersize=data_marker_opts.get('markersize'),
+                          alpha=data_marker_opts.get('alpha'),
+                          circles=data_marker_opts.get('circles'),
+                          overlay=data_marker_opts.get('overlay'))
 
-    plt.title(f"Normalised Target Plot (Yearly Performance) | {variable}", pad=40, fontweight='bold')
+    plt.title(kwargs.get("title", f"Yearly Target Plot (Normalized Stats) | {variable}"),
+              pad=plt_opts.get("title_pad"),
+              fontweight=plt_opts.get("title_fontweight"))
 
-    # Save
-    output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
-    save_path = Path(output_path, "Target_plot_summary_norm.png")
+    save_path = output_path / kwargs.get("filename", "Unified_Target_Diagram.png")
+
     plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
+    plt.savefig(save_path, dpi=plt_opts.get("dpi"))
     plt.show(block=False)
     plt.draw()
     plt.pause(3)
     plt.close()
+###############################################################################
 
-def target_diagram_by_month(data_dict, output_path, variable_name):
-    MARKERS = ["P", "o", "X", "s", "D", "^", "v", "p", "h", "*"]
-    MONTH_COLORS = [
-        "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd",
-        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22",
-        "#17becf", "#393b79", "#637939", "#8c6d31"
-    ]
+###############################################################################
+def target_diagram_by_month(data_dict, **kwargs):
+    plt.close('all')
 
-    variable, unit = get_variable_label_unit(variable_name)
-    output_path = Path(output_path)
+    output_path = Path(kwargs.pop("output_path", "./"))
     output_path.mkdir(parents=True, exist_ok=True)
+
+    variable = kwargs.pop("variable", None)
+    unit = kwargs.pop("unit", None)
+    variable_name = kwargs.pop("variable_name", None)
+
+    if variable is None or unit is None:
+        if variable_name is not None:
+            variable, unit = get_variable_label_unit(variable_name)
+        else:
+            raise ValueError(
+                "You must provide either 'variable' and 'unit' or 'variable_name' in kwargs"
+            )
+
+    # Extract all relevant options from kwargs or use defaults
+    markers = kwargs.pop("markers", default_month_markers["markers"])
+    month_colors = kwargs.pop("month_colors", default_month_markers["month_colors"])
+
+    plt_opts = extract_options(kwargs, default_target_monthly_plt_options)
+    base_opts = extract_options(kwargs, default_target_monthly_base_options, prefix="base_")
+    overlay_opts = extract_options(kwargs, default_target_overlay_options, prefix="overlay_")
+    data_marker_opts = extract_options(kwargs, default_target_monthly_data_marker_options, prefix="data_")
 
     extent = compute_target_extent_monthly(data_dict)
 
-    plt.figure(figsize=(11, 10))
-    plt.title(f"Monthly Target Diagram (Normalized Stats) | {variable}", fontsize=18, pad=55, fontweight='bold')
+    plt.figure(figsize=plt_opts.get("figsize"))
+
+    plt.title(
+        kwargs.get("title", f"Monthly Target Plot (Normalized Stats) | {variable}"),
+        fontsize=plt_opts.get("title_fontsize"),
+        pad=plt_opts.get("title_pad"),
+        fontweight=plt_opts.get("title_fontweight")
+    )
 
     # Base target diagram circles
     sm.target_diagram(
         np.array([1.0]), np.array([extent]), np.array([1.0]),
-        markerLabelColor='none', markersize=0, alpha=0.0,
-        circles=[0.5], circlelinespec='b:'
+        markerLabelColor=base_opts.get("markerLabelColor"),
+        markersize=base_opts.get("markersize"),
+        alpha=base_opts.get("alpha"),
+        circles=base_opts.get("overlay_circles", [0.7, 1.0] + list(np.arange(2.0, extent + 1e-6, 1.0))),
+        circlelinespec=base_opts.get("circlelinespec")
     )
+    
+    # Overlay
     sm.target_diagram(
         np.array([1.0]), np.array([extent]), np.array([1.0]),
-        markerLabelColor='none', markersize=0, alpha=0.0,
-        circles=[0.7, 1.0] + list(np.arange(2.0, extent + 1e-6, 1.0)),
-        circlelinespec='r-.'
+        markerLabelColor=overlay_opts.get("markerLabelColor"),
+        markersize=overlay_opts.get("markersize"),
+        alpha=overlay_opts.get("alpha"),
+        circles=overlay_opts.get("circles"),
+        circlelinespec=overlay_opts.get("circlelinespec")
     )
 
-    # Shaded areas
-    theta = np.linspace(0, 2 * np.pi, 300)
-    for r_start, r_end, color in [(0, 0.5, 'lightgreen'), (0.5, 0.7, 'khaki'), (0.7, extent, 'lightcoral')]:
-        x_outer = r_end * np.cos(theta)
-        y_outer = r_end * np.sin(theta)
-        x_inner = r_start * np.cos(theta)
-        y_inner = r_start * np.sin(theta)
-        plt.fill(
-            np.concatenate([x_outer, x_inner[::-1]]),
-            np.concatenate([y_outer, y_inner[::-1]]),
-            color=color, alpha=0.4, zorder=0
-        )
+    # Allow user to define threshold boundaries
+    zone_bounds = kwargs.get("zone_bounds", (0.5, 0.7))
+    assert len(zone_bounds) == 2 and all(isinstance(x, (int, float)) for x in zone_bounds), \
+        "'zone_bounds' must be a tuple of two numbers, e.g., (0.5, 0.7)"
 
-    # Extract year list
+    bound1, bound2 = zone_bounds
+
+    # Draw shaded areas with customizable boundaries
+    ax = plt.gca()
+    for r_start, r_end, color in [
+        (0, bound1, 'lightgreen'),
+        (bound1, bound2, 'khaki'),
+        (bound2, extent, 'lightcoral')
+    ]:
+        fill_annular_region(ax, r_start, r_end, color=color, alpha=0.4)
+
+    # Extract years from data_dict
     mod_key, _ = extract_mod_sat_keys(data_dict)
     years = list(data_dict[mod_key].keys())
 
@@ -139,35 +198,32 @@ def target_diagram_by_month(data_dict, output_path, variable_name):
         except ValueError:
             continue
 
-        color = MONTH_COLORS[month_index % len(MONTH_COLORS)]
+        color = month_colors[month_index % len(month_colors)]
 
         for i, (b, c, r, label) in enumerate(zip(bias, crmsd, rmsd, labels)):
-            # Match label to year, cycle through marker shapes
             year = label  # Assuming label is year as string or int
             year_index = years.index(str(year)) if str(year) in years else i
-            marker = MARKERS[year_index % len(MARKERS)]
+            marker = markers[year_index % len(markers)]
 
             sm.target_diagram(
                 np.array([b]), np.array([c]), np.array([r]),
-                markercolors={"face": color, "edge": "k"},
+                markercolors={"face": color, "edge": data_marker_opts.get("edge_color")},
                 markersymbol=marker,
-                markersize=10,
-                alpha=0.8,
-                overlay='on',
-                circles=[0.0]
+                markersize=data_marker_opts.get("markersize"),
+                alpha=data_marker_opts.get("alpha"),
+                overlay=data_marker_opts.get("overlay"),
+                circles=data_marker_opts.get("circles")
             )
 
     ax = plt.gca()
-    ax.tick_params(axis='both', labelsize=14)
-    ax.xaxis.label.set_size(16)
-    ax.yaxis.label.set_size(16)
+    ax.tick_params(axis='both', labelsize=plt_opts.get("tick_labelsize"))
+    ax.xaxis.label.set_size(plt_opts.get("axis_labelsize"))
+    ax.yaxis.label.set_size(plt_opts.get("axis_labelsize"))
 
-    save_path = output_path / "Unified_Target_Diagram.png"
-    plt.savefig(save_path, dpi=300)
+    save_path = output_path / kwargs.get("filename", "Unified_Target_Diagram.png")
+    plt.savefig(save_path, dpi=plt_opts.get("dpi"))
     plt.show(block=False)
     plt.draw()
     plt.pause(3)
     plt.close()
-
-    print("\033[92m✅ Unified Target Diagram has been plotted!\033[0m")
-    print("*" * 45)
+###############################################################################
