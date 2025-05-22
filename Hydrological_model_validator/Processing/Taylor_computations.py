@@ -2,7 +2,7 @@ import skill_metrics as sm
 import numpy as np
 import pandas as pd
 
-from Corollary import get_common_series_by_year, extract_mod_sat_keys, get_valid_mask
+from .data_alignment import get_common_series_by_year, get_valid_mask, extract_mod_sat_keys
 
 def compute_taylor_stat_tuple(mod_values, sat_values, label):
     """Compute Taylor statistics for two arrays of values."""

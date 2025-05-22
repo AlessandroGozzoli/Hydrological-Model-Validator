@@ -1,9 +1,9 @@
 import numpy as np
 import skill_metrics as sm
 
-from Corollary import (get_common_series_by_year, 
-                       get_common_series_by_year_month,
-                        round_up_to_nearest)
+from Hydrological_model_validator.Processing.data_alignment import (get_common_series_by_year, 
+                                                                    get_common_series_by_year_month)
+from Hydrological_model_validator.Processing.stats_math_utils import round_up_to_nearest
 
 def compute_normalised_target_stats(data_dict):
     """
