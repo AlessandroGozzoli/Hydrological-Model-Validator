@@ -1,5 +1,23 @@
+# **Version:** 4.0.0-δ - UNSTABLE  
+**Date:** 23/05/2025
+
+## Summary
+
+This update brings the `Data_reader_setupper.py` test case script back online, resolving previous issues related to function imports and path handling.
+
+## `Data_reader_setupper.py` Reactivation
+
+- The script `Data_reader_setupper.py` is now functional again.
+- Legacy hardcoded paths have been replaced with dynamic internal paths, removing the need for manual path extensions via `sys.path.append`.
+- This change enhances modularity and reduces the risk of import errors during execution or testing.
+
+> **Note:**  
+> While the script is operational, **optimization of the functions** used within it has been **deferred to a future update**. The focus will shift to performance improvements once the `L3s` Sea Surface Temperature data integration is underway.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.0.0-γ - UNSTABLE  
-**Date:** 22/05/2025
+**Date:** 23/05/2025
 
 ## Summary
 
