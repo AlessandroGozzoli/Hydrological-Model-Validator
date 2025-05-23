@@ -1,7 +1,7 @@
 from typing import Tuple, List, Dict, Optional
 from itertools import starmap, chain
 import numpy as np
-import skill_metrcis as sm
+import skill_metrics as sm
 
 from ..Processing.data_alignment import (get_common_series_by_year, 
                                          get_common_series_by_year_month)
