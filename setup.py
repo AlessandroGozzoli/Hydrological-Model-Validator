@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Hydrological_model_validator',
-    version='4.0.0-β',
+    version='4.0.0-γ',
     packages=find_packages(),
     install_requires=[
         'numpy',
