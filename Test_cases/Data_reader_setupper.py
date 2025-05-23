@@ -52,13 +52,6 @@ WDIR = os.getcwd()
 print(WDIR)
 print('-'*45)
 
-# Building the processing function directory path
-print("Retrieving the processing functions' folder...")
-ProcessingDIR = Path(WDIR, "Processing/")
-sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
-print(f"The processing functions are located in the folder {ProcessingDIR} !")
-print('-'*45)
-
 # ----- BUILDING THE DATA FOLDER PATH -----
 print("Locating the datasets...")
 # Defining the base data directory
@@ -92,27 +85,36 @@ print('*'*45)
 ##                                                                           ##
 ###############################################################################
 
-# Knowing the size of the datasets counts the number of days in the timeseries
-# by taking into accounts the leap years
-from Corollary import true_time_series_length, mask_reader
+print("Retrieving the time utility necessary functions...")
+from Hydrological_model_validator.Processing.time_utils import true_time_series_length
+print("\033[92m✅ Time utility functions retrieved!\033[0m")
 
-# Reads the satellite datasets
-from SAT_data_reader import sat_chldata, read_sst_satellite_data
+print("Retrieving the File I/O necessary functions...")
+from Hydrological_model_validator.Processing.file_io import mask_reader
+print("\033[92m✅ File I/O functions retrieved!\033[0m")
+
+print("Retrieving the necessary functions to read the satellite and model data...")
+from Hydrological_model_validator.Processing.SAT_data_reader import sat_chldata, read_sst_satellite_data
 
 # Reads the model datasets
-from MOD_data_reader import read_model_chl_data, read_model_sst, Bavg_sst
+from Hydrological_model_validator.Processing.MOD_data_reader import read_model_chl_data, read_model_sst, Bavg_sst
+print("\033[92m✅ Functions to read the model and satellite data retrieved!\033[0m")
 
-# Series of functions to check for the missing satellite data
-from Missing_data import (
+print("Retrieving the functions necessary to identify missing data...")
+from Hydrological_model_validator.Processing.Missing_data import (
                           check_missing_days,
                           find_missing_observations,
                           eliminate_empty_fields
                           )
+print("\033[92m✅ Data functions for the identification of missing data retrieved!\033[0m")
 
-from Data_saver import save_satellite_CHL_data, save_satellite_SST_data, save_model_CHL_data, save_model_SST_data, save_SST_Bavg
+print("Retrieving the data saving functions...")
+from Hydrological_model_validator.Processing.Data_saver import save_satellite_CHL_data, save_satellite_SST_data, save_model_CHL_data, save_model_SST_data, save_SST_Bavg
+print("\033[92m✅ Data saving functions retrieved!\033[0m")
 
-# A series of user define costants used for multiple computations
-from Costants import (
+print("Retrieving some costants...")
+print("These will be deprecated in a future update!")
+from Hydrological_model_validator.Processing.Costants import (
                       DinY,
                       SinD,
                       nf,
@@ -128,6 +130,7 @@ from Costants import (
                       Tspan,
                       ysec
                       )
+print("\033[92m✅ Costants retrieved!\033[0m")
 
 ###############################################################################
 ##                                                                           ##
