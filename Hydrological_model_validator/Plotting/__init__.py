@@ -6,7 +6,22 @@ from .formatting import (
 )
 
 from .Plots import (
-    timeseries_basin_average,
+    timeseries,
     scatter_plot,
-    scatter_plot_by_season
+    seasonal_scatter_plot,
+    whiskerbox,
+    violinplot,
+    efficiency_plot,
+    Benthic_depth,
+    Benthic_chemical_plot
+)
+
+from .Taylor_diagrams import (
+    comprehensive_taylor_diagram,
+    monthly_taylor_diagram
+)
+
+from .Target_plots import (
+    comprehensive_target_diagram,
+    target_diagram_by_month
 )
