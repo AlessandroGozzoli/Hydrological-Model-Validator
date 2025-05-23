@@ -1,3 +1,30 @@
+# **Version:** 4.0.0-γ - UNSTABLE  
+**Date:** 22/05/2025
+
+## Summary
+
+This incremental update completes the rework of plotting functions used in the `SST` and `CHL` analysis workflows by updating the `Taylor Diagrams` and `Target Plots` plotting and computational scripts following the same conventions introduced in the previous release.
+
+## Function Headers and Documentation
+
+- Both `Taylor` and `Target` plotting functions now include detailed headers and inline comments designed to enhance code readability and provide clear guidance on usage.
+- These headers document function purpose, input arguments, return values, and expected keyword arguments.
+
+## Computational Function Improvements
+
+- The underlying computation functions supporting these plots have been refined to:
+  - Employ `itertools` for efficient iteration where applicable.
+  - Replace all `assert` statements with explicit `RaiseErrors` to ensure robustness, even in optimized Python execution modes.
+  - Include standardized function headers; comprehensive inline comments will be introduced in a subsequent update.
+
+## Future Work
+
+- The refactoring of analysis test case functions will be temporarily paused, with plans to revisit optimization efforts at a later stage.
+- Next steps include fixing the `Data_reader_setupper.py` test case script to align with updated function paths; however, function re-optimization will wait until integration of the `Sea Surface Temperature` `L3s` data is complete.
+- Subsequently, the `Benthic_layer` scripts will be corrected and overhauled to improve computational performance and extend functionality, including the planned calculation of deep water formation volumes.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.0.0-β - UNSTABLE  
 **Date:** 22/05/2025
 
