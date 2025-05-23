@@ -12,7 +12,7 @@ def r_squared(obs, pred):
 
 # 1.5 Monthly r²
 def monthly_r_squared(dictionary):
-    from Efficiency_metrics import r_squared
+    from .Efficiency_metrics import r_squared
     
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -59,7 +59,7 @@ def weighted_r_squared(obs, pred):
     
 # 2.5 Monthly wr²
 def monthly_weighted_r_squared(dictionary):
-    from Efficiency_metrics import weighted_r_squared
+    from .Efficiency_metrics import weighted_r_squared
     
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -99,7 +99,7 @@ def nse(obs, pred):
 
 # 3.5 Monthly-NSE
 def monthly_nse(dictionary):
-    from Efficiency_metrics import nse
+    from .Efficiency_metrics import nse
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -140,7 +140,7 @@ def index_of_agreement(obs, pred):
 
 # 4.5 Monthly Index of Agreement
 def monthly_index_of_agreement(dictionary):
-    from Efficiency_metrics import index_of_agreement
+    from .Efficiency_metrics import index_of_agreement
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -182,7 +182,7 @@ def ln_nse(obs, pred):
 
 # 5.5 monthly log-NSE
 def monthly_ln_nse(dictionary):
-    from Efficiency_metrics import ln_nse
+    from .Efficiency_metrics import ln_nse
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -224,7 +224,7 @@ def nse_j(obs, pred, j=1):
 
 # 6.5 Monthly modified NSE
 def monthly_nse_j(dictionary, j=1):
-    from Efficiency_metrics import nse_j
+    from .Efficiency_metrics import nse_j
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -265,7 +265,7 @@ def index_of_agreement_j(obs, pred, j=1):
 
 # 7.5 Monthly modified index of aggreement
 def monthly_index_of_agreement_j(dictionary, j=1):
-    from Efficiency_metrics import index_of_agreement_j
+    from .Efficiency_metrics import index_of_agreement_j
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -306,7 +306,7 @@ def relative_nse(obs, pred):
 
 # 8.5 Monthly relative NSE
 def monthly_relative_nse(dictionary):
-    from Efficiency_metrics import relative_nse
+    from .Efficiency_metrics import relative_nse
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
@@ -349,7 +349,7 @@ def relative_index_of_agreement(obs, pred):
 
 # Monthly realtive index of aggreement
 def monthly_relative_index_of_agreement(dictionary):
-    from Efficiency_metrics import relative_index_of_agreement
+    from .Efficiency_metrics import relative_index_of_agreement
 
     model_key = [key for key in dictionary.keys() if 'mod' in key.lower()]
     sat_key = [key for key in dictionary.keys() if 'sat' in key.lower()]
