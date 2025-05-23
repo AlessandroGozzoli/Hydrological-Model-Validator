@@ -1,8 +1,7 @@
 import numpy as np
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
-import skill_metrics as sm
 
 ###############################################################################
 def fit_huber(mod_data: np.ndarray,
@@ -144,75 +143,3 @@ def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
         raise ValueError("Base must be a positive number.")
     return base * np.ceil(x / base)
 ###############################################################################
-
-###############################################################################
-def compute_single_target_stat(year: str, 
-                               mod: np.ndarray, 
-                               sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
-    """
-    Compute normalized bias, CRMSD, and RMSD for a single year of data.
-
-    Parameters
-    ----------
-    year : str
-        Year label.
-    mod : np.ndarray
-        Model values.
-    sat : np.ndarray
-        Satellite values.
-
-    Returns
-    -------
-    Optional[Tuple[float, float, float, str]]
-        Normalized bias, CRMSD, RMSD, and year label. Returns None if reference std is zero.
-    """
-    ref_std = np.std(sat, ddof=1)
-    if ref_std == 0:
-        print(f"Warning: Zero standard deviation in satellite data for {year}. Skipping.")
-        return None
-
-    stats = sm.target_statistics(mod, sat, 'data')
-    return (
-        stats['bias'] / ref_std,
-        stats['crmsd'] / ref_std,
-        stats['rmsd'] / ref_std,
-        year
-    )
-###############################################################################
-
-###############################################################################
-def compute_single_month_target_stat(year: int,
-                                     month: int,
-                                     mod: np.ndarray,
-                                     sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
-    """
-    Compute normalized bias, CRMSD, and RMSD for a single year-month.
-
-    Parameters
-    ----------
-    year : int
-        Year label.
-    month : int
-        Month index (0–11).
-    mod : np.ndarray
-        Model values.
-    sat : np.ndarray
-        Satellite values.
-
-    Returns
-    -------
-    Optional[Tuple[float, float, float, str]]
-        Normalized bias, CRMSD, RMSD, and label (e.g., "2001"). Returns None if std = 0.
-    """
-    ref_std = np.std(sat, ddof=1)
-    if ref_std == 0:
-        print(f"Warning: Zero standard deviation in satellite data for {year}, month {month}. Skipping.")
-        return None
-
-    stats = sm.target_statistics(mod, sat, 'data')
-    return (
-        stats['bias'] / ref_std,
-        stats['crmsd'] / ref_std,
-        stats['rmsd'] / ref_std,
-        str(year)
-    )
