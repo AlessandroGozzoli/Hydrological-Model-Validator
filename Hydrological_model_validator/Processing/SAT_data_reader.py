@@ -4,13 +4,6 @@ from netCDF4 import Dataset as ds
 import numpy as np
 import xarray as xr
 
-# Retrieve some costants to be used as counters
-from Costants import (
-                      LS,
-                      LE,
-                      total_SZTtmp
-                      )
-
 def sat_chldata(total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chldlev, ffrag2, DCHL_sat, Schl2r):
     assert nf > 0, "\033[91m❌ 'nf' must be greater than 0 — no dataset instances provided\033[0m"
     assert chldlev in ['l3', 'l4'], "\033[91m❌ Invalid data level — must be 'l3' or 'l4'\033[0m"
@@ -20,6 +13,10 @@ def sat_chldata(total_SZTtmp, LE, LS, nf, ffrag1, chlfstart, chlfend, chldlev, f
     Schlpath = []       # To store file paths
     T_orig = []         # To store time data
     Schl_orig = []      # To store chlorophyll data
+    
+    LE=0
+    LS=0
+    total_SZTtmp=0
 
     print("Reading the satellite chlorophyll data...")
     print(f"\033[91m⚠️ The dataset is divided into {nf} instances ⚠️\033[0m")

@@ -3,23 +3,14 @@ import os
 import gzip
 import shutil
 from netCDF4 import Dataset
-from Corollary import leapyear
 from pathlib import Path
 import xarray as xr
-import sys
 
-WDIR = os.getcwd()
-PlotDIR = Path(WDIR, "Plotting")
-sys.path.append(str(PlotDIR))
-print("Attemping to access ", PlotDIR)
+from ..Plotting.Plots import Benthic_chemical_plot
 
-from Plots import Benthic_chemical_plot
+from .Density import compute_density
 
-ProcessDIR = Path(WDIR, "Processing")
-sys.path.append(str(ProcessDIR))
-print("Attemping to access ", ProcessDIR)
-
-from Density import compute_density
+from .time_utils import leapyear
 
 def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
     """Reads and processes model CHL data from netCDF files."""
