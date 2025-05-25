@@ -52,22 +52,36 @@ print("Loading the necessary modules...")
 WDIR = os.getcwd()
 os.chdir(WDIR)  # Set the working directory
 
-print("Loading the Pre-Processing modules and constants...")
+print("Loading the Processing modules and constants...")
 ProcessingDIR = Path(WDIR, "Processing/")
 sys.path.append(str(ProcessingDIR))  # Add the folder to the system path
 
-from Costants import Ybeg, Yend, ysec
+from Hydrological_model_validator.Processing.BFM_data_reader import (read_benthic_parameter,
+                                                                     read_bfm_chemical)
 
-from MOD_data_reader import read_bfm, read_bentic_sst_sal
+from Hydrological_model_validator.Plotting.formatting import compute_geolocalized_coords
 
-print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
+print("\033[92m✅ Processing modules have been loaded!\033[0m")
+print("-"*45)
+
+print("Loading the density computation adjacent functions...")
+from Hydrological_model_validator.Processing.Density import (compute_density_bottom,
+                                                             compute_Bmost, 
+                                                             compute_Bleast,
+                                                             filter_dense_water_masses,
+                                                             compute_dense_water_volume)
+print("\033[92m✅ File I/O modules have been loaded!\033[0m")
 print("-"*45)
 
 print("Loading the plotting modules...")
 PlottingDIR = Path(WDIR, "Plotting")
 sys.path.append(str(PlottingDIR))  # Add the folder to the system path
 
-from Plots import Benthic_depth
+from Hydrological_model_validator.Plotting.bfm_plots import (Benthic_physical_plot,
+                                                             Benthic_chemical_plot,
+                                                             Benthic_depth,
+                                                             plot_benthic_3d_mesh,
+                                                             dense_water_timeseries)
 
 print("\033[92m✅ The plotting modules have been loaded!\033[0m")
 print('-'*45)
@@ -87,6 +101,9 @@ print('*'*45)
 # ----- BASE DATA DIRECTORY -----
 BDIR = Path(WDIR, "Data")
 
+# ----- MODEL DATA DIRECTORY (CONTAINS BFM DATA) -----
+IDIR = Path(BDIR, "MODEL")
+
 FDIR = Path(BDIR, "OUTPUT/PLOTS/BFM")
 
 # ----- RETRIEVING THE MASK -----
@@ -104,17 +121,25 @@ print('*'*45)
 ##                                                                           ##
 ###############################################################################
 
+# ----- GEOLOCALIZE THE DATASET -----
+print("Computing the geolocalization...")
+# Known values from the dataset, need to be changed if the area of analysis is changed
+grid_shape = (278, 315)
+epsilon = 0.06  # Correction factor linked to the resolution of the dataset
+x_start = 12.200
+x_step = 0.0100
+y_start = 43.774
+y_step = 0.0073
+
+geo_coords = compute_geolocalized_coords(grid_shape, epsilon, x_start, x_step, y_start, y_step)
+print("\033[92m✅ Geolocalization complete! \033[0m")
+print('*'*45)
+
 # ----- RETRIEVE DEEPEST POINTS -----
 print("Extracting the coordinates of the Benthic Layer...")
-Bmost = np.zeros((mask3d.shape[1], mask3d.shape[2]))
-
-for j in range(mask3d.shape[1]):
-    for i in range(mask3d.shape[2]):  # Notice: should be shape[2] not shape[1]
-        Bmost[j, i] = np.sum(mask3d[:, j, i])
-
-# Squeeze in case it's needed
-Bmost = np.squeeze(Bmost)
+Bmost = compute_Bmost(mask3d)
 print("\033[92m✅ Benthic coordinates obatined! \033[0m")
+print("-"*45)
 
 print("Plotting the Benthic layer...")
 
@@ -123,20 +148,16 @@ timestamp = datetime.now().strftime("run_%Y-%m-%d")
 output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Depth", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
-Benthic_depth(Bmost, output_path)
+Benthic_depth(Bmost, geo_coords, output_path)
+plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='surface')
+plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='mesh3d')
 print("\033[92m✅ Benthic Layer depth plotted! \033[0m")
-print('*'*45)
+print('-'*45)
 
 print("Creating a 2D mask for surface plots...")
-Bleast = np.zeros((mask3d.shape[1], mask3d.shape[2]))
-
-for j in range(mask3d.shape[1]):
-    for i in range(mask3d.shape[2]):  # Notice: should be shape[2] not shape[1]
-        Bleast[j, i] = mask3d[0, j, i]
-
-# Squeeze in case it's needed
-Bleast = np.squeeze(Bleast)
+Bleast = compute_Bleast(mask3d)
 print("\033[92m✅ Surface coordinates obatined! \033[0m")
+print('-'*45)
 
 ###############################################################################
 ##                                                                           ##
@@ -146,9 +167,190 @@ print("\033[92m✅ Surface coordinates obatined! \033[0m")
 
 print("Beginning to process the temperature and salinity fields to compute the density field...")
 
-read_bentic_sst_sal(BDIR, Ybeg, Yend, ysec, mask3d, Bmost, output_path)
+# ----- DEFINE FILE NAME FRAGMENTS FOR THE FUNCTIONS -----
+fragments = {
+            'ffrag1': "new15_1m_",
+            'ffrag2': "0101_",
+            'ffrag3': "1231_grid_T"
+        }
 
-print("Temperature, salinity and density field at the Benthic Layer have been plotted!")
+print("Retrieving the temperature data and building the dataframe...")
+temperature_data = read_benthic_parameter(IDIR, mask3d, Bmost, fragments, variable_key='votemper')
+print("Bottom temperature dataframe created succesfully!")
+print('-'*45)
+
+print("Plotting the temperature data at the bottom layer...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Temperature")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    temperature_data,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='votemper',
+    unit='°C',
+    description='Bottom Temperature'
+)
+print("Temperature data plotted!")
+print('-'*45)
+
+print("Retrieving the salinity data and building the dataframe...")
+salinity_data = read_benthic_parameter(IDIR, mask3d, Bmost, fragments, variable_key='vosaline')
+print("Bottom salinity dataframe created succesfully!")
+print('-'*45)
+
+print("Plotting the salinity data at the bottom layer...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Salinity")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    salinity_data,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='vosaline',
+    unit='psu',
+    description='Bottom Salinity'
+)
+print("Salinity data plotted!")
+print('-'*45)
+
+print("Temperature and salinity field at the Benthic Layer have been plotted!")
+print('*'*45)
+
+print("Computing the density field using all methods...")
+density_data_SEOS = compute_density_bottom(
+    temperature_data,
+    salinity_data,
+    Bmost,
+    method="EOS"  # Must explicitly set this
+)
+
+density_data_EOS80 = compute_density_bottom(
+    temperature_data,
+    salinity_data,
+    Bmost,
+    method="EOS80"  # Must explicitly set this
+)
+
+density_data_TEOS10 = compute_density_bottom(
+    temperature_data,
+    salinity_data,
+    Bmost,
+    method="TEOS10"  # Must explicitly set this
+)
+print("Density field has been computed using all methods!")
+print('-'*45)
+
+print("Proceeding to plot the results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density")
+os.makedirs(outdir, exist_ok=True)
+
+print("Starting from the linearized equation of state...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "SEOS")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    density_data_SEOS,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='density',
+    unit='kg/m3',
+    description='Bottom Density - SEOS'
+)
+print("Linearized EOS results plotted!")
+print("-"*45)
+print("Moving onto the EOS-80 results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "EOS-80")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    density_data_EOS80,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='density',
+    unit='kg/m3',
+    description='Bottom Density - EOS-80'
+)
+print("EOS-80 results plotted!")
+print('-'*45)
+print("Finishing with the TEOS-10 results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "TEOS-10")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    density_data_TEOS10,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='density',
+    unit='kg/m3',
+    description='Bottom Density - TEOS-10'
+)
+print("TEOS-10 reults plotted!")
+print('-'*45)
+
+print("Proceeding with the computation of the dense water at the bottom layer...")
+dense_water_SEOS=filter_dense_water_masses(density_data_SEOS)
+dense_water_EOS80=filter_dense_water_masses(density_data_EOS80)
+dense_water_TEOS10=filter_dense_water_masses(density_data_TEOS10)
+print("Dense water dataframes have been created")
+
+print("Proceeding to plot them...")
+print("Starting from the linearised SEOS dense water results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "SEOS", "Dense_Water")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    dense_water_SEOS,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='dense_water',
+    unit='kg/m3',
+    description='Dense Water mass - SEOS'
+)
+print("SEOS dense water results plotted!")
+
+print("Proceeding with the EOS-80 Dense Water results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "EOS-80", "Dense_Water")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    dense_water_EOS80,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='dense_water',
+    unit='kg/m3',
+    description='Dense Water mass - EOS-80'
+)
+print("EOS-80 Dense Water results plotted!")
+
+print("Moving onto the TEOS-10 Dense Water results...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density", "TEOS-10", "Dense_Water")
+os.makedirs(outdir, exist_ok=True)
+
+Benthic_physical_plot(
+    dense_water_TEOS10,
+    geo_coords,
+    output_path=outdir,
+    bfm2plot='dense_water',
+    unit='kg/m3',
+    description='Dense Water mass - TEOS-10'
+)
+print("TEOS-10 Densa Water results plotted!")
+print("The dense water masses results computed with each method have been succesully plotted!")
+
+print("Attempting to compute the volume of dense water...")
+dense_water_volume_SEOS = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='EOS')
+dense_water_volume_EOS80 = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='EOS80')
+dense_water_volume_TEOS10 = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='TEOS10')
+print("Dense water volume has been computed!")
+
+print("Proceeding to plot it...")
+dense_water_timeseries({
+    "EOS": dense_water_volume_SEOS,
+    "EOS80": dense_water_volume_EOS80,
+    "TEOS10": dense_water_volume_TEOS10
+})
+print("Dense water volume plotted!")
 print('*'*45)
 
 ###############################################################################
@@ -181,7 +383,7 @@ for code, (description, unit) in sorted(bfm__chem_variables.items()):
     print(f"{code:5} {description}")
 
 while True:
-    bfm2plot = input("Enter the chemical species you'd like to plot (e.g., 'Chl', 'N3n', 'P1c'): ").strip()
+    bfm2plot = input("Enter the chemical species you'd like to plot (e.g., 'Chla', 'N3n', 'P1c'): ").strip()
     if bfm2plot in bfm__chem_variables:
         # Retrieve the description and unit
         description, unit = bfm__chem_variables[bfm2plot]
@@ -197,13 +399,31 @@ while True:
 
 print('-'*45)
 
+# ----- DEFINE NEW FILENAME FRAGMENTS -----
+
+fragments = {
+            'ffrag1': "new15_1m_",
+            'ffrag2': "0101_",
+            'ffrag3': "1231_grid_bfm"
+        }
+
 # ----- READ AND PLOTS THE VARIABLE -----
 output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", bfm2plot, "BENTHIC")
 os.makedirs(output_path, exist_ok=True)
 
 print(f"Beginning the retrieval of the {selected_description} bottom data...")
-     
-read_bfm(BDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bmost, output_path, selected_unit, selected_description) 
+
+bfm_bottom_data = read_bfm_chemical(IDIR, mask3d, Bmost, fragments, variable_key=bfm2plot)
+
+Benthic_chemical_plot(
+    bfm_bottom_data,
+    geo_coords,
+    output_path=output_path,
+    bfm2plot=bfm2plot,
+    unit=selected_unit,
+    description=selected_description,
+    location='Bottom'
+)
 
 print(f"The {selected_description} monthly mean values for the whole bottom dataset have been plotted!")   
 print('-'*45) 
@@ -218,7 +438,16 @@ os.makedirs(output_path, exist_ok=True)
 
 print(f"Beginning the retrieval of the {selected_description} surface data...")
      
-read_bfm(BDIR, Ybeg, Yend, ysec, bfm2plot, mask3d, Bleast, output_path, selected_unit, selected_description) 
+bfm_surface_data = read_bfm_chemical(IDIR, mask3d, Bleast, fragments, variable_key=bfm2plot)
+
+Benthic_chemical_plot(
+    bfm_surface_data,
+    geo_coords,
+    output_path=output_path,
+    bfm2plot=bfm2plot,
+    unit=selected_unit,
+    description=selected_description
+)
 
 print(f"The {selected_description} monthly mean values for the whole surface dataset have been plotted!")   
 print('*'*45) 
