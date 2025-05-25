@@ -1,3 +1,104 @@
+# **Version:** 4.0.0 - OFFICIAL RELEASE  
+**Date:** 25/05/2025
+
+## Summary
+
+This marks the official release of version 4.0.0. The `Benthic_layer.py` test case and all related `BFM` function scripts have been fully overhauled and are now operational. Additionally, `setup.py` has been updated to include all necessary dependencies for full functionality.
+
+## `Benthic_layer.py` Functionality
+
+While the high-level purpose of the `Benthic_layer.py` script remains the same, its underlying functions have been entirely restructured. All previous versions are now deprecated.
+
+## Modular `BFM` Function Scripts
+
+All functions related to BFM simulation variable handling are now organized in a dedicated module folder. This improves clarity, reuse, and integration with the rest of the project. Below is a breakdown of the updated logic and implementations.
+
+### Geolocalization
+
+- Introduced `geo_coords` function to convert raw Cartesian coordinates into geodetic coordinates (longitude, latitude) and Eulerian angles (φ and λ).
+- Uses input horizontal resolution in degrees.
+
+### Bottom Layer Computation
+
+- New functions: `compute_Bmost()` and `compute_Bleast()` to extract benthic and surface layers, respectively.
+- Visualization enhancements include:
+  - `deep` colormap from `cmocean`
+  - Optional 3D rendering using Plotly (`surface` and `3dmesh`), paving the way for advanced deep water mass analysis.
+
+### Temperature and Salinity
+
+- Functions now support parallel loading for improved performance.
+- Datasets are cached for reuse in subsequent density calculations.
+- Plotting options externalized for customization.
+- Colormaps:
+  - Temperature: `cmocean.thermal`
+  - Salinity: `cmocean.haline`
+
+### Density
+
+- Computation logic extracted into a dedicated function.
+- EOS-80 remains the default method, aligning with simulation standards.
+- Optional methods retained for future flexibility.
+- Plotting colormap: `cmocean.dense`
+
+### Dense Water Masses
+
+- New functionality added for detection and visualization of dense water masses (threshold: 1029.2 kg/m³, per Oddo et al.).
+- Enhancements:
+  - 2D maps with black contour overlays
+  - 3D volume estimation via cell counting (800×800×2 m³)
+  - Timeline plotting of deep water formation across all methods
+
+### Chemical Species
+
+- Data loading and plotting routines are now fully separated.
+- Parallel loading avoided due to memory limitations of large `.nc` files.
+- All plots use logarithmic color scaling with `cmocean` and `matplotlib` colormaps.
+- Enhanced colorbars and axis labeling for clarity.
+
+#### Oxygen
+
+- Uses scalar steps and `cmocean.oxy` colormap.
+- Thresholds:
+  - Hypoxia: < 62.5 mmol/m³
+  - Hyperoxia: > 312.5 mmol/m³
+- Thresholds adjustable via the `formatting.py` module.
+
+#### Chlorophyll-a
+
+- Logarithmic steps
+- Colormap: `viridis`
+
+#### N-family (Nutrients)
+
+- Logarithmic steps
+- Colormap: `YlGnBu`
+
+#### P-family (Primary Producers)
+
+- Logarithmic steps
+- Colormap: `cmocean.algae`
+
+#### Z-family (Secondary Producers)
+
+- Logarithmic steps
+- Colormap: `cmocean.turbid`
+
+#### R-family (Particulate Organic Matter)
+
+- Logarithmic steps
+- Colormap: `cmocean.matter`
+
+## Future Work
+
+The refactor of the `Benthic_layer.py` suite is now complete. Planned next steps include:
+
+- **Integration of L3S Sea Surface Temperature data**, replacing L4 due to underperformance.
+- Enhancements to the SST reading functions, with improved handling of missing or invalid data.
+- General performance optimization and code cleanup across all test case scripts.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.0.0-δ - UNSTABLE  
 **Date:** 23/05/2025
 
