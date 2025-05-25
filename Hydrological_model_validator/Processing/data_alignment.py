@@ -307,3 +307,18 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     else:
         return np.array([])
 ###############################################################################
+
+###############################################################################
+def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
+    """Apply mask3d (0 = masked) to data, setting masked points to np.nan."""
+    masked_data = data.copy()
+    # Broadcast mask if necessary (assuming mask3d shape compatible with spatial dims of data)
+    if data.ndim == mask3d.ndim + 1:
+        # e.g., data = (time, depth, y, x), mask3d = (depth, y, x)
+        mask_broadcast = (mask3d == 0)
+        masked_data[:, mask_broadcast] = np.nan
+    elif data.ndim == mask3d.ndim:
+        masked_data[mask3d == 0] = np.nan
+    else:
+        raise ValueError("Data and mask3d dimensions are incompatible for masking")
+    return masked_data

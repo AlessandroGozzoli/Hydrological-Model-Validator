@@ -1,4 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union, Tuple
+from pathlib import Path
+import re
+import numpy as np
 
 ###############################################################################
 def find_key(dictionary: Dict[Any, Any], 
@@ -98,4 +101,127 @@ def extract_options(user_kwargs: Dict[str, Any],
         if full_key in user_kwargs:
             result[key] = user_kwargs[full_key]
     return result
+###############################################################################
+
+###############################################################################
+def infer_years_from_path(directory: Union[str, Path],
+                          *,
+                          target_type: str = "file",  # or "folder"
+                          pattern: str = r'_(\d{4})\.nc$',
+                          debug: bool = False) -> Tuple[int, int, List[int]]:
+    """
+    Infer available years from directory content by matching a regex pattern on file or folder names.
+
+    Parameters
+    ----------
+    directory : str or Path
+        Directory path to scan.
+
+    target_type : str, optional
+        Type of items to scan in the directory: "file" or "folder". Default is "file".
+
+    pattern : str, optional
+        Regex pattern to extract year as a capturing group (e.g. r'_(\d{4})\.nc$' or r'output\s*(\d{4})').
+        Default matches filenames like '_YYYY.nc'.
+
+    debug : bool, optional
+        If True, prints debug info.
+
+    Returns
+    -------
+    Ybeg : int
+        Earliest year found.
+
+    Yend : int
+        Latest year found.
+
+    ysec : List[int]
+        List of all years from Ybeg to Yend inclusive.
+
+    Raises
+    ------
+    ValueError
+        If no matching years are found.
+    """
+    directory = Path(directory)
+    if target_type == "file":
+        items = [f for f in directory.iterdir() if f.is_file()]
+    elif target_type == "folder":
+        items = [d for d in directory.iterdir() if d.is_dir()]
+    else:
+        raise ValueError(f"Invalid target_type '{target_type}'. Use 'file' or 'folder'.")
+
+    year_re = re.compile(pattern)
+    years_found = sorted({
+        int(m.group(1))
+        for item in items
+        if (m := year_re.search(item.name))
+    })
+
+    if debug:
+        print(f"Scanned {len(items)} items in {directory}")
+        print(f"Found years: {years_found}")
+
+    if not years_found:
+        raise ValueError(f"No {target_type}s with year pattern '{pattern}' found in {directory}")
+
+    Ybeg, Yend = years_found[0], years_found[-1]
+    ysec = list(range(Ybeg, Yend + 1))
+    return Ybeg, Yend, ysec
+###############################################################################
+
+###############################################################################
+def build_bfm_filename(year: int, filename_fragments: Dict[str, str]) -> str:
+    """Construct BFM filename with given year and fragments."""
+    return f"ADR{year}{filename_fragments['ffrag1']}{year}{filename_fragments['ffrag2']}{year}{filename_fragments['ffrag3']}.nc"
+###############################################################################
+
+###############################################################################
+def temp_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: np.ndarray) -> np.ndarray:
+    """
+    Compute invalid mask for temperature based on shallow and deep thresholds.
+
+    Parameters
+    ----------
+    slice_data : np.ndarray
+        3D array of temperature data (Y, X).
+    mask_shallow : np.ndarray
+        Boolean mask where True corresponds to shallow depths.
+    mask_deep : np.ndarray
+        Boolean mask where True corresponds to deep depths.
+
+    Returns
+    -------
+    np.ndarray
+        Boolean mask of invalid temperature points.
+    """
+    invalid_shallow = ~((slice_data > 5) & (slice_data < 35)) & mask_shallow
+    invalid_deep = ~((slice_data > 8) & (slice_data < 25)) & mask_deep
+    invalid_mask = invalid_shallow | invalid_deep
+    return invalid_mask
+###############################################################################
+
+###############################################################################
+def hal_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: np.ndarray) -> np.ndarray:
+    """
+    Compute invalid mask for salinity based on shallow and deep thresholds.
+
+    Parameters
+    ----------
+    slice_data : np.ndarray
+        3D array of salinity data (Y, X).
+    mask_shallow : np.ndarray
+        Boolean mask where True corresponds to shallow depths.
+    mask_deep : np.ndarray
+        Boolean mask where True corresponds to deep depths.
+
+    Returns
+    -------
+    np.ndarray
+        Boolean mask of invalid salinity points.
+    """
+    invalid_shallow = ~((slice_data > 25) & (slice_data < 40)) & mask_shallow
+    invalid_deep = ~((slice_data > 36) & (slice_data < 40)) & mask_deep
+    invalid_mask = invalid_shallow | invalid_deep
+    return invalid_mask
 ###############################################################################

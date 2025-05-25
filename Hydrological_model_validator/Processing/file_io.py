@@ -3,6 +3,10 @@ from typing import Tuple, Union, Optional
 import netCDF4 as nc
 from pathlib import Path
 import xarray as xr
+import shutil
+import gzip
+from netCDF4 import Dataset
+import io
 
 ###############################################################################
 def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray, ...], Tuple[np.ndarray, ...], np.ndarray, np.ndarray]:
@@ -107,5 +111,47 @@ def load_dataset(
     else:
         print(f"Warning: {file_path.name} not found!")
         return year, None
+###############################################################################
+
+###############################################################################
+def unzip_gz_to_file(file_gz: Path, target_file: Path) -> None:
+    """Unzip a .gz file to a target .nc file on disk."""
+    if not file_gz.exists():
+        raise FileNotFoundError(f"File not found: {file_gz}")
+    with gzip.open(file_gz, 'rb') as f_in, open(target_file, 'wb') as f_out:
+        shutil.copyfileobj(f_in, f_out)
+###############################################################################
+
+###############################################################################
+def read_nc_variable_from_unzipped_file(
+    file_nc: Path,
+    variable_key: str
+) -> np.ndarray:
+    """Read a variable from a NetCDF file on disk."""
+    if not file_nc.exists():
+        raise FileNotFoundError(f"NetCDF file not found: {file_nc}")
+    with Dataset(file_nc, 'r') as nc:
+        if variable_key not in nc.variables:
+            raise KeyError(f"Variable '{variable_key}' not found in {file_nc}")
+        data = nc.variables[variable_key][:]
+    return data
+###############################################################################
+
+###############################################################################
+def read_nc_variable_from_gz_in_memory(
+    file_gz: Path,
+    variable_key: str
+) -> np.ndarray:
+    """Read a variable directly from a gzipped NetCDF file in memory using xarray."""
+    if not file_gz.exists():
+        raise FileNotFoundError(f"File not found: {file_gz}")
+    with gzip.open(file_gz, 'rb') as f_in:
+        decompressed_bytes = f_in.read()
+    with xr.open_dataset(io.BytesIO(decompressed_bytes)) as ds:
+        if variable_key not in ds.variables:
+            raise KeyError(f"Variable '{variable_key}' not found in {file_gz}")
+        data = ds[variable_key].values
+    return data
+###############################################################################
 
 ###############################################################################
