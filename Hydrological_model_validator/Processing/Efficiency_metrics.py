@@ -1,4 +1,3 @@
-# Hydrological model performance metrics based on Krause et al. (2005)
 import numpy as np
 
 # 1. Coefficient of Determination (r²)
