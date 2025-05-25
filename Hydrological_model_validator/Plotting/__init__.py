@@ -12,8 +12,6 @@ from .Plots import (
     whiskerbox,
     violinplot,
     efficiency_plot,
-    Benthic_depth,
-    Benthic_chemical_plot
 )
 
 from .Taylor_diagrams import (
@@ -24,4 +22,10 @@ from .Taylor_diagrams import (
 from .Target_plots import (
     comprehensive_target_diagram,
     target_diagram_by_month
+)
+
+from .bfm_plots import (   
+    Benthic_depth,
+    Benthic_chemical_plot,
+    Benthic_physical_plot,
 )
