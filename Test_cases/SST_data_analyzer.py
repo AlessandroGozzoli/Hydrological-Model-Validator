@@ -60,6 +60,11 @@ from Hydrological_model_validator.Processing.file_io import load_dataset
 print("\033[92m✅ File I/O modules have been loaded!\033[0m")
 print("-"*45)
 
+print("Loading the utility functions...")
+from Hydrological_model_validator.Processing.utils import infer_years_from_path
+print("\033[92m✅ File I/O modules have been loaded!\033[0m")
+print("-"*45)
+
 print("Loading the plotting modules...")
 from Hydrological_model_validator.Plotting.Plots import (timeseries,
                                                            scatter_plot,
@@ -136,17 +141,7 @@ print('-'*45)
 
 # ----- INFER YEARS FROM FILE NAMES -----
 print("Scanning directory to determine available years...")
-nc_files = list(IDIR.glob("*.nc"))
-
-# Extract years using a regex pattern from filenames like 'Msst_2005.nc'
-year_pattern = re.compile(r'_(\d{4})\.nc$')
-years_found = sorted({int(match.group(1)) for file in nc_files if (match := year_pattern.search(file.name))})
-
-if not years_found:
-    raise ValueError("No files with year pattern '_YYYY.nc' found in the specified directory.")
-
-Ybeg, Yend = years_found[0], years_found[-1]
-ysec = list(range(Ybeg, Yend + 1))
+Ybeg, Yend, ysec = infer_years_from_path(IDIR, target_type="file", pattern=r'_(\d{4})\.nc$')
 
 print("Setting up the SST dictionary...")
 print('-' * 45)
