@@ -7,6 +7,8 @@ import shutil
 import gzip
 from netCDF4 import Dataset
 import io
+import os
+import matlab.engine
 
 ###############################################################################
 def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray, ...], Tuple[np.ndarray, ...], np.ndarray, np.ndarray]:
@@ -154,4 +156,18 @@ def read_nc_variable_from_gz_in_memory(
     return data
 ###############################################################################
 
+###############################################################################
+def call_interpolator(varname, data_level, input_dir, output_dir, mask_file):
+    pkg_root = os.path.dirname(os.path.abspath(__file__))
+    matlab_func_folder = os.path.join(pkg_root)
+    print("Adding MATLAB folder to path...")
+
+    eng = matlab.engine.start_matlab()
+
+    # Add the folder where the .m files reside
+    eng.addpath(matlab_func_folder, nargout=0)
+
+    print("Beginnig the interpolation...")
+    eng.Interpolator_v2(varname, data_level, input_dir, output_dir, mask_file, nargout=0)
+    eng.quit()
 ###############################################################################
