@@ -1,3 +1,66 @@
+# **Version:** 4.1.0  
+**Date:** 28/05/2025
+
+## Summary
+
+Version 4.1.0 introduces a full refactor of the `Data_reader_setupper.py` test case, integrating the `Interpolator_v2.m` MATLAB script and consolidating data reading and saving functions for both satellite and model datasets. This release also marks the formal deprecation of `L4` data handling, shifting all analysis to `L3s` datasets.
+
+## Major Changes
+
+### `Data_reader_setupper.py`
+
+- Complete refactor of the test case script
+- Integrated `Interpolator_v2.m` using `matlab.engine`
+- Unified data reading and saving logic for satellite and model datasets
+- All previously used reader functions are now **deprecated**
+- File management is critical: avoid moving files while the interpolator is running
+
+### Unified Data Reading Functions
+
+#### `MOD_data_reader.py` & `SAT_data_reader.py`
+
+- Each script now contains a **single function** for reading model or satellite datasets
+- Handles both `chl` and `sst` variables via the new `varname` argument
+- Future work will focus on improved robustness for irregular key names (e.g., `adjusted_sea_surface_temperature` in CMEMS)
+
+### `Missing_data.py`
+
+- Rewritten to eliminate dependency on external constants
+- Now runs autonomously and prepares for future optimizations
+
+### `Data_saver.py`
+
+- Merged functions into dedicated `save_model_data()` and `save_satellite_data()` routines
+- Simplifies saving of processed and interpolated data
+
+### `Interpolator_v2.m` Integration
+
+- Executed from Python using `matlab.engine`
+- New helper: `call_interpolator()`
+- File structure and paths must remain unchanged during execution
+- `setup.py` and `MANIFEST.in` updated to include required MATLAB files during installation
+
+## Deprecations
+
+- **L4 Data**: Now officially deprecated. Support removed from both `CHL_data_analyzer.py` and `SST_data_analyzer.py`
+- **Legacy Reader Functions**: Replaced by new unified readers
+
+## Minor Fixes & Adjustments
+
+- Adjusted file names and dictionary keys in:
+  - `CHL_data_analyzer.py`
+  - `SST_data_analyzer.py`
+- Minor typo corrections in `Benthic_layer.py`
+- Fixed label positioning in `Taylor_diagrams.py` monthly plot function
+
+## Future Work
+
+- Further optimization and cleanup of `Data_reader_setupper.py` functions
+- General cleanup of unused files in the GitHub repository
+- Begin development of **spatial performance analysis** modules
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.0.0 - OFFICIAL RELEASE  
 **Date:** 25/05/2025
 
