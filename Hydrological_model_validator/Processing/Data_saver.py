@@ -3,28 +3,30 @@ import xarray as xr
 import os
 import numpy as np
 import pathlib as Path
+###############################################################################
 
-def save_satellite_CHL_data(output_path, Slon, Slat, Schl_complete):
+###############################################################################
+def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     
     assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
     assert os.path.isdir(output_path), f"'{output_path}' is not a valid directory"
 
-    assert isinstance(Slon, (np.ndarray, xr.DataArray)), "Slon must be a NumPy array or xarray DataArray"
-    assert isinstance(Slat, (np.ndarray, xr.DataArray)), "Slat must be a NumPy array or xarray DataArray"
-    assert isinstance(Schl_complete, (np.ndarray, xr.DataArray)), "Schl_complete must be a NumPy array or xarray DataArray"
+    assert isinstance(Sat_lon, (np.ndarray, xr.DataArray)), "Slon must be a NumPy array or xarray DataArray"
+    assert isinstance(Sat_lat, (np.ndarray, xr.DataArray)), "Slat must be a NumPy array or xarray DataArray"
+    assert isinstance(SatData_complete, (np.ndarray, xr.DataArray)), "Schl_complete must be a NumPy array or xarray DataArray"
 
-    assert Slon.ndim == 2, f"Slon should be 2D, got shape {Slon.shape}"
-    assert Slat.ndim == 2, f"Slat should be 2D, got shape {Slat.shape}"
-    assert Schl_complete.ndim == 3, f"Schl_complete should be 3D (time, lat, lon), got shape {Schl_complete.shape}"
+    assert Sat_lon.ndim == 2, f"Slon should be 2D, got shape {Sat_lon.shape}"
+    assert Sat_lat.ndim == 2, f"Slat should be 2D, got shape {Sat_lat.shape}"
+    assert SatData_complete.ndim == 3, f"Schl_complete should be 3D (time, lat, lon), got shape {SatData_complete.shape}"
 
     os.chdir(output_path)
 
     print("Saving the data in the folder...")
     
     data = {
-        'Slon': Slon,
-        'Slat': Slat,
-        'Schl_complete': Schl_complete
+        'Sat_lon': Sat_lon,
+        'Sat_lat': Sat_lat,
+        'SatData_complete': SatData_complete
     }
 
     # File format input
@@ -37,22 +39,22 @@ def save_satellite_CHL_data(output_path, Slon, Slat, Schl_complete):
 
     if choice == '1' or choice == '3':
         print("Saving data as a single .mat file...")
-        scipy.io.savemat("chl_clean.mat", data)
-        print("Data saved as chl_clean.mat")
+        scipy.io.savemat("SatData_clean.mat", data)
+        print("Data saved as SatData_clean.mat")
         print("-"*45)
 
     if choice == '2' or choice == '3':
 
         print("Saving the data as separate .nc files...")
         
-        xr.DataArray(Slon).to_netcdf("Slon.nc")
-        print("Slon saved as Slon.nc")
+        xr.DataArray(Sat_lon).to_netcdf("Sat_lon.nc")
+        print("Sat_lon saved as Sat_lon.nc")
 
-        xr.DataArray(Slat).to_netcdf("Slat.nc")
-        print("Slat saved as Slat.nc")
+        xr.DataArray(Sat_lat).to_netcdf("Sat_lat.nc")
+        print("Sat_lat saved as Sat_lat.nc")
 
-        xr.DataArray(Schl_complete).to_netcdf("Schl_complete.nc")
-        print("Schl_complete saved as Schl_complete.nc")
+        xr.DataArray(SatData_complete).to_netcdf("SatData_complete.nc")
+        print("SatData_complete saved as SatData_complete.nc")
         print("-"*45)
 
     else:
@@ -60,59 +62,16 @@ def save_satellite_CHL_data(output_path, Slon, Slat, Schl_complete):
 
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*" * 45)
+###############################################################################
 
-def save_satellite_SST_data(output_path, Sat_sst):
+###############################################################################    
+def save_model_data(output_path, ModData_complete):
     
     assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
     assert os.path.isdir(output_path), f"'{output_path}' is not a valid directory"
 
-    assert isinstance(Sat_sst, (np.ndarray, xr.DataArray)), "Sat_sst must be a NumPy array or xarray DataArray"
-    assert Sat_sst.ndim in [2, 3], f"Sat_sst should be 2D or 3D (e.g., [time, lat, lon]), got shape {Sat_sst.shape}"
-
-    # Data to save
-    data = {
-        'Sat_sst': Sat_sst
-    }
-    
-    os.chdir(output_path)
-
-    # Ask the user for the preferred format
-    print("Choose a file format to save the data:")
-    print("1. MAT-File (.mat)")
-    print("2. NetCDF (.nc)")
-    print("3. Both MAT and NetCDF")
-    choice = input("Enter the number corresponding to your choice: ").strip()  # Remove extra spaces
-    print('-'*45)
-
-    # Save based on user choice
-    if choice == '1' or choice == '3':
-        print("Saving the SST data as a .mat file...")
-        # Saving as .mat file
-        scipy.io.savemat("Sat_sst.mat", data)
-        print("Data saved as Sat_sst.mat")
-        print("-"*45)
-
-    if choice == '2' or choice == '3':
-        print("Saving the SST data as .nc file...")
-        # Saving as .nc file
-        Sat_sst_xr = xr.DataArray(Sat_sst)
-        Sat_sst_xr.to_netcdf("Sat_sst.nc")
-        print("Sat_sst saved as Sat_sst.nc")
-        print("-"*45)
-
-    else:
-        print("Invalid choice. Please run the script again and select a valid option.")
-
-    print("\033[92m✅ The requested data has been saved!\033[0m")
-    print("*"*45)
-    
-def save_model_CHL_data(output_path, Mchl_complete):
-    
-    assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
-    assert os.path.isdir(output_path), f"'{output_path}' is not a valid directory"
-
-    assert isinstance(Mchl_complete, (np.ndarray, xr.DataArray)), "Mchl_complete must be a NumPy array or xarray DataArray"
-    assert Mchl_complete.ndim == 3, f"Mchl_complete should be 3D (e.g., [time, lat, lon]), got shape {Mchl_complete.shape}"
+    assert isinstance(ModData_complete, (np.ndarray, xr.DataArray)), "Mchl_complete must be a NumPy array or xarray DataArray"
+    assert ModData_complete.ndim == 3, f"Mchl_complete should be 3D (e.g., [time, lat, lon]), got shape {ModData_complete.shape}"
 
     os.chdir(output_path)
     
@@ -136,15 +95,15 @@ def save_model_CHL_data(output_path, Mchl_complete):
     if choice == "1" or choice == "3":
         print("Saving data as a .mat file...")
         # Saving as .mat file - wrap Mchl_complete in a dictionary
-        scipy.io.savemat("Mchl_complete.mat", {"Mchl_complete": Mchl_complete})
-        print("Data saved as Mchl_complete.mat")
+        scipy.io.savemat("ModData_complete.mat", {"ModData_complete": ModData_complete})
+        print("Data saved as ModData_complete.mat")
         print("-"*45)
 
     if choice == "2" or choice == "3":
-        print("Saving Mchl_complete as a .nc file...")
-        Mchl_complete_xr = xr.DataArray(Mchl_complete)
-        Mchl_complete_xr.to_netcdf("Mchl_complete.nc")
-        print("Mchl_complete saved as Mchl_complete.nc")
+        print("Saving ModData_complete as a .nc file...")
+        ModData_complete_xr = xr.DataArray(ModData_complete)
+        ModData_complete_xr.to_netcdf("ModData_complete.nc")
+        print("ModData_complete saved as ModData_complete.nc")
         print("-"*45)
     
     else:
@@ -204,7 +163,9 @@ def save_model_SST_data(output_path, Msst_complete):
 
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*"*45)
-    
+###############################################################################
+
+###############################################################################     
 def save_SST_Bavg(output_path, BASSTmod, BASSTsat):
     
     os.chdir(output_path)
