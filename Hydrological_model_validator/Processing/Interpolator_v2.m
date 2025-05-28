@@ -1,61 +1,65 @@
-%-----WORKING DIRECTORY-----
-%
-WDIR = "C:/Hydrological_model_validator";
-%% 
+function Interpolator_v2(varname, data_level, input_dir, output_dir, mask_file)
 
-%-----SATELLITE DATA LEVEL (NEEDED FOR CHLOROPHYLL DATA)-----
-% N.B: chldlev='l3' data level 3
-%      chldlev='l4' data level 4
-chldlev = "l4";
+%% 
+fprintf("Running the MatLab interpolator script...")
+fprintf("As a reminder the chosen variable is:")
+disp(['Variable name: ', varname]);
+fprintf("And the chosen data level is:")
+% Example usage of data_level and varname:
+disp(['Using satellite data level: ', data_level]);
 %% 
 
 %-----IMPORT THE DATA-----
 fprintf("Attemping to load the data from the Python output...");
 fprintf("\n!!! Please verify that the paths match the ones from the Python scripts !!!");
+disp(['\nThe data is in the fodler: ', input_dir])
 fprintf('\n%s\n', repmat('-', 1, 45));
-fprintf("Loading the chl_clean.mat file...");
-data = load('C:/Hydrological_model_validator/Data/INTERPOLATOR_INPUT/chl_clean.mat');
+fprintf("Loading the SatData_clean.mat file...");
+data = load(fullfile(input_dir, 'SatData_clean.mat'));
 fprintf("\nThis dataset contains the following variables:\n");
 % List all the field names (variable names) in the loaded structure
 disp(fieldnames(data));
-fprintf("\nchl_clean data succesfully loaded");
+fprintf("\nSatData_clean data succesfully loaded");
 fprintf('\n%s\n', repmat('-', 1, 45));
 
-fprintf("Loading the Mchl_complete.mat file...");
-Mchl_complete_temp = load('C:/Hydrological_model_validator/Data/INTERPOLATOR_INPUT/Mchl_complete.mat');
-Mchl_complete = double(Mchl_complete_temp.Mchl_complete);
-fprintf("\nMchl_complete data succesfully loaded");
+fprintf("Loading the ModData_complete.mat file...");
+ModData_complete_temp = load(fullfile(input_dir, 'ModData_complete.mat'));
+ModData_complete = double(ModData_complete_temp.ModData_complete);
+fprintf("\nModData_complete data succesfully loaded");
 fprintf('\n%s\n', repmat('-', 1, 45));
 
 %-----EXTRACTING THE SINGULAR FIELDS FROM DATA-----
 fprintf("Extracting the singular variables from data... \n");
 Truedays = 3653;
 fprintf("Trueday has been extracted! \n");
-Slon = double(data.Slon);
+Sat_lon = double(data.Sat_lon);
 fprintf("Slon has been extracted! \n");
-Slat = double(data.Slat);
+Sat_lat = double(data.Sat_lat);
 fprintf("Slat has been extracted! \n");
-Schl_complete = double(data.Schl_complete);
-fprintf("Schl_complete has been extracted! \n");
+SatData_complete = double(data.SatData_complete);
+fprintf("SatData_complete has been extracted! \n");
 
 %-----FIND DAYS WITH NO SATELLITE OBSERVATIONS-----
-cnan = 0;
+field_nan = 0;
+fprintf("Computing the number of days with missing satellite observations...\n")
 for t = 1:Truedays
-    tempo1(t) = 1;
-    tempo2 = nansum(nansum(Schl_complete(t, :, :)));
-    if tempo2 == 0
-        cnan = cnan + 1;
-        tempo1 = nan;
+    string = strcat("Checking day ", num2str(t));
+    disp(string)
+    temporary1(t) = 1;
+    temporary2 = nansum(nansum(SatData_complete(t, :, :)));
+    if temporary2 == 0
+        field_nan = field_nan + 1;
+        temporary1 = nan;
     end
 end
 string = strcat("The satnan index has been obtained!");
 disp(string);
-satnan = find(isnan(tempo1));
-clear tempo1 tempo2
+satnan = find(isnan(temporary1));
+clear temporary1 temporary2
 %% 
 
 %-----MODEL LAND SEA MASK-----
-MASK = 'C:/Tesi magistrale/Dati/mesh_mask.nc';
+MASK = fullfile(mask_file, 'mesh_mask.nc');
 mask3d = nc_varget(MASK, 'tmask');
 mask3d = squeeze(mask3d);
 
@@ -67,37 +71,37 @@ Mfsm = find(Mmask == 0);
 Mfsm_3d = find(mask3d == 0);
 
 %-----GET MODEL LAT & LON-----
-Mlat = nc_varget(MASK, 'nav_lat');
-Mlon = nc_varget(MASK, 'nav_lon');
+Mask_lat = nc_varget(MASK, 'nav_lat');
+Mask_lon = nc_varget(MASK, 'nav_lon');
 
 %-----INITIALIZE AVERAGE TIME SERIES-----
-M_TS_ave(1:Truedays) = nan;
-S_TS_ave(1:Truedays) = nan;
+Model_TS_avg(1:Truedays) = nan;
+Satellite_TS_avg(1:Truedays) = nan;
 %% 
 
-if strcmp(chldlev, "l4")
+if strcmp(data_level, "l4")
     %-----IF "L4" SATELLITE DATA IS INTERPOLATED ON MODEL GRID-----
-    tmp = squeeze(Schl_complete(1, :, :));
+    tmp = squeeze(SatData_complete(1, :, :));
     satmask = abs(isnan(tmp) - 1);
-    Slat = Slat';
+    Sat_lat = Sat_lat';
     clear tmp;
 
     %-----ITERATE OVER DAYS-----
-    string = "Start interpolation loop for the level 4 data";
+    fprintf("Proceeding with the interpolation of the L4 (optimally interpolated) data");
     disp(string);
 
     for d = 1:Truedays
-        noflood = squeeze(Schl_complete(d, :, :));
+        noflood = squeeze(SatData_complete(d, :, :));
 
         %-----EXPAND DATA OVER LAND-----
         flooded = Flood(noflood, 5);
 
         %-----INTERPOLATE INTO MODEL GRID-----
-        Stmp = interp2(Slon, Slat, flooded, Mlon, Mlat);
+        Sat_mask_temp = interp2(Sat_lon, Sat_lat, flooded, Mask_lon, Mask_lat);
 
         %-----MASK FIELDS-----
-        Smtp(Mfsm) = nan;
-        Schl_interp(d, :, :) = Stmp(:, :);
+        Sat_mask_temp(Mfsm) = nan;
+        SatData_interp(d, :, :) = Sat_mask_temp(:, :);
 
         string = strcat("Interpolating day ", num2str(d));
         disp(string);
@@ -107,13 +111,13 @@ if strcmp(chldlev, "l4")
     disp(string);
 
     %-----SAVE AS NetCDF FILES-----
-    fprintf("Setting to the Output Folder...\n");
-    interPath = 'C:/Hydrological_model_validator/DatA/OUTPUT/INTERPOLATOR/';
+    fprintf("Setting up the Output Folder...\n");
+    interPath = output_dir;
     fprintf("Proceding to save the data...\n")
 
-    fprintf("Saving the Mchl level 4 data...\n")
+    fprintf("Saving the model level 4 data...\n")
     % Check if the file exists, if not create it
-    ncfile = [interPath 'Mchl_interp_l4.nc'];
+    ncfile = [interPath, '\', 'ModData_', varname, '_interp_l4.nc'];
 
     % Create the NetCDF file and the variable 'Mchl_interp' if they don't exist
     if exist(ncfile, 'file') == 2
@@ -122,38 +126,38 @@ if strcmp(chldlev, "l4")
     end
 
     % Create the NetCDF file and variable for 'Mchl_interp'
-    nccreate(ncfile, 'Mchl_complete', 'Dimensions', {'time', Truedays, 'lat', size(Mchl_complete, 2), 'lon', size(Mchl_complete, 3)});
+    nccreate(ncfile, 'ModData_complete', 'Dimensions', {'time', Truedays, 'lat', size(ModData_complete, 2), 'lon', size(ModData_complete, 3)});
 
-    % Write the data to the 'Mchl_interp' variable in the NetCDF file
-    ncwrite(ncfile, 'Mchl_complete', Mchl_complete);
-    fprintf("Mchl_interp_l4.nc file has been saved\n");
+    % Write the data to the 'ModData_interp' variable in the NetCDF file
+    ncwrite(ncfile, 'ModData_complete', ModData_complete);
+    fprintf("ModData_complete_l4.nc file has been saved\n");
 
-    fprintf("Saving the Schl level 4 data...\n")
-    % Saving Schl_interp_l3.nc file similarly
-    ncfile2 = [interPath 'Schl_interp_l4.nc'];
+    fprintf("Saving the interpolated satellite level 4 data...\n")
+    % Saving SatData_interp_l4.nc file similarly
+    ncfile2 = [interPath, '\', 'SatData_', varname, '_interp_l4.nc'];
 
     if exist(ncfile2, 'file') == 2
         fprintf("File already exists, overwriting...\n");
         delete(ncfile2); % Optional: delete the existing file if overwriting is desired
     end
 
-    % Create the NetCDF file and variable for 'Schl_complete'
-    nccreate(ncfile2, 'Schl_interp', 'Dimensions', {'time', Truedays, 'lat', size(Schl_interp, 2), 'lon', size(Schl_interp, 3)});
+    % Create the NetCDF file and variable for 'SatData_complete'
+    nccreate(ncfile2, 'SatData_interp', 'Dimensions', {'time', Truedays, 'lat', size(SatData_interp, 2), 'lon', size(SatData_interp, 3)});
 
-    % Write the Schl_complete data
-    ncwrite(ncfile2, 'Schl_interp', Schl_interp);
-    fprintf("Schl_interp_l4.nc file has been created\n")
+    % Write the SatData_complete data
+    ncwrite(ncfile2, 'SatData_interp', SatData_interp);
+    fprintf("SatData_interp_l4.nc file has been created\n")
 
     fprintf("Level 4 interpolated data has been saved!\n");
 
-elseif strcmp(chldlev, "l3")
-    Slat = Slat';
+elseif strcmp(data_level, "l3")
+    Sat_lat = Sat_lat';
 
     %-----IF "L3" MODEL DATA INTERPOLATED ON SATELLITE GRID-----
-    MinMlat = min(min(Mlat));
-    exSgrid = find(Slat <= MinMlat);
+    MinMlat = min(min(Mask_lat));
+    exSgrid = find(Sat_lat <= MinMlat);
 
-    string = "Interpolating the Model data onto the satellite grid";
+    string = "Proceding with a bilinear interpolation of the L3s data";
     disp(string);
 
     for d = 1:Truedays
@@ -161,31 +165,36 @@ elseif strcmp(chldlev, "l3")
         disp(string);
 
         %-----GENERATE A LAND SEA MASK FOR SAT FIELDS-----
-        Stmp = squeeze(Schl_complete(d, :, :));
-        Stmp(exSgrid) = nan;
-        outlierconc = 15;
-        outliers = find(Stmp >= outlierconc);
-        Stmp(outliers) = nan;
-        Schl_complete(d, :, :) = Stmp(:,:);
-        satmask = abs(isnan(Stmp) - 1);
+        Sat_mask_temp = squeeze(SatData_complete(d, :, :));
+        Sat_mask_temp(exSgrid) = nan;
+        switch varname
+            case 'chl'
+                outlierconc = 15;
+            case 'sst'
+                outlierconc = 35;
+        end
+        outliers = find(Sat_mask_temp >= outlierconc);
+        Sat_mask_temp(outliers) = nan;
+        SatData_complete(d, :, :) = Sat_mask_temp(:,:);
+        satmask = abs(isnan(Sat_mask_temp) - 1);
         nobs = nansum(nansum(satmask));
         if nobs <= 500
             satmask(:,:) = 0;
         end
         satmasknan = find(satmask == 0);
-        Schl_complete(d, :, :) = Stmp(:,:);
-        Schl_complete(satmasknan) = nan;
-        clear Stmp;
+        SatData_complete(d, :, :) = Sat_mask_temp(:,:);
+        SatData_complete(satmasknan) = nan;
+        clear Sat_mask_temp;
 
         %-----ELIMINATE DATA WITH NO SATELLITE OBSERVATIONS-----
-        Mchl_complete(satnan, :, :) = nan;
-        noflood = squeeze(Mchl_complete(d, :, :));
+        ModData_complete(satnan, :, :) = nan;
+        noflood = squeeze(ModData_complete(d, :, :));
 
         %-----EXPAND DATA OVER LAND-----
         flooded = Flood(noflood, 5);
 
         %-----INTERPOLATE INTO SATELLITE GRID-----
-        Mtmp = interp2(Mlon, Mlat, flooded, Slon, Slat);
+        Mtmp = interp2(Mask_lon, Mask_lat, flooded, Sat_lon, Sat_lat);
 
         %-----MASK FIELDS-----
         Mtmp(outliers) = nan;
@@ -196,18 +205,18 @@ elseif strcmp(chldlev, "l3")
         clear mgp;
 
         %-----STORE INTERPOLATED DATA-----
-        Mchl_interp(d, :, :) = Mtmp(:,:);
+        ModData_interp(d, :, :) = Mtmp(:,:);
 
     end
 %%
     %-----SAVE AS NetCDF FILES-----
     fprintf("Setting to the Output Folder...\n");
-    interPath = 'C:/Hydrological_model_validator/Data/OUTPUT/INTERPOLATOR/';
+    interPath = output_dir;
     fprintf("Proceding to save the data...\n")
 
-    fprintf("Saving the Mchl level 3 data...\n")
+    fprintf("Saving the interpolated level 3 data...\n")
     % Check if the file exists, if not create it
-    ncfile = [interPath 'Mchl_interp_l3.nc'];
+    ncfile = [interPath, '\', 'ModData_', varname, '_interp_l3.nc'];
 
     % Create the NetCDF file and the variable 'Mchl_interp' if they don't exist
     if exist(ncfile, 'file') == 2
@@ -216,51 +225,51 @@ elseif strcmp(chldlev, "l3")
     end
 
     % Create the NetCDF file and variable for 'Mchl_interp'
-    nccreate(ncfile, 'Mchl_interp', 'Dimensions', {'time', Truedays, 'lat', size(Mchl_interp, 2), 'lon', size(Mchl_interp, 3)});
+    nccreate(ncfile, 'ModData_interp', 'Dimensions', {'time', Truedays, 'lat', size(ModData_interp, 2), 'lon', size(ModData_interp, 3)});
 
     % Write the data to the 'Mchl_interp' variable in the NetCDF file
-    ncwrite(ncfile, 'Mchl_interp', Mchl_interp);
-    fprintf("Mchl_interp_l3.nc file has been saved\n");
+    ncwrite(ncfile, 'ModData_interp', ModData_interp);
+    fprintf("ModData_interp_l3.nc file has been saved\n");
 
-    fprintf("Saving the Schl level 3 data...\n")
-    % Saving Schl_interp_l3.nc file similarly
-    ncfile2 = [interPath 'Schl_interp_l3.nc'];
+    fprintf("Saving the satellite level 3 data...\n")
+    % Saving SatData_interp_l3.nc file similarly
+    ncfile2 = [interPath, '\', 'SatData_', varname, '_interp_l3.nc'];
 
     if exist(ncfile2, 'file') == 2
         fprintf("File already exists, overwriting...\n");
         delete(ncfile2); % Optional: delete the existing file if overwriting is desired
     end
 
-    % Create the NetCDF file and variable for 'Schl_complete'
-    nccreate(ncfile2, 'Schl_complete', 'Dimensions', {'time', Truedays, 'lat', size(Schl_complete, 2), 'lon', size(Schl_complete, 3)});
+    % Create the NetCDF file and variable for 'SatData_complete'
+    nccreate(ncfile2, 'SatData_complete', 'Dimensions', {'time', Truedays, 'lat', size(SatData_complete, 2), 'lon', size(SatData_complete, 3)});
 
-    % Write the Schl_complete data
-    ncwrite(ncfile2, 'Schl_complete', Schl_complete);
-    fprintf("Schl_interp_l3.nc file has been created\n")
+    % Write the SatData_complete data
+    ncwrite(ncfile2, 'SatData_complete', SatData_complete);
+    fprintf("SatData_interp_l3.nc file has been created\n")
 
     fprintf("Level 3 interpolated data has been saved!\n");
 
 else
-    string = "Problem with chldlev!!!!";
+    string = "Problem with data_level!!!!";
     disp(string);
     return;
 end
 
-string = "CHL data succesfully interpolated!";
+string = "The data has been succesfully interpolated!";
 disp(string);
 fprintf('\n%s\n', repmat('-', 1, 45));
 %% 
 
 % ----- COMPUTING BASIN AVERAGES -----
 
-fprintf("Creating the Basin Average timeseries for the selected data level...")
+fprintf("Creating the Basin Average timeseries for the selected variable and data level...")
 
 DafterD=0; % Initializing a counter to keep track of the days in the dataset
 
 % ----- ALLOCATE THE ARRAY -----
 
-BACHLmod(1:Truedays)=0;
-BACHLsat(1:Truedays)=0;
+BAmod(1:Truedays)=0;
+BAsat(1:Truedays)=0;
 
 for d=1:Truedays
     string = strcat("Averaging day ", num2str(d));
@@ -270,64 +279,62 @@ for d=1:Truedays
 
     % ----- INITIALIZING AND EXTENDING THE ARRAYS -----
 
-    switch chldlev
+    switch data_level
         case 'l4'
-            Mchl = squeeze(Mchl_complete(DafterD, :, :));
+            ModData = squeeze(ModData_complete(DafterD, :, :));
         case 'l3'
-            Mchl = squeeze(Mchl_interp(DafterD, :, :));
+            ModData = squeeze(ModData_interp(DafterD, :, :));
         otherwise
-            fprintf("Invalid chldlev\n");
+            fprintf("Invalid data_level\n");
     end
 
     % ----- APPLY THE MASK AND LOOK FOR NaN -----
 
-    switch chldlev
+    switch data_level
         case 'l4'
-            Schl = squeeze(Schl_interp(DafterD, :, :));
+            SatData = squeeze(SatData_interp(DafterD, :, :));
         case 'l3'
-            Schl = squeeze(Schl_complete(DafterD, :, :));
+            SatData = squeeze(SatData_complete(DafterD, :, :));
         otherwise
-            fprintf("CHL: never to be seen");
+            fprintf("Data never to be seen");
     end
 
-    Schlfsm=find(isnan(Schl));
+    SatData_fsm=find(isnan(SatData));
 
-    switch chldlev
+    switch data_level
         case 'l4'
-            Mchl(Mfsm) = nan;
-            Mchl(Schlfsm) = nan;
+            ModData(Mfsm) = nan;
+            ModData(SatData_fsm) = nan;
         case 'l3'
-            Mchl(Schlfsm) = nan;       
+            ModData(SatData_fsm) = nan;       
         otherwise
             disp("NaN'ing: NEVER TO BE SEEN");
     end
 
-    chlanom=Mchl-Schl; % Compute the anomalies
-
     % ----- COMPUTE THE BASIN AVERAGES
 
-    BACHLmod(DafterD)=nanmean(nanmean(Mchl));
-    BACHLsat(DafterD)=nanmean(nanmean(Schl));
+    BAmod(DafterD)=nanmean(nanmean(ModData));
+    BAsat(DafterD)=nanmean(nanmean(SatData));
 
     %        -----ELIMATE "INCONSISTENCIES"-----
 
-    if BACHLmod(DafterD) == 0
-        BACHLmod(DafterD)=nan;
-        BACHLsat(DafterD)=nan;
+    if BAmod(DafterD) == 0
+        BAmod(DafterD)=nan;
+        BAsat(DafterD)=nan;
     end
 
 end
 
-nomod=find(isnan(BACHLmod));
-BACHLsat(nomod)=nan;
+nomod=find(isnan(BAmod));
+BAsat(nomod)=nan;
 
-switch chldlev
+switch data_level
     case 'l4'
-        BACHLmod_L4 = BACHLmod;
-        BACHLsat_L4 = BACHLsat;
+        BAmod_L4 = BAmod;
+        BAsat_L4 = BAsat;
     case 'l3'
-        BACHLmod_L3 = BACHLmod;
-        BACHLsat_L3 = BACHLsat;
+        BAmod_L3 = BAmod;
+        BAsat_L3 = BAsat;
     otherwise
         fprintf("Error in the chl level selected!");
 end
@@ -342,57 +349,56 @@ else
 end
 %% 
 fprintf("Setting to the Output Folder...\n");
-interpath = 'C:/Hydrological_model_validator/Data/OUTPUT/INTERPOLATOR/';
+interpath = output_dir;
 fprintf("Proceding to save the data...\n")
 
-switch chldlev
+switch data_level
     case 'l4'
-        fprintf("Saving the Basin Average Model CHL level 4 data...\n");
-        ncfile = [interpath, 'BACHLmod_L4.nc'];
+        fprintf("Saving the Basin Average Model level 4 data...\n");
+        ncfile = [interpath, '\', 'BA_', varname, '_mod_L4.nc'];
         if exist(ncfile, 'file') == 2
             fprintf("File already exists, overwriting...\n");
             delete(ncfile);
         end
 
-        nccreate(ncfile, 'BACHLmod_L4', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
-        ncwrite(ncfile, 'BACHLmod_L4', BACHLmod_L4);
-        fprintf("The Basin Average Model CHL level 4 data has been saved!\n");
+        nccreate(ncfile, 'BAmod_L4', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
+        ncwrite(ncfile, 'BAmod_L4', BAmod_L4);
+        fprintf("The Basin Average Model level 4 data has been saved!\n");
 
-        fprintf("Saving the Basin Average Satellite CHL level 4 data...\n");
-        ncfile2 = [interpath, 'BACHLsat_L4.nc'];
+        fprintf("Saving the Basin Average Satellite level 4 data...\n");
+        ncfile2 = [interpath, '\', 'BA_', varname, '_sat_L4.nc'];
         if exist(ncfile2, 'file') == 2
             fprintf("File already exists, overwriting...\n");
             delete(ncfile2);
         end
 
-        nccreate(ncfile2, 'BACHLsat_L4', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
-        ncwrite(ncfile2, 'BACHLsat_L4', BACHLsat_L4);
-        fprintf("The Basin Average Satellite CHL level 4 data has been saved!\n");
+        nccreate(ncfile2, 'BAsat_L4', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
+        ncwrite(ncfile2, 'BAsat_L4', BAsat_L4);
+        fprintf("The Basin Average Satellite level 4 data has been saved!\n");
 
     case 'l3'
-        fprintf("Saving the Basin Average Model CHL level 3 data...\n");
-        ncfile = [interpath, 'BACHLmod_L3.nc'];
+        fprintf("Saving the Basin Average Model level 3 data...\n");
+        ncfile = [interpath, '\', 'BA_' varname, '_mod_L3.nc'];
         if exist(ncfile, 'file') == 2
             fprintf("File already exists, overwriting...\n");
             delete(ncfile);
         end
 
-        nccreate(ncfile, 'BACHLmod_L3', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
-        ncwrite(ncfile, 'BACHLmod_L3', BACHLmod_L3);
-        fprintf("The Model Basin Average CHL level 3 data has been saved!\n");
+        nccreate(ncfile, 'BAmod_L3', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
+        ncwrite(ncfile, 'BAmod_L3', BAmod_L3);
+        fprintf("The Model Basin Average level 3 data has been saved!\n");
 
-        fprintf("Saving the Basin Average Satellite CHL level 3 data...\n");
-        ncfile2 = [interpath, 'BACHLsat_L3.nc'];
+        fprintf("Saving the Basin Average Satellite level 3 data...\n");
+        ncfile2 = [interpath, '\', 'BA_', varname, '_sat_L3.nc'];
         if exist(ncfile2, 'file') == 2
             fprintf("File already exists, overwriting...\n");
             delete(ncfile2);
         end
 
-        nccreate(ncfile2, 'BACHLsat_L3', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
-        ncwrite(ncfile2, 'BACHLsat_L3', BACHLsat_L3);
-        fprintf("The Basin Average Satellite CHL level 3 data has been saved!\n");
+        nccreate(ncfile2, 'BAsat_L3', 'Dimensions', {'time', Truedays}, 'Datatype', 'double');
+        ncwrite(ncfile2, 'BAsat_L3', BAsat_L3);
+        fprintf("The Basin Average Satellite  level 3 data has been saved!\n");
 
     otherwise
         fprintf("Error in the chl level selected!\n");
 end
-
