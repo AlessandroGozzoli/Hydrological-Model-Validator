@@ -139,27 +139,12 @@ print("*"*45)
 print("Setting up the SST dictionary...")
 print('-'*45)
 
-# ----- INFER YEARS FROM FILE NAMES -----
-print("Scanning directory to determine available years...")
-Ybeg, Yend, ysec = infer_years_from_path(IDIR, target_type="file", pattern=r'_(\d{4})\.nc$')
-
-print("Setting up the SST dictionary...")
-print('-' * 45)
-
-print(f"Years detected: {ysec}")
-print("Getting the yearly model SST datasets...")
-
-with ThreadPoolExecutor() as executor:
-    results = list(executor.map(load_dataset, ysec, repeat(IDIR)))
-
-Msst_data = {year: ds for year, ds in results if ds is not None}
-
 # ----- IMPORTING BASIN AVERAGES -----
 
 print("Importing the Basin Average SST timeseries...")
 idir_path = Path(IDIR)
-BASSTmod = xr.open_dataset(idir_path / 'BASSTmod.nc')['BASSTmod'].values
-BASSTsat = xr.open_dataset(idir_path / 'BASSTsat.nc')['BASSTsat'].values
+BASSTmod = xr.open_dataset(idir_path / 'BA_sst_mod_l3.nc')['BAmod_L3'].values
+BASSTsat = xr.open_dataset(idir_path / 'BA_sst_sat_l3.nc')['BAsat_L3'].values
 print("\033[92m✅ Basin Average Timeseries obtained!\033[0m")
 
 # Generate datetime index (Daily from 2000 to 2009)
@@ -186,6 +171,10 @@ print("Splitting the data to better handle it...")
 
 print("Creating the yearly datasets...")
 BASST_yearly = {}
+
+# Define the number of years in which to split the dataset
+Ybeg, Yend = dates[0].year, dates[-1].year
+ysec = list(range(Ybeg, Yend + 1))
 
 for key in BASST:
     BASST_yearly[key] = split_to_yearly(BASST[key], ysec)
