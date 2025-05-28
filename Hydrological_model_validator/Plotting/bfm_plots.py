@@ -14,6 +14,7 @@ import matplotlib.cm as cm
 import cmocean
 import matplotlib.dates as mdates
 import seaborn as sns
+import os
 
 # Cartopy (for map projections and geospatial features)
 import cartopy.crs as ccrs
@@ -182,7 +183,7 @@ def Benthic_depth(Bmost: np.ndarray,
 ###############################################################################
 
 ###############################################################################
-def plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='surface'):
+def plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='surface', save_path=None):
     """
     Plot 3D surface mesh of benthic depth with interactive rotation.
 
@@ -288,7 +289,17 @@ def plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='surfac
         raise ValueError("plot_type must be 'surface' or 'mesh3d'")
 
     fig.show()
-    pio.write_html(fig, 'benthic_3d.html', auto_open=True)
+
+    # Save to file if path provided
+    # Set filename
+    filename = f"3D Basin Depth {plot_type}.html"
+
+    # Optionally allow user-defined folder
+    if save_path:
+        os.makedirs(save_path, exist_ok=True)
+        filename = Path(save_path, filename)
+
+        pio.write_html(fig, filename, auto_open=True)
 ###############################################################################
 
 ###############################################################################
