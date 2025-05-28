@@ -281,7 +281,7 @@ def monthly_taylor_diagram(data_dict, **kwargs):
     ref = df[df["year"] == "Ref"].iloc[0]
     ax = plt.gca()
     y_min, y_max = ax.get_ylim()
-    label_y = y_min - 0.11 * (y_max - y_min)
+    label_y = y_min - 0.09 * (y_max - y_min)
 
     tickrms = default_monthly_taylor_base_options.get("tickrms")
     first_tickrms = tickrms[0] if isinstance(tickrms, (list, tuple)) and tickrms else 0.5
