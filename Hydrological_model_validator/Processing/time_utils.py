@@ -42,8 +42,7 @@ def leapyear(year: int) -> int:
 ###############################################################################
 
 ###############################################################################
-def true_time_series_length(nf: int,
-                            chlfstart: List[int],
+def true_time_series_length(chlfstart: List[int],
                             chlfend: List[int],
                             DinY: int) -> int:
     """
@@ -81,12 +80,6 @@ def true_time_series_length(nf: int,
     >>> true_time_series_length(2, [1999, 2001], [2000, 2002], 365)
     1096
     """
-    if not (isinstance(nf, int) and nf > 0):
-        raise ValueError("nf must be a positive integer.")
-    if not (isinstance(chlfstart, list) and isinstance(chlfend, list)):
-        raise ValueError("chlfstart and chlfend must be lists.")
-    if len(chlfstart) != nf or len(chlfend) != nf:
-        raise ValueError("chlfstart and chlfend must have length equal to nf.")
     if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
         raise ValueError("chlfstart and chlfend must contain integers only.")
     if not all(end >= start for start, end in zip(chlfstart, chlfend)):
