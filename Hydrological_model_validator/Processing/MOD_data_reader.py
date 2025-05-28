@@ -4,232 +4,122 @@ import gzip
 import shutil
 from netCDF4 import Dataset
 from pathlib import Path
-import xarray as xr
 
 from .time_utils import leapyear
+from .utils import infer_years_from_path
 
 ###############################################################################
-def read_model_chl_data(Dmod, Ybeg, Tspan, Truedays, DinY, Mfsm):
-    """Reads and processes model CHL data from netCDF files."""
-    
-    assert isinstance(Dmod, (str, Path)), "Dmod must be a string or Path object"
-    assert isinstance(Ybeg, int), "Ybeg must be an integer"
-    assert isinstance(Tspan, int) and Tspan > 0, "Tspan must be a positive integer"
-    assert isinstance(Truedays, int) and Truedays > 0, "Truedays must be a positive integer"
-    assert isinstance(DinY, int) and DinY in [365, 366], "DinY must be 365 or 366"
-    assert (
-        isinstance(Mfsm, tuple)
-        and len(Mfsm) == 2
-        and all(isinstance(i, np.ndarray) for i in Mfsm)
-        ), "Mfsm must be a tuple of two numpy arrays for indexing"
-
-    fMchl = 'Chlasat_od'
-    ib = 0
-    ie = 0
-    ymod = Ybeg - 1
-    Mchl_complete = []  # Initialize dynamically
-    
-    for y in range(Tspan):
-        ymod += 1
-        ymod_str = str(ymod)
-        YDIR = "output" + ymod_str
-        
-        ib = ie
-        amileap = DinY + leapyear(ymod)
-        assert amileap in [365, 366], f"Leap year calculation failed for year {ymod}"
-        ie = ib + amileap
-        
-        Mchlpath = Path(Dmod, YDIR) / f"ADR{ymod_str}new15bb_Chlsat.nc"
-        Mchlpathgz = Path(Dmod, YDIR) / f"ADR{ymod_str}new15bb_Chlsat.nc.gz"
-        
-        print(f"Obtaining the CHL data for the year {ymod_str}...")
-        
-        if not os.path.exists(Mchlpath):
-            if os.path.exists(Mchlpathgz):
-                with gzip.open(Mchlpathgz, 'rb') as f_in, open(Mchlpath, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-        
-        with Dataset(Mchlpath, 'r') as nc_file:
-            assert fMchl in nc_file.variables, f"{fMchl} variable not found in {Mchlpath}"
-            Mchl_orig = nc_file.variables[fMchl][:]
-            assert Mchl_orig.shape[0] == amileap, f"Unexpected number of days in CHL data for year {ymod}"
-        
-        if os.path.exists(Mchlpathgz):
-            print("Zipped file already existing")
-            os.remove(Mchlpath)
-        else:
-            print("Zipping...")
-            with open(Mchlpath, 'rb') as f_in, gzip.open(Mchlpathgz, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        
-        print(f"\033[92m✅ The model CHL data for the year {ymod_str} has been retrieved!\033[0m")
-        print('-'*45)
-        
-        if y == 0:
-            Mchlrow, Mchlcol = Mchl_orig.shape[1], Mchl_orig.shape[2]
-            Mchl_complete = np.zeros((Truedays, Mchlrow, Mchlcol))
-        
-        tempo = np.full((Mchlrow, Mchlcol), np.nan)
-        for t in range(amileap):
-            tempo[:, :] = Mchl_orig[t, :, :]
-            tempo[Mfsm] = np.nan
-            Mchl_orig[t, :, :] = tempo[:, :]
-        
-        Mchl_complete[ib:ie, :, :] = Mchl_orig[:amileap, :, :]
-
-    assert ie == Truedays, f"Total days mismatch: expected {Truedays}, got {ie}"
-
-    print("\033[92m✅ Model CHL data fully loaded!\033[0m")
-    print('*'*45)
-
-    return Mchl_complete
-###############################################################################
-
-###############################################################################
-def read_model_sst(Dmod, ysec, Mfsm):
+def read_model_data(Dmod, Mfsm, variable_name):
     """
-    Reads model SST data across multiple years and returns structured SST data.
-    
-    Parameters:
-        DSST_mod (str): Path to the model SST data directory.
-        ysec (list): List of years to iterate over.
-    
-    Returns:
-        dict: Dictionary containing SST data organized by year.
+    Reads and processes model CHL or SST data from NetCDF files over multiple years.
+
+    Parameters
+    ----------
+    Dmod : str or Path
+        Base directory containing yearly output subfolders.
+    Ybeg : int
+        Starting year for data reading (inferred again inside).
+    Mfsm : tuple of np.ndarray
+        Masking indices (e.g., from np.where) to apply NaNs to model data.
+    variable_name : str
+        Either 'chl' for chlorophyll or 'sst' for sea surface temperature.
+
+    Returns
+    -------
+    np.ndarray
+        Concatenated array of model data across years with masking applied.
+
+    Raises
+    ------
+    AssertionError
+        If inputs are not of expected types or data files are missing/inconsistent.
     """
-    
-    # Input validations
     assert isinstance(Dmod, (str, Path)), "Dmod must be a string or Path object"
-    assert isinstance(ysec, (list, tuple)) and all(isinstance(y, int) for y in ysec), "ysec must be a list or tuple of integers"
     assert (
         isinstance(Mfsm, tuple)
         and len(Mfsm) == 2
         and all(isinstance(i, np.ndarray) for i in Mfsm)
     ), "Mfsm must be a tuple of two numpy arrays for indexing"
-    
-    sst_data = {}  # Dictionary to store SST data by year
-    
+
+    if variable_name == 'chl':
+        key = 'Chlasat_od'
+    elif variable_name == 'sst':
+        key = 'sst'
+    else:
+        raise ValueError("variable_name must be either 'chl' or 'sst'.")
+
+    print("Scanning directory to determine available years...")
+    Ybeg, Yend, ysec = infer_years_from_path(Dmod, target_type="folder", pattern=r'output\s*(\d{4})')
+    print(f"Found years from {Ybeg} to {Yend}: {ysec}")
+    print("-" * 45)
+
+    ymod = Ybeg - 1
+    ModData_complete_list = []
+
     for y in ysec:
-        Ynow = str(y)
-        print(f"Processing year {Ynow}...")
-        current_year = str('output' + Ynow)
-        
-        DSST_mod = os.path.join(Dmod, current_year)
-        
-        # Construct the file path
-        Msstpath = os.path.join(DSST_mod, 
-                                f"ADR{Ynow}new_g100_1d_{Ynow}0101_{Ynow}1231_grid_T.nc")
-        
-        # Generate zipped file path
-        Msstpathgz = f"{Msstpath}.gz"
-        
-        # Unzip if necessary
-        if not os.path.exists(Msstpath) and os.path.exists(Msstpathgz):
-            with gzip.open(Msstpathgz, 'rb') as f_in:
-                with open(Msstpath, 'wb') as f_out:
-                    f_out.write(f_in.read())
-        
-        # Read SST data
-        if os.path.exists(Msstpath):
-            ds = xr.open_dataset(Msstpath)
-            assert 'sst' in ds.variables, f"'sst' variable not found in file {Msstpath}"
+        ymod += 1
+        ymod_str = str(ymod)
+        YDIR = "output" + ymod_str
 
-            Msst = ds['sst'].values  # Extract SST variable
-            assert Msst.ndim == 3, f"Expected 3D SST data, got shape {Msst.shape}"
+        # Leap year support
+        amileap = 365 + leapyear(ymod)
+        assert amileap in [365, 366], f"Leap year calculation failed for year {ymod}"
 
-            for t in range(Msst.shape[0]):
-                # Apply mask to latitude/longitude using Mfsm
-                Msst[t, Mfsm[0], Mfsm[1]] = np.nan  # Index mask
+        # Construct file paths
+        # Generalize file search
+        folder_path = Path(Dmod, YDIR)
+        file_suffix = '_Chl.nc' if variable_name == 'chl' else '_grid_T.nc'
 
-            sst_data[Ynow] = Msst
-            print(f"\033[92m✅ The model SST data for the year {Ynow} has been retrieved!\033[0m")
-            print('-'*45)
-        else:
-            print(f"\033[91m⚠️ Warning: SST file for {Ynow} not found.\033[0m")
-            print('-'*45)
+        # Look for .nc and .nc.gz variants
+        candidates = list(folder_path.glob(f"*{file_suffix}")) + list(folder_path.glob(f"*{file_suffix}.gz"))
+        if not candidates:
+            raise FileNotFoundError(f"No matching file for {variable_name.upper()} in {folder_path}")
+        ModData_path = candidates[0].with_suffix('') if candidates[0].suffix == '.gz' else candidates[0]
+        ModData_pathgz = candidates[0].with_suffix('.nc.gz') if candidates[0].suffix == '' else candidates[0]
 
-    return sst_data
-###############################################################################
+        print(f"Obtaining the {variable_name.upper()} data for the year {ymod_str}...")
 
-###############################################################################
-def Bavg_sst(Tspan, ysec, Dmod, Sat_sst, Mfsm):
-    """
-    Reads and processes SST model data for multiple years, applying masking 
-    consistent with satellite SST data and handling missing values.
-    
-    Parameters:
-    - Tspan: number of years to process
-    - ysec: list or array of years (e.g., [1998, 1999, ..., 2020])
-    - DSST_mod: base path to model SST files
-    - Ssst_orig: full satellite SST data, shape (Truedays, lat, lon)
-    - Mfsm: indices (boolean array or mask) where values should be NaN’d
-    
-    Returns:
-    - BASSTmod: list of daily mean SST values from the model
-    - BASSTsat: list of corresponding satellite SST values
-    """
-    
-    assert isinstance(Tspan, int) and Tspan > 0, "Tspan must be a positive integer"
-    assert isinstance(ysec, (list, np.ndarray)), "ysec must be a list or NumPy array"
-    assert len(ysec) == Tspan, "Length of ysec must equal Tspan"
-
-    assert isinstance(Dmod, (str, Path)), "Dmod must be a string or Path object"
-    assert os.path.isdir(Dmod), f"'{Dmod}' is not a valid directory"
-    
-    assert isinstance(Sat_sst, np.ndarray), "Sat_sst must be a NumPy array"
-    assert Sat_sst.ndim == 3, "Sat_sst must be a 3D array (days, lat, lon)"
-    
-    assert isinstance(Mfsm, tuple) and len(Mfsm) == 2, "Mfsm must be a tuple with two index arrays"
-    assert all(isinstance(arr, np.ndarray) for arr in Mfsm), "Mfsm must contain NumPy arrays"
-    assert all(arr.ndim == 1 for arr in Mfsm), "Mfsm index arrays should be 1D"
-    
-    DafterD = 0
-    BASSTmod = []
-    BASSTsat = []
-
-    for y in range(Tspan):
-        Ynow = str(ysec[y])
-        print(f"Processing year {Ynow}")
-        
-        YDIR = 'output' + str(Ynow)
-        DSST_mod = Path(Dmod, YDIR)
-
-        # File path construction
-        fname = f"{DSST_mod}/ADR{Ynow}new_g100_1d_{Ynow}0101_{Ynow}1231_grid_T.nc"
-        fname_gz = fname + ".gz"
-
-        # Unzip if not already unzipped
-        if not os.path.exists(fname) and os.path.exists(fname_gz):
-            print(f"Unzipping {fname_gz}")
-            with gzip.open(fname_gz, 'rb') as f_in:
-                with open(fname, 'wb') as f_out:
+        # Extract gzipped file if needed
+        if not os.path.exists(ModData_path):
+            if os.path.exists(ModData_pathgz):
+                with gzip.open(ModData_pathgz, 'rb') as f_in, open(ModData_path, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-        assert os.path.exists(fname), f"Expected SST file {fname} not found even after unzip"
+        # Read and validate NetCDF file
+        with Dataset(ModData_path, 'r') as nc_file:
+            assert key in nc_file.variables, f"{key} variable not found in {ModData_path}"
+            ModData_orig = nc_file.variables[key][:]
+            assert ModData_orig.shape[0] == amileap, f"Unexpected number of days in {variable_name.upper()} data for year {ymod}"
 
-        # Load SST data
-        ds = xr.open_dataset(fname)
-        Msst_orig = ds['sst'].values  # Shape: (days, lat, lon)
-        ydays = Msst_orig.shape[0]
+        # Re-zip file if uncompressed copy was created
+        if os.path.exists(ModData_pathgz):
+            print("Zipped file already existing")
+            os.remove(ModData_path)
+        else:
+            print("Zipping...")
+            with open(ModData_path, 'rb') as f_in, gzip.open(ModData_pathgz, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
 
-        for d in range(ydays):
-            DafterD += 1
-            Msst = Msst_orig[d, :, :]
-            Ssst = Sat_sst[DafterD - 1, :, :]
+        print(f"\033[92m✅ The model {variable_name.upper()} data for the year {ymod_str} has been retrieved!\033[0m")
+        print('-' * 45)
 
-            assert Msst.shape == Ssst.shape, "Model and satellite SST shapes must match"
+        # Mask and accumulate
+        if y == Ybeg:
+            ModData_row, ModData_col = ModData_orig.shape[1], ModData_orig.shape[2]
 
-            # Find NaNs in satellite SST
-            Ssstfsm = np.isnan(Ssst)
+        tempo = np.full((ModData_row, ModData_col), np.nan)
+        for t in range(amileap):
+            tempo[:, :] = ModData_orig[t, :, :]
+            tempo[Mfsm] = np.nan
+            ModData_orig[t, :, :] = tempo[:, :]
 
-            # Apply NaNs based on Mfsm and satellite NaNs
-            Msst[Mfsm] = np.nan
-            Msst[Ssstfsm] = np.nan
-            Ssst[Mfsm] = np.nan
+        ModData_complete_list.append(ModData_orig[:amileap, :, :])
 
-            # Store daily mean values
-            BASSTmod.append(np.nanmean(Msst))
-            BASSTsat.append(np.nanmean(Ssst))
+    # Concatenate all yearly data into a full dataset
+    ModData_complete = np.concatenate(ModData_complete_list, axis=0)
 
-    return BASSTmod, BASSTsat
+    print("\033[92m✅ Model data fully loaded across all years!\033[0m")
+    print('*' * 45)
+
+    return ModData_complete
 ###############################################################################
