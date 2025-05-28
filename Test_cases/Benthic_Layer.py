@@ -149,8 +149,16 @@ output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Depth", timestamp)
 os.makedirs(output_path, exist_ok=True)
 
 Benthic_depth(Bmost, geo_coords, output_path)
-plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='surface')
-plot_benthic_3d_mesh(Bmost, geo_coords, layer_thickness=2, plot_type='mesh3d')
+plot_benthic_3d_mesh(Bmost, 
+                     geo_coords, 
+                     layer_thickness=2, 
+                     plot_type='surface',
+                     save_path=output_path)
+plot_benthic_3d_mesh(Bmost, 
+                     geo_coords, 
+                     layer_thickness=2, 
+                     plot_type='mesh3d',
+                     save_path=output_path)
 print("\033[92m✅ Benthic Layer depth plotted! \033[0m")
 print('-'*45)
 
