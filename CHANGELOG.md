@@ -1,3 +1,20 @@
+# **Version:** 4.3.0  
+**Date:** 29/05/2025
+
+## Summary
+
+This update focuses on performance and reliability improvements within the `data_alignment.py` submodule.
+
+## Enhancements
+
+- **Refactored `apply_3d_mask` Function:**  
+  The `apply_3d_mask` function has been reworked to simplify broadcasting across datasets, improving clarity and maintainability.
+
+- **Improved Input Validation:**  
+  Added `RaiseErrors` to enforce correct input types and shapes, ensuring more robust error handling and early failure detection.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.0  
 **Date:** 29/05/2025
 
