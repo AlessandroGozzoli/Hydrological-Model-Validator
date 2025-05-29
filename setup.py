@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Hydrological_model_validator',
-    version='4.2.3',
+    version='4.2.4',
     packages=find_packages(),
     include_package_data=True,  # Include package data files specified in package_data or MANIFEST.in
     package_data={
