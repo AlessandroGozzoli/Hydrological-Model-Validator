@@ -17,8 +17,6 @@ def read_model_data(Dmod, Mfsm, variable_name):
     ----------
     Dmod : str or Path
         Base directory containing yearly output subfolders.
-    Ybeg : int
-        Starting year for data reading (inferred again inside).
     Mfsm : tuple of np.ndarray
         Masking indices (e.g., from np.where) to apply NaNs to model data.
     variable_name : str
@@ -33,6 +31,10 @@ def read_model_data(Dmod, Mfsm, variable_name):
     ------
     AssertionError
         If inputs are not of expected types or data files are missing/inconsistent.
+    ValueError
+        If an unsupported variable name is given.
+    FileNotFoundError
+        If no matching NetCDF files are found.
     """
     assert isinstance(Dmod, (str, Path)), "Dmod must be a string or Path object"
     assert (
@@ -66,14 +68,17 @@ def read_model_data(Dmod, Mfsm, variable_name):
         assert amileap in [365, 366], f"Leap year calculation failed for year {ymod}"
 
         # Construct file paths
-        # Generalize file search
         folder_path = Path(Dmod, YDIR)
-        file_suffix = '_Chl.nc' if variable_name == 'chl' else '_grid_T.nc'
 
-        # Look for .nc and .nc.gz variants
-        candidates = list(folder_path.glob(f"*{file_suffix}")) + list(folder_path.glob(f"*{file_suffix}.gz"))
+        if variable_name == 'chl':
+            candidates = list(folder_path.glob("*_Chl.nc")) + list(folder_path.glob("*_Chl.nc.gz"))
+        else:  # 'sst'
+            candidates = list(folder_path.glob("*_1d_*_grid_T.nc")) + list(folder_path.glob("*_1d_*_grid_T.nc.gz"))
+
         if not candidates:
             raise FileNotFoundError(f"No matching file for {variable_name.upper()} in {folder_path}")
+
+        # Prefer uncompressed file if available
         ModData_path = candidates[0].with_suffix('') if candidates[0].suffix == '.gz' else candidates[0]
         ModData_pathgz = candidates[0].with_suffix('.nc.gz') if candidates[0].suffix == '' else candidates[0]
 
