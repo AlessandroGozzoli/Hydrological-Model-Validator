@@ -310,15 +310,42 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
 
 ###############################################################################
 def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
-    """Apply mask3d (0 = masked) to data, setting masked points to np.nan."""
+    """
+    Apply a 3D mask (0 = masked) to a data array, setting masked values to np.nan.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data array with shape (..., depth, lat, lon) or (depth, lat, lon).
+    mask3d : np.ndarray
+        3D mask with shape (depth, lat, lon), where 0 indicates masked regions.
+
+    Returns
+    -------
+    np.ndarray
+        Data array with masked values set to np.nan.
+
+    Raises
+    ------
+    ValueError
+        If the mask shape is not broadcast-compatible with the last 3 dimensions of data.
+    """
+    if not isinstance(data, np.ndarray) or not isinstance(mask3d, np.ndarray):
+        raise TypeError("Both data and mask3d must be numpy arrays")
+    if mask3d.ndim != 3:
+        raise ValueError("mask3d must be a 3D array")
+
+    if data.shape[-3:] != mask3d.shape:
+        try:
+            # Test broadcastability
+            np.broadcast_shapes(data[..., -3:].shape, mask3d.shape)
+        except ValueError:
+            raise ValueError(f"mask3d shape {mask3d.shape} is not broadcast-compatible with data shape {data.shape}")
+
     masked_data = data.copy()
-    # Broadcast mask if necessary (assuming mask3d shape compatible with spatial dims of data)
-    if data.ndim == mask3d.ndim + 1:
-        # e.g., data = (time, depth, y, x), mask3d = (depth, y, x)
-        mask_broadcast = (mask3d == 0)
-        masked_data[:, mask_broadcast] = np.nan
-    elif data.ndim == mask3d.ndim:
-        masked_data[mask3d == 0] = np.nan
-    else:
-        raise ValueError("Data and mask3d dimensions are incompatible for masking")
+    mask_bool = (mask3d == 0)
+
+    # Use broadcasting to apply mask across time or other leading dimensions
+    masked_data[..., mask_bool] = np.nan
+
     return masked_data
