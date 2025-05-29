@@ -22,7 +22,7 @@ This update refactors the `Density.py` submodule to enhance performance, maintai
   Deprecated nested `for` loops have been replaced with efficient `NumPy` operations such as `where` and `broadcast`, significantly improving performance.
 
 > **Note:**  
-> Since the recent changes primarily involve refactoring, minor fixes, and performance optimizations—with no major new features—the versioning has been adjusted to reflect these as patch-level updates under semantic versioning. The old versions 4.3.0 and 4.4.0 have been renamed to 4.2.1 and 4.2.2.
+> Since the recent changes primarily involve refactoring, minor fixes, and performance optimizations, with no major new features, the versioning has been adjusted to reflect these as patch-level updates. The old versions 4.3.0 and 4.4.0 have been renamed to 4.2.1 and 4.2.2.
 
 --------------------------------------------------------------------------------------
 
