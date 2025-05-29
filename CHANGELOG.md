@@ -1,3 +1,23 @@
+# **Version:** 4.2.4
+**Date:** 29/05/2025
+
+## Summary
+
+This release focuses on improved documentation and minor optimizations within the `file_io.py` module.
+
+## General Enhancements
+
+- **Expanded Docstrings:**  
+  Function docstrings within `file_io.py` have been updated to provide clearer, more exhaustive information for end users and developers.
+
+- **`mask_reader` Optimization:**  
+  Refactored to use `slice` instead of `squeeze` for removing extra dimensions, ensuring safer array handling.
+
+- **`call_interpolator` Cleanup:**  
+  General code cleanup and minor optimizations to improve readability and maintainability.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.3 
 **Date:** 29/05/2025
 
