@@ -1,3 +1,20 @@
+# **Version:** 4.4.0  
+**Date:** 29/05/2025
+
+## Summary
+
+This patch includes refactoring of the `Data_saver.py` submodule to enhance performance, stability, and input flexibility.
+
+## Enhancements
+
+- **Refactored Data Saving Functions:**  
+  Functions in the `Data_saver.py` submodule have been optimized for improved path handling. File paths can now be provided as either `Path` objects or `str`, offering greater flexibility.
+
+- **Improved Error Handling:**  
+  Replaced legacy `assert` statements with explicit `RaiseErrors` to provide clearer and more reliable error reporting.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.3.0  
 **Date:** 29/05/2025
 
