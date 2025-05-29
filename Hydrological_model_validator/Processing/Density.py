@@ -2,14 +2,12 @@ import gsw  # TEOS-10/EOS-80 library
 import numpy as np
 from typing import Dict, List, Union
 from pathlib import Path
-import io
-import gzip
-import xarray as xr
-import calendar
 from datetime import datetime
 
 from .utils import (infer_years_from_path, temp_threshold, 
                     hal_threshold, build_bfm_filename)
+
+from .file_io import read_nc_variable_from_gz_in_memory
 
 ###############################################################################
 def compute_density_bottom(temperature_data: dict,
@@ -166,8 +164,10 @@ def compute_Bleast(mask3d: np.ndarray) -> np.ndarray:
 ###############################################################################
 
 ###############################################################################
-def filter_dense_water_masses(density_data: Dict[int, List[np.ndarray]],
-                              threshold: float = 1029.2) -> Dict[int, List[np.ndarray]]:
+def filter_dense_water_masses(
+    density_data: Dict[int, List[np.ndarray]],
+    threshold: float = 1029.2
+) -> Dict[int, List[np.ndarray]]:
     """
     Filter density data to retain only dense water masses (values >= threshold).
 
@@ -182,23 +182,62 @@ def filter_dense_water_masses(density_data: Dict[int, List[np.ndarray]],
     -------
     filtered_data : dict
         Dictionary with same structure as input, but non-dense values are set to np.nan.
-
-    Examples
-    --------
-    >>> filtered = filter_dense_water_masses(density_data_SEOS, threshold=1029.2)
-    >>> np.nanmin(filtered[2005][0]) >= 1029.2  # True if any value remains in Jan 2005
     """
     filtered_data = {}
-
-    for year, monthly_arrays in density_data.items():
-        filtered_data[year] = []
-
-        for density_2d in monthly_arrays:
-            mask = density_2d >= threshold
-            filtered = np.where(mask, density_2d, np.nan)
-            filtered_data[year].append(filtered)
-
+    
+    filtered_data = {
+        year: [
+            np.where(density_2d >= threshold, density_2d, np.nan)
+            for density_2d in monthly_arrays
+        ]
+        for year, monthly_arrays in density_data.items()
+    }
+    
     return filtered_data
+###############################################################################
+
+###############################################################################
+def calc_density(
+    temp_3d: np.ndarray,
+    sal_3d: np.ndarray,
+    depths: np.ndarray,
+    density_method: str,
+) -> np.ndarray:
+    """
+    Calculate seawater density based on temperature, salinity, and depth.
+
+    Parameters
+    ----------
+    temp_3d : np.ndarray
+        3D array of temperature values.
+    sal_3d : np.ndarray
+        3D array of salinity values.
+    depths : np.ndarray
+        1D array of depth levels (meters).
+    density_method : str
+        Density calculation method: "EOS", "EOS80", or "TEOS10".
+
+    Returns
+    -------
+    np.ndarray
+        3D array of calculated density values.
+    """
+    valid_mask = ~np.isnan(temp_3d) & ~np.isnan(sal_3d)
+    density = np.full(temp_3d.shape, np.nan, dtype=np.float64)
+
+    if density_method == "EOS":
+        alpha, beta, rho0 = 0.0002, 0.0008, 1025
+        density[valid_mask] = rho0 * (1 - alpha * (temp_3d[valid_mask] - 10) + beta * (sal_3d[valid_mask] - 35))
+    elif density_method == "EOS80":
+        density[valid_mask] = gsw.density.sigma0(sal_3d[valid_mask], temp_3d[valid_mask]) + 1000
+    elif density_method == "TEOS10":
+        pressure = depths[:, None, None] / 10.0  # decibar
+        pressure_3d = np.broadcast_to(pressure, temp_3d.shape)
+        density[valid_mask] = gsw.density.rho(sal_3d[valid_mask], temp_3d[valid_mask], pressure_3d[valid_mask])
+    else:
+        raise ValueError(f"Unsupported density method: {density_method}")
+
+    return density
 ###############################################################################
 
 ###############################################################################
@@ -260,82 +299,61 @@ def compute_dense_water_volume(
             print(f"File missing: {file_gz}, skipping year {year}")
             continue
 
-        with gzip.open(file_gz, 'rb') as f_in:
-            decompressed_bytes = f_in.read()
+        temp = read_nc_variable_from_gz_in_memory(file_gz, 'votemper')
+        sal = read_nc_variable_from_gz_in_memory(file_gz, 'vosaline')
 
-        print("File unzipped!")
+        if temp.shape != sal.shape:
+            raise ValueError("Temperature and salinity data shape mismatch")
 
-        with xr.open_dataset(io.BytesIO(decompressed_bytes)) as ds:
-            temp = ds['votemper'].values
-            sal = ds['vosaline'].values
+        time_len, depth_len, Y, X = temp.shape
 
-            if temp.shape != sal.shape:
-                raise ValueError("Temperature and salinity data shape mismatch")
+        # Broadcast mask to 4D
+        mask_4d = np.broadcast_to(mask3d == 0, temp.shape)  # True means masked
 
-            time_len, depth_len, Y, X = temp.shape
+        # Depth vector and masks
+        depths = np.arange(depth_len) * dz
+        mask_shallow = (depths > 0) & (depths <= 50)
+        mask_deep = (depths > 50) & (depths <= 200)
 
-            # Broadcast mask3d shape (depth, Y, X) to (time, depth, Y, X)
-            mask_4d = np.broadcast_to(mask3d == 0, temp.shape)  # True means masked
+        mask_shallow_3d = np.broadcast_to(mask_shallow[:, None, None], (depth_len, Y, X))
+        mask_deep_3d = np.broadcast_to(mask_deep[:, None, None], (depth_len, Y, X))
 
-            depths = np.arange(depth_len) * dz
+        # Prepare 4D shallow and deep masks for all time steps by broadcasting
+        mask_shallow_4d = np.broadcast_to(mask_shallow_3d, temp.shape)
+        mask_deep_4d = np.broadcast_to(mask_deep_3d, temp.shape)
 
-            # Create depth masks: shape (depth,)
-            mask_shallow = (depths > 0) & (depths <= 50)
-            mask_deep = (depths > 50) & (depths <= 200)
+        # Apply masking: masked cells -> NaN
+        temp = np.where(mask_4d, np.nan, temp)
+        sal = np.where(mask_4d, np.nan, sal)
 
-            # Broadcast depth masks to 3D (depth, Y, X) shape
-            mask_shallow_3d = np.broadcast_to(mask_shallow[:, None, None], (depth_len, Y, X))
-            mask_deep_3d = np.broadcast_to(mask_deep[:, None, None], (depth_len, Y, X))
+        # Identify invalid data over entire 4D arrays
+        invalid_temp = temp_threshold(temp, mask_shallow_4d, mask_deep_4d)
+        invalid_sal = hal_threshold(sal, mask_shallow_4d, mask_deep_4d)
+        invalid_mask = invalid_temp | invalid_sal
 
-            for month_idx in range(time_len):
-                month_name = calendar.month_name[month_idx + 1]
-                print(f"Working on {month_name} {year}")
+        temp = np.where(invalid_mask, np.nan, temp)
+        sal = np.where(invalid_mask, np.nan, sal)
 
-                temp_3d = temp[month_idx].copy()
-                sal_3d = sal[month_idx].copy()
+        valid_mask = ~np.isnan(temp) & ~np.isnan(sal)
 
-                # Mask invalid cells by mask_4d (land or invalid grid points)
-                temp_3d[mask_4d[month_idx]] = np.nan
-                sal_3d[mask_4d[month_idx]] = np.nan
+        # Calculate density over entire 4D arrays using calc_density
+        density_4d = calc_density(temp, sal, depths, valid_mask, density_method)
 
-                # Compute invalid masks
-                invalid_temp = temp_threshold(temp_3d, mask_shallow_3d, mask_deep_3d)
-                invalid_sal = hal_threshold(sal_3d, mask_shallow_3d, mask_deep_3d)
-                invalid_mask = invalid_temp | invalid_sal
+        # Boolean mask of dense water cells (4D)
+        dense_cells = density_4d >= 1029.2
 
-                temp_3d[invalid_mask] = np.nan
-                sal_3d[invalid_mask] = np.nan
+        # Sum dense cells per time slice (axis 1,2,3)
+        dense_counts = np.sum(dense_cells, axis=(1, 2, 3))
 
-                valid_mask = ~np.isnan(temp_3d) & ~np.isnan(sal_3d)
+        # Calculate dense volumes per time slice
+        dense_volumes = dense_counts * cell_volume
 
-                density_3d = np.full(temp_3d.shape, np.nan, dtype=np.float64)
-
-                if density_method == "EOS":
-                    alpha = 0.0002
-                    beta = 0.0008
-                    rho0 = 1025
-                    density_3d[valid_mask] = rho0 * (1 - alpha * (temp_3d[valid_mask] - 10) + beta * (sal_3d[valid_mask] - 35))
-                elif density_method == "EOS80":
-                    density_3d[valid_mask] = gsw.density.sigma0(sal_3d[valid_mask], temp_3d[valid_mask]) + 1000
-
-                elif density_method == "TEOS10":
-                    pressure = depths[:, None, None] / 10.0  # decibar
-                    pressure_3d = np.broadcast_to(pressure, temp_3d.shape)
-                    density_3d[valid_mask] = gsw.density.rho(sal_3d[valid_mask], temp_3d[valid_mask], pressure_3d[valid_mask])
-
-                else:
-                    raise ValueError(f"Unsupported density method: {density_method}")
-
-                # Cells where density exceeds dense water threshold (kg/m³)
-                dense_cells = density_3d >= 1029.2
-                count_dense_cells = np.sum(dense_cells)
-
-                dense_volume = count_dense_cells * cell_volume
-
-                date = datetime(year, month_idx + 1, 1)
-                volume_time_series.append({'date': date, 'volume_m3': dense_volume})
-
-                print(f"Dense water volume for {date.strftime('%Y-%m')}: {dense_volume:.2f} m³")
-                print("-" * 45)
+        # Collect date and volume info for each month in this year
+        for month_idx in range(time_len):
+            date = datetime(year, month_idx + 1, 1)
+            volume = dense_volumes[month_idx]
+            print(f"Dense water volume for {date.strftime('%Y-%m')}: {volume:.2f} m³")
+            print("-" * 45)
+            volume_time_series.append({'date': date, 'volume_m3': volume})
 
     return volume_time_series
