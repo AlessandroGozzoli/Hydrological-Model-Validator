@@ -34,7 +34,6 @@ print('*'*45)
 import os
 from pathlib import Path
 import sys
-import matlab.engine
 
 # To create necessary folders
 from datetime import datetime
@@ -84,7 +83,7 @@ from Hydrological_model_validator.Processing.file_io import (mask_reader,
 print("\033[92m✅ File I/O functions retrieved!\033[0m")
 
 print("Retrieving the necessary functions to read the satellite and model data...")
-from Hydrological_model_validator.Processing.SAT_data_reader import (sat_data_loader)
+from Hydrological_model_validator.Processing.SAT_data_reader import sat_data_loader
 
 # Reads the model datasets
 from Hydrological_model_validator.Processing.MOD_data_reader import read_model_data
@@ -98,9 +97,14 @@ from Hydrological_model_validator.Processing.Missing_data import (
                           )
 print("\033[92m✅ Data functions for the identification of missing data retrieved!\033[0m")
 
+print("Retrieving the functions necessary to compute statistics...")
+from Hydrological_model_validator.Processing.stats_math_utils import compute_coverage_stats
+print("\033[92m✅ Functions for the computations of statistics retrieved!\033[0m")
+
 print("Retrieving the data saving functions...")
 from Hydrological_model_validator.Processing.Data_saver import (save_satellite_data,
-                                                                save_model_data)
+                                                                save_model_data,
+                                                                save_to_netcdf)
 print("\033[92m✅ Data saving functions retrieved!\033[0m")
 print('*'*45)
 
@@ -137,71 +141,16 @@ while True:
 print(f"\033[92m✅ Satellite data level set to: {data_level.upper()}\033[0m")
 print('-' * 45)
 
-###############################################################################
-##                                                                           ##
-##                                SATELLITE                                  ##
-##                                                                           ##
-###############################################################################
-
-if varname == 'sst':
-    Data_sat = Path(DSAT, "SST/")
-    sys.path.append(str(Data_sat))  # Add the folder to the system path
-    print(f"Satellite SST data located at {Data_sat}")
-elif varname == 'chl':
-    Data_sat = Path(DSAT, "SCHL/")
-    sys.path.append(str(Data_sat))  # Add the folder to the system path
-    print(f"Satellite CHL data locate at {Data_sat}")
-
-# Call the function to read the data, merge it and check for SLON, SLAT shapes
-T_orig, SatData_orig, Sat_lon, Sat_lat = sat_data_loader(data_level, Data_sat, varname)
-
-# Run the functions to check for missing days/values/fields
-Ttrue, SatData_complete=check_missing_days(T_orig, SatData_orig)
-
-# Run the missing observation checker
-satnan = find_missing_observations(SatData_complete)
-
-# Run the empty field checker
-Schl_complete = eliminate_empty_fields(SatData_complete)
-
-save = input("Do you want to save the Satellite data? (yes/no): ").strip().lower()
-print('-' * 45)
-
-if save in ["yes", "y"]:
-    # Create a timestamped folder for this run
-    timestamp = datetime.now().strftime("run_%Y-%m-%d")
-    output_path = os.path.join(BaseDIR, "OUTPUT", "CLEANING", varname, timestamp)
-    print(f"The data is being saved in the {output_path} folder for easier access for the interpolator")
-    os.makedirs(output_path, exist_ok=True)
-
-    print(f"Saving files in folder: {output_path}")
-    print('-' * 45)
-
-    # Call the save function and pass the new path
-    save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete)
-
-else:
-    print("You chose not to save the data")
-    print('*' * 45)
-    
-print("Please do not move the newly saved files!")
-
-###############################################################################
-##                                                                           ##
-##                                  MODEL                                    ##
-##                                                                           ##
-###############################################################################
-
-print("Starting to work on the model data...")
-
-print("\033[91m⚠️ The model data needs to be masked ⚠️\033[0m")
-print("\033[91m⚠️ Please make sure that the data is masked or provide the mask yourself ⚠️\033[0m")
+print("\033[91m⚠️ For some of the computations a mask is required! ⚠️\033[0m")
+print("\033[91m⚠️ Such mask is provided alongside the other test case data ⚠️\033[0m")
+print("\033[91m⚠️ Please make sure that the data is masked (not the case for the test case datasets)")
+print(" or provide the mask yourself ⚠️\033[0m")
 
 # Ask user if the model data is already masked
-masking = input("Is the model data provided already masked? (yes/no): ").strip().lower()
+masking = input("Is the data provided already masked? (yes/no): ").strip().lower()
 
 if masking in ["yes", "y"]:
-    print("\033[92m✅ Model data is already masked. Proceeding...\033[0m")
+    print("\033[92m✅ Data is already masked. Proceeding...\033[0m")
     print("-" * 45)
 
 elif masking in ["no", "n"]:
@@ -243,6 +192,81 @@ elif masking in ["no", "n"]:
 else:
     print("Invalid input. Please answer with 'yes' or 'no'.")
 
+###############################################################################
+##                                                                           ##
+##                                SATELLITE                                  ##
+##                                                                           ##
+###############################################################################
+
+if varname == 'sst':
+    Data_sat = Path(DSAT, "SST/")
+    sys.path.append(str(Data_sat))  # Add the folder to the system path
+    print(f"Satellite SST data located at {Data_sat}")
+elif varname == 'chl':
+    Data_sat = Path(DSAT, "SCHL/")
+    sys.path.append(str(Data_sat))  # Add the folder to the system path
+    print(f"Satellite CHL data locate at {Data_sat}")
+
+# Call the function to read the data, merge it and check for SLON, SLAT shapes
+T_orig, SatData_orig, Sat_lon, Sat_lat = sat_data_loader(data_level, Data_sat, varname)
+
+# Run the functions to check for missing days/values/fields
+Ttrue, SatData_complete=check_missing_days(T_orig, SatData_orig)
+
+# Run the missing observation checker
+satnan = find_missing_observations(SatData_complete)
+
+# Run the empty field checker
+SatData_complete = eliminate_empty_fields(SatData_complete)
+
+data_available, cloud_cover = compute_coverage_stats(SatData_complete, Mmask)
+
+save = input("Do you want to save the Satellite data? (yes/no): ").strip().lower()
+print('-' * 45)
+
+if save in ["yes", "y"]:
+    # Create a timestamped folder for this run
+    timestamp = datetime.now().strftime("run_%Y-%m-%d")
+    output_path = os.path.join(BaseDIR, "OUTPUT", "CLEANING", varname, timestamp)
+    print(f"The data is being saved in the {output_path} folder for easier access for the interpolator")
+    os.makedirs(output_path, exist_ok=True)
+
+    print(f"Saving files in folder: {output_path}")
+    print('-' * 45)
+
+    # Call the save function and pass the new path
+    save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete)
+    
+    print("The cloud coverage data is being saved in the folder user by the data analysis scripts")
+    output_path_to_analysis = os.path.join(BaseDIR, "PROCESSING_INPUT")
+    os.makedirs(output_path, exist_ok=True)
+    print(f"The folder is named {output_path_to_analysis}")
+    
+    print("Saving the available data/cloud coverage data...")
+    
+    data_to_save = {
+        f'data_available_{varname}': data_available,
+        f'cloud_cover_{varname}': cloud_cover,
+        }
+    
+    save_to_netcdf(data_to_save, output_path_to_analysis)
+    
+    print("Cloud coverage/available data has been saved!")
+
+else:
+    print("You chose not to save the data")
+    print('*' * 45)
+    
+print("Please do not move the newly saved files!")
+
+###############################################################################
+##                                                                           ##
+##                                  MODEL                                    ##
+##                                                                           ##
+###############################################################################
+
+print("Starting to work on the model data...")
+
 # READING THE DATA
 print('*'*45)
 print("Reading the data...")
@@ -275,14 +299,15 @@ print("Please do not move the newly saved files!")
 ##                                                                           ##
 ###############################################################################
 
-interpolate = input("Dou you wish to call the interpolator to process the data? (yes/no): ").strip().lower()
+interpolate = input("Do you wish to call the interpolator to process the data? (yes/no): ").strip().lower()
 print('-' * 45)
 
 if interpolate in ["yes", "y"]:
 
-    timestamp = datetime.now().strftime("run_%Y-%m-%d")
-    interp_output_path = os.path.join(BaseDIR, "OUTPUT", "INTERPOLATED", varname, data_level)
-    os.makedirs(interp_output_path, exist_ok=True)
+    print("The data will be directly saved in the folder used by the analysis scripts...")
+    output_path_to_analysis = os.path.join(BaseDIR, "PROCESSING_INPUT")
+    os.makedirs(output_path, exist_ok=True)
+    print(f"The folder is named {output_path_to_analysis}")
 
     # Reuse the output path of the savng functions
     input_path = output_path
@@ -290,7 +315,7 @@ if interpolate in ["yes", "y"]:
     Mask_path=os.path.join(BaseDIR)
 
     print("Calling the MatLab interpolator function...")
-    call_interpolator(varname, data_level, input_dir=input_path, output_dir=interp_output_path, mask_file=Mask_path)
+    call_interpolator(varname, data_level, input_dir=input_path, output_dir=output_path_to_analysis, mask_file=Mask_path)
 
     print("The data has been succesfully interpolated and the Basin Averages have been computed!")
     print("Please retrieve the new datasets from the folder!")
