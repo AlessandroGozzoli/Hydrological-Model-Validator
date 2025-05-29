@@ -1,3 +1,29 @@
+# **Version:** 4.2.0  
+**Date:** 29/05/2025
+
+## Summary
+
+This release introduces a new computation feature: the percentage of cloud coverage and the percentage of available data within a basin. These enhancements lay the groundwork for more detailed analyses in future updates.
+
+## New Features
+
+- **Coverage Statistics Calculation:**  
+  A new function, `compute_coverage_stats`, has been added to the `stats_math_utils.py` submodule. It calculates:
+  - Percentage of available data in a basin  
+  - Percentage of cloud coverage  
+
+  These metrics are intended for future visualization alongside time series data plotted using the `timeseries` function.
+
+## Fixes & Improvements
+
+- **Dependency Cleanup:**  
+  Removed deprecated libraries and modules from the `SST_data_analyser.py` test script.
+
+- **Bug Fix – Dataset Selection:**  
+  Resolved an issue in the `read_model_data` function that caused incorrect dataset selection under certain conditions.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.1.0  
 **Date:** 28/05/2025
 
