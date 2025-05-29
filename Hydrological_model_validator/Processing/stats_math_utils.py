@@ -143,3 +143,60 @@ def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
         raise ValueError("Base must be a positive number.")
     return base * np.ceil(x / base)
 ###############################################################################
+
+###############################################################################
+def compute_coverage_stats(
+    data: np.ndarray,
+    Mmask: np.ndarray,
+    plot: bool = True
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Computes the percentage of data availability and cloud coverage within a basin mask
+    for each time step of a 3D dataset.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        3D data array of shape (time, y, x), e.g., Schl_complete.
+    Mmask : np.ndarray
+        2D boolean mask array (True = ocean, False = land) with shape (y, x).
+    plot : bool, optional
+        If True, plots the % data available and % cloud coverage (default is True).
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        - data_available_percent : np.ndarray
+            Percentage of non-NaN data inside the basin at each time step.
+        - cloud_coverage_percent : np.ndarray
+            Percentage of NaN (cloud-covered) data inside the basin at each time step.
+
+    Raises
+    ------
+    ValueError
+        If input dimensions do not match expected shapes.
+    """
+
+    # VALIDATE INPUT SHAPES
+    if data.ndim != 3:
+        raise ValueError("Input data must be a 3D array (time, y, x)")
+    if Mmask.shape != data.shape[1:]:
+        raise ValueError(f"Shape of Mmask {Mmask.shape} does not match spatial dimensions of data {data.shape[1:]}")
+
+    # Ensure mask is boolean
+    Mmask = Mmask.astype(bool)
+
+    T = data.shape[0]
+    data_available_percent = np.empty(T)
+    cloud_coverage_percent = np.empty(T)
+
+    for t in range(T):
+        basin_data = data[t][Mmask]
+        total = basin_data.size
+        valid = np.count_nonzero(~np.isnan(basin_data))
+        cloud = np.count_nonzero(np.isnan(basin_data))
+
+        data_available_percent[t] = 100 * valid / total
+        cloud_coverage_percent[t] = 100 * cloud / total
+    
+    return data_available_percent, cloud_coverage_percent
