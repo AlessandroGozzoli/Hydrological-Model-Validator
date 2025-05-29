@@ -1,4 +1,32 @@
-# **Version:** 4.4.0  
+# **Version:** 4.2.3 
+**Date:** 29/05/2025
+
+## Summary
+
+This update refactors the `Density.py` submodule to enhance performance, maintainability, and numerical stability in density-related computations.
+
+## Enhancements
+
+- **Code Cleanup and Typing Improvements:**  
+  Functions within the `Density.py` submodule have undergone general cleanup. Input types are now explicitly defined using `typing` annotations, and docstrings have been expanded for improved clarity and documentation.
+
+- **NaN Value Handling:**  
+  A general masking step has been added to the `calc_density` function to filter out `NaN` values during computation, increasing reliability.
+
+## Dense Water Mass Computation
+
+- **Function Rework – `compute_dense_water_volume`:**  
+  The function has been restructured to utilize existing utility functions for reading `.gz` datasets, promoting code reuse and modularity.
+
+- **Loop Optimization:**  
+  Deprecated nested `for` loops have been replaced with efficient `NumPy` operations such as `where` and `broadcast`, significantly improving performance.
+
+> **Note:**  
+> Since the recent changes primarily involve refactoring, minor fixes, and performance optimizations—with no major new features—the versioning has been adjusted to reflect these as patch-level updates under semantic versioning. The old versions 4.3.0 and 4.4.0 have been renamed to 4.2.1 and 4.2.2.
+
+--------------------------------------------------------------------------------------
+
+# **Version:** 4.2.2  
 **Date:** 29/05/2025
 
 ## Summary
@@ -15,7 +43,7 @@ This patch includes refactoring of the `Data_saver.py` submodule to enhance perf
 
 --------------------------------------------------------------------------------------
 
-# **Version:** 4.3.0  
+# **Version:** 4.2.1 
 **Date:** 29/05/2025
 
 ## Summary
