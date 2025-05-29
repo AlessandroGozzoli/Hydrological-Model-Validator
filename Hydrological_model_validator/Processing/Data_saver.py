@@ -43,7 +43,7 @@ def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
         print("Data saved as SatData_clean.mat")
         print("-"*45)
 
-    if choice == '2' or choice == '3':
+    elif choice == '2' or choice == '3':
 
         print("Saving the data as separate .nc files...")
         
@@ -99,7 +99,7 @@ def save_model_data(output_path, ModData_complete):
         print("Data saved as ModData_complete.mat")
         print("-"*45)
 
-    if choice == "2" or choice == "3":
+    elif choice == "2" or choice == "3":
         print("Saving ModData_complete as a .nc file...")
         ModData_complete_xr = xr.DataArray(ModData_complete)
         ModData_complete_xr.to_netcdf("ModData_complete.nc")
@@ -111,120 +111,30 @@ def save_model_data(output_path, ModData_complete):
 
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*"*45)
-
-def save_model_SST_data(output_path, Msst_complete):
-    
-    assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
-    assert os.path.isdir(output_path), f"'{output_path}' is not a valid directory"
-
-    assert isinstance(Msst_complete, dict), "Msst_complete must be a dictionary"
-    assert all(isinstance(k, (str, int)) for k in Msst_complete.keys()), "All keys in Msst_complete should be strings or integers (years)"
-    assert all(isinstance(v, np.ndarray) for v in Msst_complete.values()), "All values in Msst_complete should be NumPy arrays"
-    assert all(v.ndim == 3 for v in Msst_complete.values()), "Each SST array must be 3D (e.g., time x lat x lon)"
-
-    os.chdir(output_path)
-    
-    # Ask the user for the preferred format
-    print("Choose a file format to save the data:")
-    print("1. MAT-File (.mat)")
-    print("2. NetCDF (.nc)")
-    print("3. Both MAT and NetCDF")
-    choice = input("Enter the number corresponding to your choice: ").strip()
-    print('-'*45)
-
-    # Prepare .mat data
-    mat_data = {}
-    for year, array in Msst_complete.items():
-        mat_data[str(year)] = array  # Store each array under its corresponding year
-
-    if choice == "1" or choice == "3":
-        print("Saving data as a .mat file...")
-        try:
-            scipy.io.savemat("Msst_complete.mat", mat_data)
-            print("Data saved as Msst_complete.mat")
-        except Exception as e:
-            print(f"Error saving MAT file: {e}")
-        print("-"*45)
-
-    if choice == "2" or choice == "3":
-        print("Saving each year separately as .nc files...")
-        for year, array in Msst_complete.items():
-            try:
-                ds = xr.Dataset({str(year): (["time", "lat", "lon"], array)})  # Assuming array has shape (time, lat, lon)
-                filename = f"Msst_{year}.nc"
-                ds.to_netcdf(filename)
-                print(f"Saved {filename}")
-            except Exception as e:
-                print(f"Error saving {year} NetCDF file: {e}")
-        print("-"*45)
-    
-    if choice not in ["1", "2", "3"]:
-        print("Invalid choice. Please run the script again and select a valid option.")
-
-    print("\033[92m✅ The requested data has been saved!\033[0m")
-    print("*"*45)
 ###############################################################################
 
-###############################################################################     
-def save_SST_Bavg(output_path, BASSTmod, BASSTsat):
-    
+###############################################################################    
+def save_to_netcdf(data_dict, output_path):
+    """
+    Save a dictionary of arrays or DataArrays to a NetCDF file.
+
+    Parameters
+    ----------
+    data_dict : dict
+        Dictionary where keys are variable names and values are numpy arrays or xarray.DataArrays.
+    output_path : str
+        Full path to save the NetCDF file.
+
+    Returns
+    -------
+    None
+    """
     os.chdir(output_path)
     
-    assert isinstance(output_path, (str, Path)), "output_path must be a string or Path object"
-    assert os.path.isdir(output_path), f"{output_path} is not a valid directory"
-
-    assert isinstance(BASSTmod, (list, np.ndarray)), "BASSTmod must be a list or NumPy array"
-    assert isinstance(BASSTsat, (list, np.ndarray)), "BASSTsat must be a list or NumPy array"
-    assert len(BASSTmod) == len(BASSTsat), "BASSTmod and BASSTsat must have the same length"
-
-    # Ask the user for the preferred format
-    print("Choose a file format to save the data:")
-    print("1. MAT-File (.mat)")
-    print("2. NetCDF (.nc)")
-    print("3. Both MAT and NetCDF")
-    choice = input("Enter the number corresponding to your choice: ").strip()
-    print('-'*45)
-
-    # Prepare .mat data
-    mat_data = {
-        "BASSTmod": BASSTmod,
-        "BASSTsat": BASSTsat
-    }
-
-    if choice == "1" or choice == "3":
-        print("Saving data as a .mat file...")
-        try:
-            scipy.io.savemat("BASST_data.mat", mat_data)
-            print("Data saved as BASST_data.mat")
-        except Exception as e:
-            print(f"Error saving MAT file: {e}")
-        print("-"*45)
-
-    if choice == "2" or choice == "3":
-        print("Saving each dataset separately as .nc files...")
+    for var_name, data in data_dict.items():
+        if not isinstance(data, xr.DataArray):
+            data = xr.DataArray(data, name=var_name)
+        ds = xr.Dataset({var_name: data})
         
-        # Save BASSTmod as NetCDF
-        try:
-            ds_mod = xr.Dataset({"BASSTmod": ("time", BASSTmod)})
-            filename_mod = "BASSTmod.nc"
-            ds_mod.to_netcdf(filename_mod)
-            print(f"Saved {filename_mod}")
-        except Exception as e:
-            print(f"Error saving BASSTmod NetCDF file: {e}")
-        
-        # Save BASSTsat as NetCDF
-        try:
-            ds_sat = xr.Dataset({"BASSTsat": ("time", BASSTsat)})
-            filename_sat = "BASSTsat.nc"
-            ds_sat.to_netcdf(filename_sat)
-            print(f"Saved {filename_sat}")
-        except Exception as e:
-            print(f"Error saving BASSTsat NetCDF file: {e}")
-        
-        print("-"*45)
-
-    if choice not in ["1", "2", "3"]:
-        print("Invalid choice. Please run the script again and select a valid option.")
-
-    print("\033[92m✅ The requested data has been saved!\033[0m")
-    print("*"*45)    
+        filepath = os.path.join(output_path, f"{var_name}.nc")
+        ds.to_netcdf(filepath)
