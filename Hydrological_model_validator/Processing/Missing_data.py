@@ -1,139 +1,140 @@
 import numpy as np
 from datetime import datetime
+from typing import Tuple, List
 
 ###############################################################################
-def check_missing_days(T_orig, data_orig):
+def check_missing_days(
+    T_orig: np.ndarray, 
+    data_orig: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Checks and fills missing days in a time series based on expected daily intervals.
+    Fill missing days in a time series based on expected daily intervals.
 
     Parameters
     ----------
-    T_orig : array-like
+    T_orig : np.ndarray
         1D array of timestamps (in seconds since epoch).
-    data_orig : ndarray
-        3D array with shape (time, lat, lon), matching T_orig in first dimension.
+    data_orig : np.ndarray
+        3D array with shape (time, lat, lon), matching T_orig in the first dimension.
 
     Returns
     -------
     Ttrue : np.ndarray
-        Complete array of timestamps with gaps filled.
+        Complete array of timestamps with daily spacing.
     data_complete : np.ndarray
-        Data array with NaNs filled where gaps were detected.
+        Data array with NaNs inserted where gaps were detected.
 
     Raises
     ------
+    TypeError
+        If input types are incorrect.
+    ValueError
+        If input shapes are invalid or time step is non-positive.
     AssertionError
-        If input validation or gap-filling logic fails.
+        If time series is out of order or length mismatch occurs.
     """
-    SZT_orig = len(T_orig)
+    # === INPUT VALIDATION ===
+    if not isinstance(T_orig, np.ndarray):
+        raise TypeError("T_orig must be a NumPy array.")
+    if not isinstance(data_orig, np.ndarray):
+        raise TypeError("data_orig must be a NumPy array.")
+    if T_orig.ndim != 1:
+        raise ValueError("T_orig must be 1-dimensional.")
+    if data_orig.ndim != 3:
+        raise ValueError("data_orig must be 3-dimensional.")
+    if len(T_orig) != data_orig.shape[0]:
+        raise ValueError("T_orig length must match first dimension of data_orig.")
 
-    assert SZT_orig > 0, "❌ T_orig is empty — no time data provided"
-    assert data_orig.shape[0] == SZT_orig, "❌ Time and data length mismatch"
+    print(f"Original time steps: {len(T_orig)}")
 
-    # Determine time step (assume most common step)
+    # === DETECT TIME STEP ===
     steps = np.diff(T_orig)
+    if not np.all(steps > 0):
+        raise ValueError("Timestamps must be strictly increasing.")
+    
     unique_steps, counts = np.unique(steps, return_counts=True)
-    SinD = unique_steps[np.argmax(counts)]
-    assert SinD > 0, "❌ SinD must be a positive interval in seconds"
+    time_step = unique_steps[np.argmax(counts)]
 
-    # Determine true length
-    total_duration = int((T_orig[-1] - T_orig[0]) // SinD + 1)
-    Truedays = total_duration
+    if time_step <= 0:
+        raise ValueError("Detected non-positive time step.")
 
-    if Truedays == SZT_orig:
+    print(f"Detected time step: {time_step} seconds ({time_step / 86400:.2f} days)")
+
+    # === GENERATE EXPECTED TIME RANGE ===
+    T_start, T_end = T_orig[0], T_orig[-1]
+    Ttrue = np.arange(T_start, T_end + time_step, time_step)
+    missing_count = len(Ttrue) - len(T_orig)
+
+    if missing_count == 0:
         print("\033[92m✅ The time series is complete!\033[0m")
-        print('*'*45)
+        print('*' * 45)
         return T_orig.copy(), data_orig.copy()
 
-    # Begin gap-filling process
-    totdiffD = Truedays - SZT_orig
-    print("\033[91m⚠️ The time series is not complete ⚠️\033[0m")
-    print(f"\033[91mThere are {totdiffD} missing days!\033[0m")
-    print("Proceeding to search...")
-    print('-'*45)
+    print("\033[91m⚠️ Time series is incomplete!\033[0m")
+    print(f"\033[91mMissing {missing_count} time steps detected.\033[0m")
+    print("Filling missing time steps...")
+    print('-' * 45)
 
-    Tcount = 0
-    Ttrue = np.full(Truedays, np.nan)
-    data_complete = np.full((Truedays, *data_orig.shape[1:]), np.nan)
+    # === FILL DATA INTO COMPLETE TIME SERIES ===
+    time_index = {t: i for i, t in enumerate(T_orig)}
+    data_shape = (len(Ttrue), *data_orig.shape[1:])
+    data_complete = np.full(data_shape, np.nan, dtype=data_orig.dtype)
 
-    Ttrue[Tcount] = T_orig[0]
-    data_complete[Tcount, :, :] = data_orig[0, :, :]
-
-    cmiss = 0
-    breakloop = False
-
-    for d in range(1, SZT_orig):
-        if cmiss == totdiffD:
-            TbTData = Truedays - (Tcount + 1)
-            dleft = SZT_orig - d
-            assert dleft == TbTData, "❌ Remaining days don't match the expected count"
-            data_complete[Tcount+1:Truedays, :, :] = data_orig[d:SZT_orig, :, :]
-            Ttrue[Tcount+1:Truedays] = T_orig[d:SZT_orig]
-            print(f"✅ \033[92mThe remaining {TbTData} have been transferred\033[0m")
-            print('-'*45)
-            breakloop = True
-            break
-
-        dayjump = T_orig[d-1] + SinD
-        if T_orig[d] == dayjump:
-            Tcount += 1
-            Ttrue[Tcount] = T_orig[d]
-            data_complete[Tcount, :, :] = data_orig[d, :, :]
-        elif T_orig[d] > dayjump:
-            dgap = int((T_orig[d] - T_orig[d-1]) // SinD - 1)
-            print(f"Found a gap of {dgap} days. The missing dates are:")
-
-            cmiss += dgap
-            incTstep = T_orig[d-1]
-
-            for gap in range(dgap):
-                incTstep += SinD
-                missingdate = datetime.utcfromtimestamp(int(incTstep))
-                print(missingdate)
-                Tcount += 1
-                Ttrue[Tcount] = incTstep
-                data_complete[Tcount, :, :] = np.nan
-
-            Tcount += 1
-            Ttrue[Tcount] = T_orig[d]
-            data_complete[Tcount, :, :] = data_orig[d, :, :]
+    for i, t in enumerate(Ttrue):
+        idx = time_index.get(t)
+        if idx is not None:
+            data_complete[i] = data_orig[idx]
         else:
-            raise AssertionError(
-                f"❌ Unexpected date order: diff = {T_orig[d] - T_orig[d-1]}. Check your input data."
-            )
+            dt = datetime.utcfromtimestamp(t)
+            print(f"Missing day filled: {dt.strftime('%Y-%m-%d')}")
 
-        if breakloop:
-            break
-        
-    print("✅ \033[92mThe gaps have been filled\033[0m")
+    # === FINAL SANITY CHECK ===
+    if data_complete.shape[0] != len(Ttrue):
+        raise AssertionError("Mismatch in expected time series length after filling.")
+
+    print("\033[92m✅ Time series gaps filled successfully.\033[0m")
     print('*' * 45)
 
     return Ttrue, data_complete
 ###############################################################################
 
 ###############################################################################
-def find_missing_observations(data_complete):
+def find_missing_observations(data_complete: np.ndarray) -> Tuple[int, List[int]]:
     """
-    Identifies days with no satellite observations (all NaNs or 0s in a day).
-    
-    Parameters:
-    Schl_complete (np.ndarray): 3D array of shape (days, lat, lon) with satellite chlorophyll data.
-    Truedays (int): Expected number of total days.
+    Identify days with no satellite observations (all NaN or zero).
 
-    Returns:
-    cnan (int): Count of days with no satellite observations.
-    satnan (list): Indices of days with no observations.
+    Parameters
+    ----------
+    data_complete : np.ndarray
+        3D array of shape (days, lat, lon) with satellite data.
+
+    Returns
+    -------
+    cnan : int
+        Number of days with no satellite observations.
+    satnan : List[int]
+        Indices of days with no valid observations.
+
+    Raises
+    ------
+    TypeError
+        If input is not a NumPy array.
+    ValueError
+        If input array does not have 3 dimensions.
     """
-    assert isinstance(data_complete, np.ndarray), "❌ Schl_complete must be a NumPy array"
-    assert data_complete.ndim == 3, "❌ Schl_complete should be a 3D array (days, lat, lon)"
-    
+    if not isinstance(data_complete, np.ndarray):
+        raise TypeError("data_complete must be a NumPy array.")
+    if data_complete.ndim != 3:
+        raise ValueError("data_complete must be a 3D array (days, lat, lon).")
+
     print("Checking for missing satellite observations...")
 
-    # Create mask for missing days
+    # Compute daily sums ignoring NaNs, zero sum means all values are NaN or zero
     daily_sums = np.nansum(data_complete, axis=(1, 2))
-    mask_missing = (daily_sums == 0)
-    cnan = np.sum(mask_missing)
-    satnan = np.where(mask_missing)[0].tolist()
+    mask_missing = daily_sums == 0
+
+    cnan = int(np.sum(mask_missing))
+    satnan = np.flatnonzero(mask_missing).tolist()
 
     if cnan > 0:
         print(f"\033[91m⚠️ {cnan} daily satellite fields have no observations ⚠️\033[0m")
@@ -145,37 +146,57 @@ def find_missing_observations(data_complete):
 ###############################################################################
 
 ###############################################################################
-def eliminate_empty_fields(data_complete):
+def eliminate_empty_fields(data_complete: np.ndarray) -> np.ndarray:
     """
-    Replaces empty chlorophyll fields (where all values are zero or NaN) with NaNs.
-    
-    Parameters:
-    Schl_complete (np.ndarray): 3D array of chlorophyll data (days, lat, lon).
-    Truedays (int): Total number of expected days.
-    
-    Returns:
-    Schl_complete (np.ndarray): Modified array with empty fields set to NaN.
-    """
-    assert isinstance(data_complete, np.ndarray), "❌ Schl_complete must be a NumPy array"
-    assert data_complete.ndim == 3, "❌ Schl_complete should be a 3D array (days, lat, lon)"
+    Replace empty chlorophyll fields (days where all values are NaN or zero) with NaNs.
 
+    Parameters
+    ----------
+    data_complete : np.ndarray
+        3D array of chlorophyll data with shape (days, lat, lon).
+
+    Returns
+    -------
+    np.ndarray
+        Modified array with empty daily fields set entirely to NaN.
+
+    Raises
+    ------
+    TypeError
+        If input is not a NumPy array.
+    ValueError
+        If input array does not have 3 dimensions.
+
+    Examples
+    --------
+    >>> data = np.random.rand(10, 5, 5)
+    >>> data[3] = 0  # simulate empty day
+    >>> data[7] = np.nan
+    >>> result = eliminate_empty_fields(data)
+    """
+    if not isinstance(data_complete, np.ndarray):
+        raise TypeError("data_complete must be a NumPy array.")
+    if data_complete.ndim != 3:
+        raise ValueError("data_complete should be a 3D array (days, lat, lon).")
 
     print("Checking and removing empty chlorophyll fields...")
 
-    cempty = 0
-    for d in range(data_complete.shape[0]):
-        day_slice = data_complete[d, :, :]
+    # Identify empty days: all NaN or all zero (ignoring NaNs for zero check)
+    all_nan = np.isnan(data_complete).all(axis=(1, 2))
+    max_vals = np.nanmax(data_complete, axis=(1, 2))
+    all_zero = (max_vals == 0)
 
-        # Check if entire slice is NaN
-        if np.isnan(day_slice).all() or np.nanmax(day_slice) == 0:
-            cempty += 1
-            data_complete[d, :, :] = np.nan
-            print(f"\033[91m⚠️ Empty field found at day {d + 1} — replaced with NaNs ⚠️\033[0m")
+    empty_mask = all_nan | all_zero
+    cempty = np.sum(empty_mask)
 
-    if cempty == 0:
-        print("\033[92m✅ No empty fields found in dataset\033[0m")
-    else:
+    if cempty > 0:
+        # Set entire days flagged as empty to NaN
+        data_complete[empty_mask] = np.nan
+        for day_idx in np.flatnonzero(empty_mask):
+            print(f"\033[91m⚠️ Empty field found at day {day_idx + 1} — replaced with NaNs ⚠️\033[0m")
         print(f"\033[93m{cempty} empty fields were found and corrected\033[0m")
-    
+    else:
+        print("\033[92m✅ No empty fields found in dataset\033[0m")
+
     print('*' * 45)
     return data_complete

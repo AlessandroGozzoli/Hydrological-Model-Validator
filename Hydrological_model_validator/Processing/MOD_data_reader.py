@@ -4,45 +4,50 @@ import gzip
 import shutil
 from netCDF4 import Dataset
 from pathlib import Path
+from Typing import Union, Tuple
 
 from .time_utils import leapyear
 from .utils import infer_years_from_path
 
 ###############################################################################
-def read_model_data(Dmod, Mfsm, variable_name):
+def read_model_data(
+    Dmod: Union[str, Path],
+    Mfsm: Tuple[np.ndarray, np.ndarray],
+    variable_name: str
+) -> np.ndarray:
     """
-    Reads and processes model CHL or SST data from NetCDF files over multiple years.
+    Load and mask model data (chlorophyll or SST) from yearly NetCDF files.
 
     Parameters
     ----------
-    Dmod : str or Path
-        Base directory containing yearly output subfolders.
-    Mfsm : tuple of np.ndarray
-        Masking indices (e.g., from np.where) to apply NaNs to model data.
+    Dmod : Union[str, Path]
+        Directory path containing yearly output folders.
+    Mfsm : Tuple[np.ndarray, np.ndarray]
+        Tuple of 2D numpy arrays representing indices to mask (row, col).
     variable_name : str
-        Either 'chl' for chlorophyll or 'sst' for sea surface temperature.
+        'chl' for chlorophyll or 'sst' for sea surface temperature.
 
     Returns
     -------
     np.ndarray
-        Concatenated array of model data across years with masking applied.
+        Concatenated model data array with masked values set to NaN.
 
     Raises
     ------
-    AssertionError
-        If inputs are not of expected types or data files are missing/inconsistent.
-    ValueError
-        If an unsupported variable name is given.
-    FileNotFoundError
-        If no matching NetCDF files are found.
+    TypeError, FileNotFoundError, ValueError, KeyError
+        On invalid inputs or missing data files.
     """
-    assert isinstance(Dmod, (str, Path)), "Dmod must be a string or Path object"
-    assert (
-        isinstance(Mfsm, tuple)
-        and len(Mfsm) == 2
-        and all(isinstance(i, np.ndarray) for i in Mfsm)
-    ), "Mfsm must be a tuple of two numpy arrays for indexing"
+    Dmod = Path(Dmod)  # Ensure Path object
 
+    # Validate Mfsm
+    if (
+        not isinstance(Mfsm, tuple)
+        or len(Mfsm) != 2
+        or not all(isinstance(arr, np.ndarray) for arr in Mfsm)
+    ):
+        raise TypeError("Mfsm must be a tuple of two numpy arrays for indexing")
+
+    # Determine variable key in NetCDF files
     if variable_name == 'chl':
         key = 'Chlasat_od'
     elif variable_name == 'sst':
@@ -51,76 +56,68 @@ def read_model_data(Dmod, Mfsm, variable_name):
         raise ValueError("variable_name must be either 'chl' or 'sst'.")
 
     print("Scanning directory to determine available years...")
-    Ybeg, Yend, ysec = infer_years_from_path(Dmod, target_type="folder", pattern=r'output\s*(\d{4})')
+
+    Ybeg, Yend, ysec = infer_years_from_path(Dmod, target_type="folder", pattern=r'output(\d{4})')
+
     print(f"Found years from {Ybeg} to {Yend}: {ysec}")
     print("-" * 45)
 
-    ymod = Ybeg - 1
     ModData_complete_list = []
 
     for y in ysec:
-        ymod += 1
-        ymod_str = str(ymod)
-        YDIR = "output" + ymod_str
+        YDIR = f"output{y}"
+        folder_path = Dmod / YDIR
 
-        # Leap year support
-        amileap = 365 + leapyear(ymod)
-        assert amileap in [365, 366], f"Leap year calculation failed for year {ymod}"
+        amileap = 365 + leapyear(y)
+        if amileap not in (365, 366):
+            raise ValueError(f"Leap year calculation failed for year {y}")
 
-        # Construct file paths
-        folder_path = Path(Dmod, YDIR)
-
+        # Find candidate files based on variable
         if variable_name == 'chl':
             candidates = list(folder_path.glob("*_Chl.nc")) + list(folder_path.glob("*_Chl.nc.gz"))
-        else:  # 'sst'
+        else:  # sst
             candidates = list(folder_path.glob("*_1d_*_grid_T.nc")) + list(folder_path.glob("*_1d_*_grid_T.nc.gz"))
 
         if not candidates:
             raise FileNotFoundError(f"No matching file for {variable_name.upper()} in {folder_path}")
 
-        # Prefer uncompressed file if available
-        ModData_path = candidates[0].with_suffix('') if candidates[0].suffix == '.gz' else candidates[0]
-        ModData_pathgz = candidates[0].with_suffix('.nc.gz') if candidates[0].suffix == '' else candidates[0]
+        # Prefer uncompressed file if present
+        candidate = next((f for f in candidates if f.suffix != '.gz'), candidates[0])
 
-        print(f"Obtaining the {variable_name.upper()} data for the year {ymod_str}...")
+        ModData_path = candidate.with_suffix('') if candidate.suffix == '.gz' else candidate
+        ModData_pathgz = candidate if candidate.suffix == '.gz' else candidate.with_suffix('.gz')
 
-        # Extract gzipped file if needed
-        if not os.path.exists(ModData_path):
-            if os.path.exists(ModData_pathgz):
-                with gzip.open(ModData_pathgz, 'rb') as f_in, open(ModData_path, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+        print(f"Obtaining the {variable_name.upper()} data for the year {y}...")
 
-        # Read and validate NetCDF file
+        decompressed = False
+        if not ModData_path.exists() and ModData_pathgz.exists():
+            with gzip.open(ModData_pathgz, 'rb') as f_in, open(ModData_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            decompressed = True
+
         with Dataset(ModData_path, 'r') as nc_file:
-            assert key in nc_file.variables, f"{key} variable not found in {ModData_path}"
+            if key not in nc_file.variables:
+                raise KeyError(f"{key} variable not found in {ModData_path}")
             ModData_orig = nc_file.variables[key][:]
-            assert ModData_orig.shape[0] == amileap, f"Unexpected number of days in {variable_name.upper()} data for year {ymod}"
+            if ModData_orig.shape[0] != amileap:
+                raise ValueError(
+                    f"Unexpected number of days in {variable_name.upper()} data for year {y}, "
+                    f"expected {amileap} got {ModData_orig.shape[0]}"
+                )
 
-        # Re-zip file if uncompressed copy was created
-        if os.path.exists(ModData_pathgz):
-            print("Zipped file already existing")
+        if decompressed:
             os.remove(ModData_path)
         else:
-            print("Zipping...")
-            with open(ModData_path, 'rb') as f_in, gzip.open(ModData_pathgz, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+            print("No decompression needed, skipping re-zipping.")
 
-        print(f"\033[92m✅ The model {variable_name.upper()} data for the year {ymod_str} has been retrieved!\033[0m")
+        print(f"\033[92m✅ The model {variable_name.upper()} data for the year {y} has been retrieved!\033[0m")
         print('-' * 45)
 
-        # Mask and accumulate
-        if y == Ybeg:
-            ModData_row, ModData_col = ModData_orig.shape[1], ModData_orig.shape[2]
+        # Mask specified indices with NaN for all days
+        ModData_orig[:, Mfsm[0], Mfsm[1]] = np.nan
 
-        tempo = np.full((ModData_row, ModData_col), np.nan)
-        for t in range(amileap):
-            tempo[:, :] = ModData_orig[t, :, :]
-            tempo[Mfsm] = np.nan
-            ModData_orig[t, :, :] = tempo[:, :]
+        ModData_complete_list.append(ModData_orig[:amileap])
 
-        ModData_complete_list.append(ModData_orig[:amileap, :, :])
-
-    # Concatenate all yearly data into a full dataset
     ModData_complete = np.concatenate(ModData_complete_list, axis=0)
 
     print("\033[92m✅ Model data fully loaded across all years!\033[0m")
