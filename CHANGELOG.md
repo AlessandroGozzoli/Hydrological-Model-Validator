@@ -1,3 +1,36 @@
+# **Version:** 4.2.8
+**Date:** 30/05/2025
+
+## Summary
+
+This patch continues the series of reworks focused on improving code clarity, stability, and performance, specifically targeting the `formatting.py` submodule and related functions.
+
+## General Enhancements
+
+- **Refactored – `formatting.py`:**  
+  All functions in the submodule have been cleaned up and optimized for improved readability and reliability.
+
+- **Function Updates:**
+  - `format_unit`: Further optimized to ensure accurate and consistent label generation.
+  - `get_variable_label_unit`: Now depends on `format_unit` for standardized output.
+  - `fill_anular_region`: Reworked to use `polygon` instead of `fill` for target plot rendering.
+  - `get_min_max_for_identity_line`: Vectorized to enhance computational performance.
+  - `compute_geolocalised_coords`: Updated to use `np.arange` for faster coordinate computation.
+  - `swifs_colormap`: Rewritten for clarity, with improved handling of default cases and added `Typing` for return values.
+  - `get_benthic_plot_parameters`: Cleaned up and typed for better readability and stability.
+
+## Future Work
+
+> **Note:**  
+> This update concludes the current patch cycle aimed at optimizing and cleaning up existing code, in the following patches the spatial performance related functions will be implemented.  
+> The next major revision will include:
+> - Final pass for comment and docstring consistency  
+> - Integration of the `argparse` library for CLI support  
+> - Structured logging implementation  
+> - Unit testing of main computation functions
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.7
 **Date:** 30/05/2025
 
