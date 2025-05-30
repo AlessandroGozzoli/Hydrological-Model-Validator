@@ -201,6 +201,7 @@ def calc_density(
     temp_3d: np.ndarray,
     sal_3d: np.ndarray,
     depths: np.ndarray,
+    valid_mask,
     density_method: str,
 ) -> np.ndarray:
     """
@@ -293,7 +294,6 @@ def compute_dense_water_volume(
         file_gz = Path(str(file_nc) + ".gz")
 
         print(f"Working on year {year}")
-        print(f"Handling file {filename}")
 
         if not file_gz.exists():
             print(f"File missing: {file_gz}, skipping year {year}")
