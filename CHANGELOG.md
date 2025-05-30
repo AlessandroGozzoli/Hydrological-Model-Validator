@@ -1,3 +1,30 @@
+# **Version:** 4.2.7
+**Date:** 30/05/2025
+
+## Summary
+
+This release includes a refactoring of submodules functions to enhance code clarity, stability, and maintainability, alongside minor performance optimizations.
+
+## General Enhancements
+
+- **Refactoring – `stats_math_utils.py`:**  
+  Cleaned and reorganized function implementations for improved stability and readability.  
+  Variable names have been updated to remove assumptions tied to specific data sources (e.g., model vs. satellite).  
+  Comments and docstrings have been revised to improve clarity and documentation quality.
+
+- **Optimization – `compute_coverage_stats`:**  
+  Slight improvements to input handling for better robustness and reduced likelihood of runtime errors.
+
+- **Cleanup – `time_utils.py`:**  
+  Function declarations have been cleaned and input validation messages rewritten for clarity.  
+  Optimizations were applied to reduce nested loops and improve performance.
+
+- **Improvements – `utils.py`:**  
+  Enhanced error messages and streamlined function parameters.  
+  Refactored internal logic to eliminate unnecessary nested loops and improve efficiency.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.6
 **Date:** 30/05/2025
 
