@@ -207,6 +207,7 @@ elif varname == 'chl':
     sys.path.append(str(Data_sat))  # Add the folder to the system path
     print(f"Satellite CHL data locate at {Data_sat}")
 
+print("Extracting the satellite data...")
 # Call the function to read the data, merge it and check for SLON, SLAT shapes
 T_orig, SatData_orig, Sat_lon, Sat_lat = sat_data_loader(data_level, Data_sat, varname)
 
@@ -218,8 +219,11 @@ satnan = find_missing_observations(SatData_complete)
 
 # Run the empty field checker
 SatData_complete = eliminate_empty_fields(SatData_complete)
+print("Satellite data extracted and cleaned!")
 
+print("Computing the cloud coverage...")
 data_available, cloud_cover = compute_coverage_stats(SatData_complete, Mmask)
+print("Cloud coverage computed!")
 
 save = input("Do you want to save the Satellite data? (yes/no): ").strip().lower()
 print('-' * 45)
