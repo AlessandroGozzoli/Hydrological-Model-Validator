@@ -2,7 +2,8 @@ import os
 import gzip
 from netCDF4 import Dataset as ds
 import numpy as np
-from Typing import Union, Path, Tuple
+from typing import Union, Tuple
+from pathlib import Path
 import shutil
 
 from .utils import find_key_variable
@@ -47,7 +48,7 @@ def sat_data_loader(
                 lat_1d = nc.variables[lat_var][:]
 
                 lon = np.tile(lon_1d, (len(lat_1d), 1))
-                lat = np.tile(lat_1d[:, None], (1, len(lon_1d)))
+                lat = np.tile(lat_1d, (len(lon_1d), 1))
 
             time_arr = nc.variables['time'][:]
 
@@ -70,7 +71,8 @@ def sat_data_loader(
                 )
 
             data_arr = nc.variables[real_varname][:]
-            data_arr = np.where(data_arr == -999, np.nan, data_arr)
+            data_arr = np.array(data_arr, dtype=float)  # force float type
+            data_arr[data_arr == -999] = np.nan
 
             if data_arr.ndim != 3:
                 raise ValueError("\033[91m❌ Expected 3D data (time, lat, lon)\033[0m")

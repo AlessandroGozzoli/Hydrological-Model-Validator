@@ -4,7 +4,7 @@ import gzip
 import shutil
 from netCDF4 import Dataset
 from pathlib import Path
-from Typing import Union, Tuple
+from typing import Union, Tuple
 
 from .time_utils import leapyear
 from .utils import infer_years_from_path
