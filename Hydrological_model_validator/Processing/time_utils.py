@@ -36,28 +36,25 @@ def leapyear(year: int) -> int:
     """
     if not (isinstance(year, int) and year > 0):
         raise ValueError("Year must be a positive integer.")
-    if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):
-        return 1
-    return 0
+    return int((year % 4 == 0 and year % 100 != 0) or (year % 400 == 0))
 ###############################################################################
 
 ###############################################################################
-def true_time_series_length(chlfstart: List[int],
-                            chlfend: List[int],
-                            DinY: int) -> int:
+def true_time_series_length(
+    chlfstart: List[int],
+    chlfend: List[int],
+    DinY: int
+) -> int:
     """
     Calculate the true time series length in days over multiple files,
     accounting for leap years.
 
     Parameters
     ----------
-    nf : int
-        Number of files (must be positive).
-
-    chlfstart : List[int]
+    chlfstart : list[int]
         List of start years per file.
 
-    chlfend : List[int]
+    chlfend : list[int]
         List of end years per file.
 
     DinY : int
@@ -75,11 +72,13 @@ def true_time_series_length(chlfstart: List[int],
 
     Examples
     --------
-    >>> true_time_series_length(1, [2000], [2001], 365)
+    >>> true_time_series_length([2000], [2001], 365)
     731
-    >>> true_time_series_length(2, [1999, 2001], [2000, 2002], 365)
+    >>> true_time_series_length([1999, 2001], [2000, 2002], 365)
     1096
     """
+    if len(chlfstart) != len(chlfend):
+        raise ValueError("chlfstart and chlfend must be the same length.")
     if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
         raise ValueError("chlfstart and chlfend must contain integers only.")
     if not all(end >= start for start, end in zip(chlfstart, chlfend)):
@@ -87,36 +86,38 @@ def true_time_series_length(chlfstart: List[int],
     if not (isinstance(DinY, int) and DinY == 365):
         raise ValueError("DinY must be 365.")
 
-    Truedays = 0
-    for start, end in zip(chlfstart, chlfend):
-        for year in range(start, end + 1):
-            Truedays += DinY + leapyear(year)
+    # Flatten year ranges and sum days including leap days
+    years = itertools.chain.from_iterable(range(start, end + 1) for start, end in zip(chlfstart, chlfend))
+    total_days = sum(DinY + leapyear(year) for year in years)
 
-    return Truedays
+    return total_days
 ###############################################################################
 
 ###############################################################################
-def split_to_monthly(yearly_data: Dict[int, Union[pd.Series, pd.DataFrame]]) -> Dict[int, List[Union[pd.Series, pd.DataFrame]]]:
+def split_to_monthly(
+    yearly_data: Dict[int, Union[pd.Series, pd.DataFrame]]
+) -> Dict[int, List[Union[pd.Series, pd.DataFrame]]]:
     """
     Split yearly pandas Series or DataFrames with datetime index into monthly segments.
 
     Parameters
     ----------
-    yearly_data : dict of int to pd.Series or pd.DataFrame
+    yearly_data : dict[int, pd.Series or pd.DataFrame]
         Dictionary keyed by year, with values being pandas Series or DataFrames
         indexed by datetime.
 
     Returns
     -------
-    dict of int to list of pd.Series or pd.DataFrame
+    dict[int, list[pd.Series or pd.DataFrame]]
         Dictionary keyed by year, each containing a list of 12 elements corresponding
         to monthly slices of the data (January to December). Months with no data
-        will have empty Series/DataFrames.
+        will have empty Series or DataFrames of the same type.
 
     Raises
     ------
     ValueError
-        If yearly_data is not a dictionary or values are not pandas Series/DataFrames.
+        If yearly_data is not a dictionary or values are not pandas Series/DataFrames
+        with datetime-like indexes.
 
     Examples
     --------
@@ -132,24 +133,37 @@ def split_to_monthly(yearly_data: Dict[int, Union[pd.Series, pd.DataFrame]]) -> 
     Int64Index([1], dtype='int64')
     """
     if not isinstance(yearly_data, dict):
-        raise ValueError("yearly_data must be a dictionary.")
+        raise ValueError("Input yearly_data must be a dictionary.")
+
+    monthly_data_dict = {}
     for year, data in yearly_data.items():
         if not isinstance(year, int):
-            raise ValueError(f"Year keys must be int, got {type(year)}")
+            raise ValueError(f"Year keys must be int, got {type(year)}.")
         if not isinstance(data, (pd.Series, pd.DataFrame)):
-            raise ValueError(f"Values must be pandas Series or DataFrame, got {type(data)}")
+            raise ValueError(f"Values must be pandas Series or DataFrame, got {type(data)}.")
+        if not pd.api.types.is_datetime64_any_dtype(data.index):
+            raise ValueError(f"Data index for year {year} must be datetime-like.")
 
-    monthly_data_dict = {
-        year: [data[data.index.month == month] for month in range(1, 13)]
-        for year, data in yearly_data.items()
-    }
+        empty_template = data.iloc[0:0]
+
+        monthly_slices = []
+        for month in range(1, 13):
+            month_data = data.loc[data.index.month == month]
+            if month_data.empty:
+                monthly_slices.append(empty_template.copy())
+            else:
+                monthly_slices.append(month_data)
+
+        monthly_data_dict[year] = monthly_slices
 
     return monthly_data_dict
 ###############################################################################
 
 ###############################################################################
-def split_to_yearly(series: pd.Series, 
-                    unique_years: List[Union[int, str]]) -> Dict[Union[int, str], pd.Series]:
+def split_to_yearly(
+    series: pd.Series, 
+    unique_years: List[Union[int, str]]
+) -> Dict[Union[int, str], pd.Series]:
     """
     Split a pandas Series with a datetime index into a dictionary keyed by year.
 
@@ -188,16 +202,22 @@ def split_to_yearly(series: pd.Series,
 
     yearly_data = {}
     for year in unique_years:
-        year_int = int(year)  # Ensure comparison is with int
-        yearly_data[year] = series[series.index.year == year_int]
+        try:
+            year_int = int(year)
+        except ValueError:
+            raise ValueError(f"Year {year} cannot be converted to int")
+        filtered = series.loc[series.index.year == year_int].copy()
+        yearly_data[year] = filtered
 
     return yearly_data
 ###############################################################################
 
 ###############################################################################
-def get_common_years(data_dict: Dict[str, Dict[Union[int, str], Any]], 
-                     mod_key: str, 
-                     sat_key: str) -> List[Union[int, str]]:
+def get_common_years(
+    data_dict: Dict[str, Dict[Union[int, str], Any]], 
+    mod_key: str, 
+    sat_key: str
+) -> List[Union[int, str]]:
     """
     Get sorted years present in both model and satellite datasets.
 
@@ -238,14 +258,18 @@ def get_common_years(data_dict: Dict[str, Dict[Union[int, str], Any]],
     if not isinstance(data_dict[sat_key], dict):
         raise ValueError(f"data_dict[{sat_key}] must be a dictionary")
 
-    mod_years = set(data_dict.get(mod_key, {}).keys())
-    sat_years = set(data_dict.get(sat_key, {}).keys())
+    mod_years = set(data_dict[mod_key].keys())
+    sat_years = set(data_dict[sat_key].keys())
     common_years = sorted(mod_years.intersection(sat_years))
+
     return common_years
 ###############################################################################
 
 ###############################################################################
-def get_season_mask(dates: Union[pd.DatetimeIndex, pd.Series], season_name: str) -> np.ndarray:
+def get_season_mask(
+    dates: Union[pd.DatetimeIndex, pd.Series], 
+    season_name: str
+) -> np.ndarray:
     """
     Generate a boolean mask for the given season on a datetime index or series.
 
@@ -282,19 +306,22 @@ def get_season_mask(dates: Union[pd.DatetimeIndex, pd.Series], season_name: str)
     if isinstance(dates, pd.Series):
         if not isinstance(dates.index, pd.DatetimeIndex):
             raise TypeError("If input is pd.Series, its index must be a pd.DatetimeIndex")
-        months = dates.index.month
+        dt_index = dates.index
     elif isinstance(dates, pd.DatetimeIndex):
-        months = dates.month
+        dt_index = dates
     else:
         raise TypeError("dates must be a pandas DatetimeIndex or a Series with DatetimeIndex")
 
-    if season_name == 'DJF':
-        return (months == 12) | (months == 1) | (months == 2)
-    elif season_name == 'MAM':
-        return (months >= 3) & (months <= 5)
-    elif season_name == 'JJA':
-        return (months >= 6) & (months <= 8)
-    else:  # 'SON'
-        return (months >= 9) & (months <= 11)
+    season_months = {
+        'DJF': {12, 1, 2},
+        'MAM': {3, 4, 5},
+        'JJA': {6, 7, 8},
+        'SON': {9, 10, 11},
+    }
+
+    months = dt_index.month
+    mask = months.isin(season_months[season_name])
+
+    return mask.to_numpy(dtype=bool)
 ###############################################################################
     
