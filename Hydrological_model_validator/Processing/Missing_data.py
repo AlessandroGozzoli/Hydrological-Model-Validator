@@ -5,10 +5,12 @@ from typing import Tuple, List
 ###############################################################################
 def check_missing_days(
     T_orig: np.ndarray, 
-    data_orig: np.ndarray
+    data_orig: np.ndarray,
+    desired_start_date: datetime = datetime(2000, 1, 1)
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Fill missing days in a time series based on expected daily intervals.
+    Automatically shifts the time series so the first timestamp corresponds to desired_start_date.
 
     Parameters
     ----------
@@ -16,11 +18,13 @@ def check_missing_days(
         1D array of timestamps (in seconds since epoch).
     data_orig : np.ndarray
         3D array with shape (time, lat, lon), matching T_orig in the first dimension.
+    desired_start_date : datetime, optional
+        The desired start date to align the time series to (default is 2000-01-01).
 
     Returns
     -------
     Ttrue : np.ndarray
-        Complete array of timestamps with daily spacing.
+        Complete array of timestamps with daily spacing, shifted to desired_start_date.
     data_complete : np.ndarray
         Data array with NaNs inserted where gaps were detected.
 
@@ -46,11 +50,21 @@ def check_missing_days(
         raise ValueError("T_orig length must match first dimension of data_orig.")
 
     print(f"Original time steps: {len(T_orig)}")
+    first_date = datetime.utcfromtimestamp(T_orig[0])
+    print("First timestamp (original):", T_orig[0], f"({first_date.strftime('%Y-%m-%d')})")
+
+    # === SHIFT TIME SERIES TO DESIRED START DATE ===
+    offset_seconds = (desired_start_date - first_date).total_seconds()
+    print(f"Offset to add (seconds): {offset_seconds}")
+
+    T_shifted = T_orig + offset_seconds
+    shifted_first_date = datetime.utcfromtimestamp(T_shifted[0])
+    print("First timestamp (shifted):", T_shifted[0], f"({shifted_first_date.strftime('%Y-%m-%d')})")
 
     # === DETECT TIME STEP ===
-    steps = np.diff(T_orig)
+    steps = np.diff(T_shifted)
     if not np.all(steps > 0):
-        raise ValueError("Timestamps must be strictly increasing.")
+        raise ValueError("Timestamps must be strictly increasing after shifting.")
     
     unique_steps, counts = np.unique(steps, return_counts=True)
     time_step = unique_steps[np.argmax(counts)]
@@ -61,14 +75,14 @@ def check_missing_days(
     print(f"Detected time step: {time_step} seconds ({time_step / 86400:.2f} days)")
 
     # === GENERATE EXPECTED TIME RANGE ===
-    T_start, T_end = T_orig[0], T_orig[-1]
+    T_start, T_end = T_shifted[0], T_shifted[-1]
     Ttrue = np.arange(T_start, T_end + time_step, time_step)
-    missing_count = len(Ttrue) - len(T_orig)
+    missing_count = len(Ttrue) - len(T_shifted)
 
     if missing_count == 0:
         print("\033[92m✅ The time series is complete!\033[0m")
         print('*' * 45)
-        return T_orig.copy(), data_orig.copy()
+        return T_shifted.copy(), data_orig.copy()
 
     print("\033[91m⚠️ Time series is incomplete!\033[0m")
     print(f"\033[91mMissing {missing_count} time steps detected.\033[0m")
@@ -76,7 +90,7 @@ def check_missing_days(
     print('-' * 45)
 
     # === FILL DATA INTO COMPLETE TIME SERIES ===
-    time_index = {t: i for i, t in enumerate(T_orig)}
+    time_index = {t: i for i, t in enumerate(T_shifted)}
     data_shape = (len(Ttrue), *data_orig.shape[1:])
     data_complete = np.full(data_shape, np.nan, dtype=data_orig.dtype)
 
@@ -96,6 +110,7 @@ def check_missing_days(
     print('*' * 45)
 
     return Ttrue, data_complete
+
 ###############################################################################
 
 ###############################################################################
@@ -179,13 +194,19 @@ def eliminate_empty_fields(data_complete: np.ndarray) -> np.ndarray:
     if data_complete.ndim != 3:
         raise ValueError("data_complete should be a 3D array (days, lat, lon).")
 
-    print("Checking and removing empty chlorophyll fields...")
+    print("Checking and removing empty fields...")
 
     # Identify empty days: all NaN or all zero (ignoring NaNs for zero check)
     all_nan = np.isnan(data_complete).all(axis=(1, 2))
-    max_vals = np.nanmax(data_complete, axis=(1, 2))
-    all_zero = (max_vals == 0)
 
+    # Suppress the all-NaN slice warning temporarily
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        max_vals = np.nanmax(data_complete, axis=(1, 2))
+
+    all_zero = (max_vals == 0)
+    
     empty_mask = all_nan | all_zero
     cempty = np.sum(empty_mask)
 
