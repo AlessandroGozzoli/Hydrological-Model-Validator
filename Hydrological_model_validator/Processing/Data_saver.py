@@ -1,8 +1,8 @@
 import scipy.io
 import xarray as xr
-from Typing import Dict, Union
+from typing import Dict, Union
 import numpy as np
-import pathlib as Path
+from pathlib import Path
 ###############################################################################
 
 ###############################################################################
