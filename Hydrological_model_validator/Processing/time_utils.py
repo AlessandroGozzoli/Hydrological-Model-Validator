@@ -320,8 +320,7 @@ def get_season_mask(
     }
 
     months = dt_index.month
-    mask = months.isin(season_months[season_name])
+    mask = np.isin(months, list(season_months[season_name]))
 
-    return mask.to_numpy(dtype=bool)
+    return mask
 ###############################################################################
-    
