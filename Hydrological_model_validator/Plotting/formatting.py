@@ -77,21 +77,18 @@ def get_variable_label_unit(variable_name: str) -> Tuple[str, str]:
 ###############################################################################
 
 ###############################################################################
-def fill_annular_region(
-    ax: Axes,
-    r_in: float,
-    r_out: float,
-    color: str,
-    alpha: float = 0.3,
-    zorder: int = 0
-) -> None:
+def fill_annular_region(ax: Axes, 
+                        r_in: float, 
+                        r_out: float, 
+                        color: str, 
+                        alpha: float = 0.3) -> None:
     """
-    Fill an annular (ring-shaped) region between two radii on a matplotlib polar Axes.
+    Fill an annular (ring-shaped) region between two radii on a matplotlib Axes.
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
-        The matplotlib axes object to draw the annular region on. Must be polar.
+        The matplotlib axes object to draw the annular region on.
 
     r_in : float
         Inner radius of the annulus. Must be non-negative and less than or equal to `r_out`.
@@ -103,10 +100,8 @@ def fill_annular_region(
         Fill color (e.g., 'blue', '#1f77b4').
 
     alpha : float, optional
-        Transparency level of the fill. Must be between 0 and 1. Default is 0.3.
-
-    zorder : int, optional
-        Drawing order for the patch. Default is 0.
+        Transparency level of the fill. Must be between 0 and 1.
+        Default is 0.3.
 
     Returns
     -------
@@ -115,41 +110,32 @@ def fill_annular_region(
     Raises
     ------
     ValueError
-        If any inputs are invalid.
+        If radius values are invalid or alpha is out of bounds.
 
     Examples
     --------
-    >>> import matplotlib.pyplot as plt
     >>> fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
     >>> fill_annular_region(ax, r_in=1.0, r_out=2.0, color='red', alpha=0.2)
-    >>> plt.show()
     """
-    # --- VALIDATION ---
-    if not isinstance(ax, Axes) or ax.name != "polar":
-        raise ValueError("Input 'ax' must be a matplotlib polar Axes instance.")
+    if not isinstance(ax, Axes):
+        raise ValueError("Input 'ax' must be a matplotlib.axes.Axes instance.")
     if not isinstance(r_in, (int, float)) or r_in < 0:
         raise ValueError("Input 'r_in' must be a non-negative number.")
     if not isinstance(r_out, (int, float)) or r_out < r_in:
-        raise ValueError("Input 'r_out' must be greater than or equal to 'r_in'.")
+        raise ValueError("Input 'r_out' must be a number greater than or equal to 'r_in'.")
+    if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
+        raise ValueError("Input 'alpha' must be a number between 0 and 1.")
     if not isinstance(color, str):
         raise ValueError("Input 'color' must be a string.")
-    if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
-        raise ValueError("Input 'alpha' must be between 0 and 1.")
 
-    # --- COMPUTE ANNULAR REGION ---
     theta = np.linspace(0, 2 * np.pi, 500)
-    r_outer = np.full_like(theta, r_out)
-    r_inner = np.full_like(theta, r_in)
+    x_outer, y_outer = r_out * np.cos(theta), r_out * np.sin(theta)
+    x_inner, y_inner = r_in * np.cos(theta[::-1]), r_in * np.sin(theta[::-1])
 
-    # Polar to Cartesian (Outer arc + reversed inner arc)
-    x = np.concatenate([r_outer * np.cos(theta), r_inner[::-1] * np.cos(theta[::-1])])
-    y = np.concatenate([r_outer * np.sin(theta), r_inner[::-1] * np.sin(theta[::-1])])
-    coords = np.column_stack((x, y))
+    x = np.concatenate((x_outer, x_inner))
+    y = np.concatenate((y_outer, y_inner))
 
-    # Draw polygon patch
-    polygon = Polygon(coords, closed=True, color=color, alpha=alpha, zorder=zorder,
-                      transform=ax.transData)
-    ax.add_patch(polygon)
+    ax.fill(x, y, color=color, alpha=alpha, zorder=0)
 ###############################################################################
 
 ###############################################################################    
@@ -623,7 +609,7 @@ def get_benthic_plot_parameters(
                               low=hypoxia_threshold, high=hyperoxia_threshold)
         except NameError:
             cmap = get_cmap('coolwarm')
-        use_custom_cmap = True
+        use_custom_cmap = False
         return vmin, vmax, levels, num_ticks, cmap, use_custom_cmap, hypoxia_threshold, hyperoxia_threshold
 
     elif bfm2plot == "votemper":
