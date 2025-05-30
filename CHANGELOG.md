@@ -1,3 +1,20 @@
+# **Version:** 4.2.6
+**Date:** 30/05/2025
+
+## Summary
+
+This release includes cleanups and performance improvements for data reading modules, enhancing readability, reliability, and execution speed.
+
+## General Enhancements
+
+- **Refactoring – `MOD_data_reader.py` and `SAT_data_reader.py`:**  
+  Functions in these submodules have been refactored to improve code clarity and reduce computational overhead.
+
+- **Input Validation Improvements:**  
+  Replaced outdated `assert` statements with explicit `RaiseErrors` for more robust input validation and clearer error handling.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.5
 **Date:** 30/05/2025
 
