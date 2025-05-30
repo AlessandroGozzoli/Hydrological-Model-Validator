@@ -1,3 +1,42 @@
+# **Version:** 4.2.9
+**Date:** 30/05/2025
+
+## Summary
+
+This patch addresses a series of critical issues introduced in previous updates. All hotfixes have been applied to restore functionality.
+
+## Hotfixes
+
+- **`Benthic_physical_plots`:**  
+  Fixed mismatch in the number of values extracted from `get_benthic_plot_parameters` (increased from 7 to 8).
+
+- **`get_benthic_plot_parameters`:**  
+  Corrected `swifs` usage for the `O2o` field which was incorrectly set to `True`, now set to `False`.
+
+- **`fill_anular_region`:**  
+  Reverted from `polygon` back to `ax.fill` to ensure compatibility with Cartesian-based `SkillMetrics` plots.
+
+- **`Data_saver.py`:**  
+  Fixed import errors caused by typos in `typing` and `pathlib` imports.
+
+- **`MOD_data_reader` and `SAT_data_reader`:**  
+  Resolved typo in the `typing` import statement.
+
+- **`eliminate_empty_field`:**  
+  Fixed an issue with `NaN` slicing. A warning is currently ignored, as it does not affect output and will be addressed in a future update.
+
+- **`check_missing_days`:**  
+  Corrected the printed start year in timeline messages (from 1988 to 2000). This was a display-only issue and did not affect the underlying data.
+
+- **`get_season_mask`:**  
+  Fixed an error that occurred when attempting to convert an already-existing array, preventing unnecessary conversion.
+
+## Validation
+
+All test case example scripts executed successfully, and no additional runtime errors were detected.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.8
 **Date:** 30/05/2025
 
