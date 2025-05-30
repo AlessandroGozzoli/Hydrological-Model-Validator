@@ -364,7 +364,7 @@ def Benthic_physical_plot(var_dataframe: dict, geo_coord: dict, **kwargs) -> Non
     epsilon = 0.06
 
     # Select plotting parameters based on variable type
-    vmin, vmax, levels, num_ticks, cmap, _, _, _ = get_benthic_plot_parameters(
+    vmin, vmax, levels, num_ticks, cmap, _, _ = get_benthic_plot_parameters(
         bfm2plot, var_dataframe, opts
     )
 
