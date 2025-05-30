@@ -154,11 +154,6 @@ plot_benthic_3d_mesh(Bmost,
                      layer_thickness=2, 
                      plot_type='surface',
                      save_path=output_path)
-plot_benthic_3d_mesh(Bmost, 
-                     geo_coords, 
-                     layer_thickness=2, 
-                     plot_type='mesh3d',
-                     save_path=output_path)
 print("\033[92m✅ Benthic Layer depth plotted! \033[0m")
 print('-'*45)
 
@@ -345,6 +340,7 @@ Benthic_physical_plot(
 )
 print("TEOS-10 Densa Water results plotted!")
 print("The dense water masses results computed with each method have been succesully plotted!")
+print('-'*45)
 
 print("Attempting to compute the volume of dense water...")
 dense_water_volume_SEOS = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='EOS')
