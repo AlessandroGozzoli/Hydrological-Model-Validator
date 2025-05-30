@@ -1,3 +1,26 @@
+# **Version:** 4.2.5
+**Date:** 30/05/2025
+
+## Summary
+
+This release provides cleanup and performance improvements in the `Efficiency_metrics.py` submodule, as well as bug fixes affecting test cases in `Benthic_layer.py`.
+
+## General Enhancements
+
+- **Refactoring – `Efficiency_metrics.py`:**  
+  Functions within this submodule have been cleaned up for improved readability and maintainability.  
+  Optimization efforts targeted reducing computational time, particularly by minimizing nested loops.
+
+## Bug Fixes
+
+- **`Benthic_physical_plot` Bug:**  
+  Fixed an issue where an incorrect number of variables was extracted during the execution of the `get_benthic_plot_parameters` helper function.
+
+- **`compute_dense_water_volume` Bug:**  
+  Resolved a problem where the `valid_mask` parameter was not being passed correctly to the `calc_density` helper function.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.4
 **Date:** 29/05/2025
 
