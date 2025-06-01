@@ -26,6 +26,8 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
 import matplotlib.colors as mcolors
 import seaborn as sns
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 # Custom Imports
 from .formatting import (plot_line,
@@ -959,78 +961,105 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
 ###############################################################################   
 
 ###############################################################################   
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-
-def plot_spatial_efficiency(data_array, geo_coords,
+def plot_spatial_efficiency(data_array, geo_coords, output_path,
                             title_prefix, cmap, vmin, vmax,
-                            detrended=False, suffix="(Model - Satellite)"):
+                            detrended=False, suffix="(Model - Satellite)",):
     """
-    Plot monthly spatial efficiency maps on Cartopy with set geographic extent.
+    Plot monthly spatial efficiency maps with shared color scale and Cartopy projection.
 
     Parameters
     ----------
     data_array : xarray.DataArray
         3D array with dims (month, y, x) to plot.
+    geo_coords : dict
+        Dictionary with keys: 'latp', 'lonp', 'MinLambda', 'MaxLambda',
+        'MinPhi', 'MaxPhi', and optional 'Epsilon'.
     title_prefix : str
         Prefix for subplot titles.
     cmap : str or Colormap
         Colormap for plotting.
     vmin, vmax : float
-        Colorbar limits.
-    lon_min, lon_max : float
-        Longitude extent limits.
-    lat_min, lat_max : float
-        Latitude extent limits.
+        Global colorbar limits.
     detrended : bool, optional
-        Whether data is detrended (default False).
+        Whether data is detrended.
     suffix : str, optional
-        Additional suffix for the plot title.
+        Suffix in the overall plot title.
 
     Returns
     -------
     None
-        Shows the plot.
+        Displays the plot.
     """
-    fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(16, 10), constrained_layout=True,
+    fig, axes = plt.subplots(nrows=4, ncols=3, figsize=(14, 16), constrained_layout=True,
                              subplot_kw={'projection': ccrs.PlateCarree()})
-    
+
     latp = geo_coords['latp']
     lonp = geo_coords['lonp']
     epsilon = geo_coords.get('Epsilon', 0.06)
     min_lon, max_lon = geo_coords['MinLambda'], geo_coords['MaxLambda']
     min_lat, max_lat = geo_coords['MinPhi'], geo_coords['MaxPhi']
     lat_offset = epsilon + 0.2702044
-    
-    months_str = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+
+    months_str = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    # Consistent contour levels based on global vmin/vmax
+    contour_levels = np.linspace(vmin, vmax, 11)
     
+    if cmap == 'OrangeGreen':
+        colors = ['#086e04', 'white', '#ff6700']  # Lower, middle, and upper limits
+        corr_cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors)
+
+        # Normalize the correlation data between -1 and 1 (for correlation coefficient)
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+        # Apply the same logic to make the white range
+        white_start = int(norm(-0.1) * 255)  # Start of the white range
+        white_end = int(norm(0.1) * 255)    # End of the white range
+        new_colors = corr_cmap(np.linspace(0, 1, 256))
+        new_colors[white_start:white_end, :] = np.array([1, 1, 1, 1])  # RGBA for white
+
+        # Create the new custom colormap with white range
+        cmap = mcolors.ListedColormap(new_colors)
+
     for i, ax in enumerate(axes.flat):
         bias_map = data_array.isel(month=i)
-        
-        # Set the geographic extent for each subplot
+
         ax.set_extent([min_lon, max_lon, min_lat + lat_offset, max_lat], crs=ccrs.PlateCarree())
-        
-        # Plot data with Cartopy projection and no individual colorbar
-        contour_levels = np.linspace(np.nanmin(bias_map), np.nanmax(bias_map), 26)
+
         contour = ax.contourf(
             lonp + (0.35 * epsilon), latp + (0.1 * epsilon), bias_map,
-            levels=contour_levels, cmap=cmap, extend='both', transform=ccrs.PlateCarree()
-            )
+            levels=contour_levels, cmap=cmap, vmin=vmin, vmax=vmax,
+            extend='both', transform=ccrs.PlateCarree()
+        )
 
-        
         ax.coastlines(resolution='10m')
         ax.add_feature(cfeature.LAND, facecolor='lightgray')
-        
-        ax.set_title(f"{title_prefix} - {months_str[i]}")
+        ax.set_title(f"{title_prefix} - {months_str[i]}", fontsize=16, fontweight='bold')
         ax.set_xlabel("")
         ax.set_ylabel("")
-    
-    # Add a single colorbar for the entire figure
-    fig.colorbar(contour, ax=axes, orientation='vertical', shrink=0.8, label=f"{title_prefix}")
-    
+        
+        gl = ax.gridlines(draw_labels=True, dms=True, color='gray', linestyle='--', alpha=0.7)
+        gl.top_labels = True
+        gl.right_labels = True
+
+    # Shared colorbar
+    cbar = fig.colorbar(contour, ax=axes, orientation='horizontal', shrink=0.6,
+                    ticks=np.linspace(vmin, vmax, 11))
+    cbar.ax.tick_params(direction='in', length=28, labelsize=12)  # Tick labels
+    cbar.set_label(f"{title_prefix}", fontsize=14)  # Colorbar label
+
     det_text = "Detrended" if detrended else "Raw"
-    plt.suptitle(f"Monthly {title_prefix} ({det_text}) {suffix}", fontsize=16)
-    plt.show()
+    plt.suptitle(f"Monthly {title_prefix} ({det_text}) {suffix}", fontsize=20, fontweight='bold') 
+    
+    # ----- CHECK EXISTENCE OF THE SAVE FOLDER -----
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # ----- PRINT AND SAVE -----
+    plt.savefig(output_path / f'Monthly {title_prefix} ({det_text}) {suffix}.png')
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(3)
+    plt.close()
 ###############################################################################   
