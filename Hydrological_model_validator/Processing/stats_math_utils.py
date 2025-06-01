@@ -281,35 +281,51 @@ def detrend_dim(
 
 ###############################################################################
 def mean_bias(m, o):
-    return m.mean(dim='time') - o.mean(dim='time')
+    """Compute the mean bias between model and observations."""
+    m_mean = m.mean(dim='time')
+    o_mean = o.mean(dim='time')
+    return m_mean - o_mean
 ###############################################################################
 
 ###############################################################################
 def standard_deviation_error(m, o):
-    var_m = m.var(dim='time')
-    var_o = o.var(dim='time')
-    cov_mo = ((m - m.mean(dim='time')) * (o - o.mean(dim='time'))).mean(dim='time')
-    return np.sqrt(var_m + var_o - 2 * cov_mo)
+    """Compute standard deviation error (CRMSD) between m and o."""
+    m_mean = m.mean(dim='time')
+    o_mean = o.mean(dim='time')
+    m_anom = m - m_mean
+    o_anom = o - o_mean
+    var_m = (m_anom ** 2).mean(dim='time')
+    var_o = (o_anom ** 2).mean(dim='time')
+    cov_mo = (m_anom * o_anom).mean(dim='time')
+    return (var_m + var_o - 2 * cov_mo) ** 0.5
 ###############################################################################
 
 ###############################################################################
 def cross_correlation(m, o):
+    """Compute Pearson correlation coefficient between m and o."""
     m_mean = m.mean(dim='time')
     o_mean = o.mean(dim='time')
-    rm = m.std(dim='time')
-    ro = o.std(dim='time')
-    cov = ((m - m_mean) * (o - o_mean)).mean(dim='time')
-    return cov / (rm * ro)
+    m_anom = m - m_mean
+    o_anom = o - o_mean
+    cov = (m_anom * o_anom).mean(dim='time')
+    std_m = (m_anom ** 2).mean(dim='time') ** 0.5
+    std_o = (o_anom ** 2).mean(dim='time') ** 0.5
+    return cov * ((1 / std_m) * (1 / std_o))
 ###############################################################################
 
 ###############################################################################
 def std_dev(da):
-    return da.std(dim='time')
+    """Compute standard deviation of a DataArray along time dimension."""
+    mean = da.mean(dim='time')
+    return ((da - mean) ** 2).mean(dim='time') ** 0.5
 ###############################################################################
 
 ###############################################################################
 def unbiased_rmse(m, o):
-    m_anom = m - m.mean(dim='time')
-    o_anom = o - o.mean(dim='time')
-    return np.sqrt(((m_anom - o_anom)**2).mean(dim='time'))
+    """Compute unbiased RMSE (centered RMSE) between m and o."""
+    m_mean = m.mean(dim='time')
+    o_mean = o.mean(dim='time')
+    m_anom = m - m_mean
+    o_anom = o - o_mean
+    return ((m_anom - o_anom) ** 2).mean(dim='time') ** 0.5
 ###############################################################################
