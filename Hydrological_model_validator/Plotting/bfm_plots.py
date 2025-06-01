@@ -411,8 +411,9 @@ def Benthic_physical_plot(var_dataframe: dict, geo_coord: dict, **kwargs) -> Non
                 transform=ccrs.PlateCarree(),
             )
 
-        ax.coastlines(linewidth=coastline_linewidth)
+        ax.coastlines(linewidth=coastline_linewidth, resolution='10m')
         ax.add_feature(cfeature.BORDERS, linestyle=border_linestyle)
+        ax.add_feature(cfeature.LAND, facecolor='lightgray')
         gl = ax.gridlines(draw_labels=True, dms=True, color=gridline_color, linestyle=gridline_linestyle)
         gl.top_labels = False
         gl.right_labels = False
@@ -534,8 +535,9 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
                     levels=levels, cmap=cmap_obj, vmin=vmin, vmax=vmax, extend='both', transform=ccrs.PlateCarree()
                 )
 
-            ax.coastlines(linewidth=coastline_linewidth)
+            ax.coastlines(linewidth=coastline_linewidth, resolution='10m')
             ax.add_feature(cfeature.BORDERS, linestyle=border_linestyle)
+            ax.add_feature(cfeature.LAND, facecolor='lightgray')
             
             title_str = f"{description} | {year} - {month_name}"
             if location:
