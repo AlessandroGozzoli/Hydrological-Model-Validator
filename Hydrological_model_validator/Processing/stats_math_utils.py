@@ -2,6 +2,8 @@ import numpy as np
 from typing import Tuple, Union
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
+import xarray as xr
+from scipy.signal import detrend
 
 ###############################################################################
 def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -199,3 +201,115 @@ def compute_coverage_stats(
     cloud_coverage_percent = 100 * cloud_counts / total_points
 
     return data_available_percent, cloud_coverage_percent
+###############################################################################
+
+###############################################################################
+def detrend_dim(
+    da: xr.DataArray,
+    dim: str,
+    mask: xr.DataArray = None,
+    min_valid_points: int = 5
+) -> xr.DataArray:
+    """
+    Detrend a DataArray along a dimension using scipy.signal.detrend,
+    optionally masking out points and skipping those with insufficient valid data.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Input data with dimension `dim`.
+    dim : str
+        Dimension name along which to detrend (e.g., 'time').
+    mask : xr.DataArray, optional
+        Boolean mask to apply before detrending. True = valid points.
+    min_valid_points : int, default=5
+        Minimum number of valid (non-NaN) points along `dim` required to perform detrending.
+
+    Returns
+    -------
+    xr.DataArray
+        Detrended data array.
+    """
+    if mask is not None:
+        da = da.where(mask)
+
+    def detrend_1d(x):
+        # Ensure float dtype to support NaNs
+        x = x.astype(float)
+        nans = np.isnan(x)
+
+        if np.sum(~nans) < min_valid_points:
+            # Not enough valid points: return all NaNs of same shape & dtype float
+            return np.full_like(x, np.nan, dtype=float)
+
+        if nans.any():
+            # Indices of valid and invalid points
+            valid_idx = np.flatnonzero(~nans)
+            invalid_idx = np.flatnonzero(nans)
+
+            # Ensure valid_idx is sorted for np.interp (usually true)
+            sorted_valid_idx = np.sort(valid_idx)
+
+            # Corresponding values for valid indices
+            valid_vals = x[sorted_valid_idx]
+
+            # Interpolate linearly over missing values
+            x_interp = x.copy()
+            x_interp[invalid_idx] = np.interp(invalid_idx, sorted_valid_idx, valid_vals)
+        else:
+            x_interp = x
+
+        # Perform linear detrending
+        detrended = detrend(x_interp, type='linear')
+
+        # Restore NaNs in original positions
+        detrended[nans] = np.nan
+
+        return detrended
+
+    detrended = xr.apply_ufunc(
+        detrend_1d,
+        da,
+        input_core_dims=[[dim]],
+        output_core_dims=[[dim]],
+        vectorize=True,
+        dask='parallelized',
+        output_dtypes=[da.dtype],
+    )
+    return detrended
+###############################################################################
+
+###############################################################################
+def mean_bias(m, o):
+    return m.mean(dim='time') - o.mean(dim='time')
+###############################################################################
+
+###############################################################################
+def standard_deviation_error(m, o):
+    var_m = m.var(dim='time')
+    var_o = o.var(dim='time')
+    cov_mo = ((m - m.mean(dim='time')) * (o - o.mean(dim='time'))).mean(dim='time')
+    return np.sqrt(var_m + var_o - 2 * cov_mo)
+###############################################################################
+
+###############################################################################
+def cross_correlation(m, o):
+    m_mean = m.mean(dim='time')
+    o_mean = o.mean(dim='time')
+    rm = m.std(dim='time')
+    ro = o.std(dim='time')
+    cov = ((m - m_mean) * (o - o_mean)).mean(dim='time')
+    return cov / (rm * ro)
+###############################################################################
+
+###############################################################################
+def std_dev(da):
+    return da.std(dim='time')
+###############################################################################
+
+###############################################################################
+def unbiased_rmse(m, o):
+    m_anom = m - m.mean(dim='time')
+    o_anom = o - o.mean(dim='time')
+    return np.sqrt(((m_anom - o_anom)**2).mean(dim='time'))
+###############################################################################
