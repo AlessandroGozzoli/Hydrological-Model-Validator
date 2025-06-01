@@ -1,4 +1,11 @@
 import numpy as np
+import xarray as xr
+
+from .stats_math_utils import (mean_bias, 
+                               standard_deviation_error, 
+                               std_dev,
+                               cross_correlation,
+                               unbiased_rmse)
 
 ###############################################################################
 def r_squared(obs: np.ndarray, pred: np.ndarray) -> float:
@@ -794,4 +801,34 @@ def monthly_relative_index_of_agreement(dictionary):
         d_rel_monthly.append(d_rel)
 
     return d_rel_monthly
+###############################################################################
+
+###############################################################################
+def compute_spatial_efficiency(model_da, sat_da):
+    months = range(1, 13)
+    
+    def compute_metrics_for_month(month):
+        m_month = model_da.sel(time=model_da['time.month'] == month)
+        o_month = sat_da.sel(time=sat_da['time.month'] == month)
+        
+        return (
+            mean_bias(m_month, o_month),
+            standard_deviation_error(m_month, o_month),
+            cross_correlation(m_month, o_month),
+            std_dev(m_month),
+            std_dev(o_month),
+            unbiased_rmse(m_month, o_month),
+        )
+    
+    results = list(map(compute_metrics_for_month, months))
+    mb_maps, sde_maps, cc_maps, rm_maps, ro_maps, urmse_maps = zip(*results)
+    
+    mb_all = xr.concat(mb_maps, dim='month').assign_coords(month=months)
+    sde_all = xr.concat(sde_maps, dim='month').assign_coords(month=months)
+    cc_all = xr.concat(cc_maps, dim='month').assign_coords(month=months)
+    rm_all = xr.concat(rm_maps, dim='month').assign_coords(month=months)
+    ro_all = xr.concat(ro_maps, dim='month').assign_coords(month=months)
+    urmse_all = xr.concat(urmse_maps, dim='month').assign_coords(month=months)
+    
+    return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
 ###############################################################################
