@@ -31,6 +31,7 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 # Libraries for paths
 import os
 from pathlib import Path
+import subprocess
 
 # Utility libraries
 import numpy as np
@@ -39,6 +40,8 @@ import xarray as xr
 import calendar
 from datetime import datetime
 import re
+from dask.diagnostics import ProgressBar
+from concurrent.futures import ThreadPoolExecutor
 
 ###############################################################################
 ##                                                                           ##
@@ -48,26 +51,35 @@ import re
 
 print("Loading the necessary modules...")
 
-print("Loading the Pre-Processing modules and constants...")
-from Hydrological_model_validator.Processing.time_utils import split_to_monthly, split_to_yearly
-print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
+print("Loading the Pre-Processing functions...")
+from Hydrological_model_validator.Processing.time_utils import (split_to_monthly, 
+                                                                split_to_yearly)
+from Hydrological_model_validator.Plotting.formatting import compute_geolocalized_coords
+from Hydrological_model_validator.Processing.file_io import mask_reader
+print("\033[92m✅ Pre-processing functions have been loaded!\033[0m")
 print("-"*45)
 
-print("Loading the plotting modules...")
+print("Loading the plotting functions...")
 from Hydrological_model_validator.Plotting.Plots import (timeseries,
                                                            scatter_plot,
                                                            seasonal_scatter_plot,
                                                            whiskerbox,
                                                            violinplot,
-                                                           efficiency_plot)
+                                                           efficiency_plot,
+                                                           plot_spatial_efficiency)
 from Hydrological_model_validator.Plotting.Taylor_diagrams import (comprehensive_taylor_diagram,
                                                                    monthly_taylor_diagram)
 from Hydrological_model_validator.Plotting.Target_plots import (comprehensive_target_diagram,
                                                                 target_diagram_by_month)
-print("\033[92m✅ The plotting modules have been loaded!\033[0m")
+print("\033[92m✅ The plotting functions have been loaded!\033[0m")
 print('-'*45)
 
-print("Loading the validation modules...")
+print("Loading the statistics functions...")
+from Hydrological_model_validator.Processing.stats_math_utils import (detrend_dim)
+print("\033[92m✅ The statistics functions have been loaded!\033[0m")
+print('-'*45)
+
+print("Loading the efficiency functions...")
 from Hydrological_model_validator.Processing.Efficiency_metrics import (r_squared,
                                                                         weighted_r_squared,
                                                                         nse,
@@ -85,7 +97,9 @@ from Hydrological_model_validator.Processing.Efficiency_metrics import (r_square
                                                                         monthly_nse_j,
                                                                         monthly_index_of_agreement_j,
                                                                         monthly_relative_nse,
-                                                                        monthly_relative_index_of_agreement)
+                                                                        monthly_relative_index_of_agreement,
+                                                                        compute_spatial_efficiency,
+                                                                        )
 print("\033[92m✅ The validation modules have been loaded!\033[0m")
 print('*'*45)
 
@@ -401,3 +415,214 @@ for metric_key, title in plot_titles.items():
 
 print("\033[92m✅ All efficiency metric plots have been successfully created!\033[0m")
 print("*" * 45)
+
+###############################################################################
+##                                                                           ##
+##                           SPATIAL PERFORMANCE                             ##
+##                                                                           ##
+###############################################################################
+
+# ----- RETRIEVING THE MASK -----
+print("Retrieving the mask...")
+Mfsm = mask_reader(BDIR)
+ocean_mask = Mfsm  # This returns a NumPy array
+print("\033[92m✅ Mask succesfully imported! \033[0m")
+print('*'*45)
+
+# ----- GEOLOCALIZE THE DATASET -----
+print("Computing the geolocalization...")
+# Known values from the dataset, need to be changed if the area of analysis is changed
+grid_shape = (278, 315)
+epsilon = 0.06  # Correction factor linked to the resolution of the dataset
+x_start = 12.200
+x_step = 0.0100
+y_start = 43.774
+y_step = 0.0073
+
+geo_coords = compute_geolocalized_coords(grid_shape, epsilon, x_start, x_step, y_start, y_step)
+print("\033[92m✅ Geolocalization complete! \033[0m")
+print('*'*45)
+
+# Load datasets
+print("Loading the datasets...")
+ds_model = xr.open_dataset(IDIR / "ModData_sst_interp_l3.nc")
+ds_sat = xr.open_dataset(IDIR / "SatData_sst_interp_l3.nc")
+print("The datasets have been loaded!")
+print('-'*45)
+
+print("Due to the necessity to resample the data the datasets need to be")
+print("Transposed so that the 1st dimension is the time")
+print("Transposing the datasets...")
+model_sst = ds_model['ModData_interp'].transpose('time', 'lat', 'lon')
+sat_sst = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
+print("The datasets have been transposed!")
+print('-'*45)
+
+# Convert time from days since 2000-01-01 to datetime
+print("Adding a datetime to aid with the resampling...")
+time_origin = pd.Timestamp("2000-01-01")
+model_sst['time'] = time_origin + pd.to_timedelta(model_sst.time.values, unit="D")
+sat_sst['time'] = time_origin + pd.to_timedelta(sat_sst.time.values, unit="D")
+print("Daily datetime index added!")
+print('-'*45)
+
+print("\n--- Data Resampling Notice ---")
+print("This dataset must be resampled to obtain *monthly averages*, which are")
+print("required for the subsequent analyses (tailored to monthly/yearly data).")
+print("⚠️  Resampling is computationally intensive, especially on the full dataset.")
+print("\nTwo options are available:")
+print("1. Perform in-code resampling using parallel Dask processes.")
+print("2. Save the dataset and use an external tool like CDO for resampling.\n")
+print("3. Save the dataset to resample using another program.")
+print("The resampling using a CDO is the current fastest method")
+print("But in this test case the already resampled file is already provided!")
+
+resample = input("→ Proceed with in-code resampling? (yes/no): ").strip().lower()
+do_resample = resample in ["yes", "y"]
+
+cdo = input("→ Run the CDO directly? (yes/no): ").strip().lower()
+do_cdo = cdo in ["yes", "y"]
+
+save = input("→ Save the data to resample in another way? (yes/no): ").strip().lower()
+do_save = save in ["yes", "y"]
+
+if not do_resample and not do_cdo:
+    check = input("Are you using the monthly resampled datasets provided in the /Data folder? (Yes/No): ")
+    if check in ["yes", "y"]:
+        print("Good! We can move on then!")
+    else:
+        print("\n❌ No action selected. The following analysis cannot progress without resampling.")
+        exit()
+
+if do_resample:
+    print("\n✅ Starting parallel resampling using Dask...")
+    
+    model_sst_chunked = model_sst.chunk({'time': 100})
+    sat_sst_chunked = sat_sst.chunk({'time': 100})
+
+    model_sst_monthly_lazy = model_sst_chunked.resample(time='1MS').mean()
+    sat_sst_monthly_lazy = sat_sst_chunked.resample(time='1MS').mean()
+
+    with ProgressBar(), ThreadPoolExecutor(max_workers=2) as executor:
+        future_model = executor.submit(model_sst_monthly_lazy.compute, scheduler='threads')
+        future_sat = executor.submit(sat_sst_monthly_lazy.compute, scheduler='threads')
+
+        model_sst_monthly = future_model.result()
+        sat_sst_monthly = future_sat.result()
+
+    print("✅ Resampling completed.\n")
+    
+if do_save:
+    print("Saving daily SST data for external resampling via CDO...")
+    model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
+    sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
+    print("✅ Files saved to:", IDIR, "\n")
+
+if do_cdo:
+    # About the CDO usage (this is also in the test case README)
+    # The CDO is a native linux program and as such it needs to be installed
+    # in either a linux subsistem or a WSL in Windows.
+    # This code will not run without it!
+    # About the paths: since the IDIR path to access the PROCESSING_INPUT
+    # folder is build dynamically starting from the cwd (in the future this
+    # will be changed to use the __file__ location as basis for the path
+    # construction) the "c" path will be built according to the system 
+    # architecture. Meaning it will use C: for windows systems and C for 
+    # Linux. This means that even though the CDO may be installed this section
+    # of the code does not currently work when run from Windows because the 
+    # path will be wrong!
+    # Future updates will attempt to change this.
+    print("Saving daily SST data for external resampling via CDO...")
+    model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
+    sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
+    print("✅ Files saved to:", IDIR, "\n")
+
+    print("Running the CDO...")
+    print("Firstly the model data...")
+    # Define paths
+    input_file = Path("/mnt") / IDIR / "model_sst_daily.nc"
+    print(input_file)
+    output_file = Path('/mnt/', IDIR, "model_sst_monthly.nc")
+    print(output_file)
+
+    # Run CDO monmean
+    subprocess.run(["/usr/bin/cdo", "-v", "monmean", input_file, output_file], check=True)
+    print("The model data has been resampled!")
+    
+    print("Onto the satellite data...")
+    input_file_sat = os.path.join(IDIR, "sat_sst_daily.nc")
+    output_file_sat = os.path.join(IDIR, "sat_sst_monthly.nc")
+
+    subprocess.run(["cdo", "-v", "monmean", input_file_sat, output_file_sat], check=True)
+    print("The satellite data has been resampled!")
+    
+print("Loading the monthly datasets...")
+model_sst_monthly = xr.open_dataset(IDIR / "model_sst_monthly.nc")
+sat_sst_monthly = xr.open_dataset(IDIR / "sat_sst_monthly.nc")
+print("The datasets have been loaded!")
+print('-'*45)
+
+print("Fetching the data...")
+model_sst_data = model_sst_monthly["ModData_interp"]
+sat_sst_data = sat_sst_monthly["SatData_complete"]
+
+
+print("Masking...")
+mask_da = xr.DataArray(ocean_mask)
+mask_expanded = mask_da.expand_dims(time=model_sst_data.time)
+model_sst_masked = model_sst_data.where(mask_expanded)
+sat_sst_masked = sat_sst_data.where(mask_expanded)
+
+print("Dropping the time bounds dimension...")
+print("(This is added by the cdo)")
+model_sst_data = model_sst_data.drop_vars("time_bnds", errors="ignore")
+sat_sst_data = sat_sst_data.drop_vars("time_bnds", errors="ignore")
+
+print("Aligning the data...")
+model_sst_data, sat_sst_data = xr.align(model_sst_data, sat_sst_data, join="inner")
+print("The monthly data has been prepared!")
+print('-'*45)
+
+print("Computing the metrics from the raw data...")
+mb_raw, sde_raw, cc_raw, rm_raw, ro_raw, urmse_raw = compute_spatial_efficiency(model_sst_masked, sat_sst_masked)
+print("Metrics computed!")
+print('-'*45)
+
+print("Detrending the data...")
+model_detrended = detrend_dim(model_sst_data, dim='time', mask=mask_expanded)
+sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=mask_expanded)
+print("Data detrended!")
+
+print("Computing the metrics from the detrended data...")
+mb_detr, sde_detr, cc_detr, rm_detr, ro_detr, urmse_detr = compute_spatial_efficiency(model_detrended, sat_detrended)
+print("Detrended data metrcis computed!")
+print('-'*45)
+
+print("Plotting the results...")
+plot_spatial_efficiency(mb_raw, geo_coords, "Mean Bias (°C)", "RdBu_r", -2, 2, )
+plot_spatial_efficiency(mb_detr, geo_coords, "Mean Bias (°C)", "RdBu_r", -2, 2, detrended=True)
+print("Mean bias plotted!")
+
+print("Plotting the standard deviation error...")
+plot_spatial_efficiency(sde_raw, geo_coords, "Standard Deviation Error (°C)", "viridis", 0, 3)
+plot_spatial_efficiency(sde_detr, geo_coords, "Standard Deviation Error (°C)", "viridis", 0, 3, detrended=True)
+print("Standard deviation error plotted!")
+
+print("Plotting the cross correlation...")
+plot_spatial_efficiency(cc_raw, geo_coords, "Cross Correlation", "RdBu_r", -1, 1)
+plot_spatial_efficiency(cc_detr, geo_coords, "Cross Correlation", "RdBu_r", -1, 1, detrended=True)
+print("Cross correlation plotted!")
+
+print("Plotting the std...")
+plot_spatial_efficiency(rm_raw, geo_coords, "Model Std Dev (°C)", "plasma", 0, 3, suffix="(Model)")
+plot_spatial_efficiency(rm_detr, geo_coords, "Model Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Model)")
+
+plot_spatial_efficiency(ro_raw, geo_coords, "Satellite Std Dev (°C)", "plasma", 0, 3, suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr, geo_coords, "Satellite Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
+print("Std plotted!")
+
+print("Plotting the uRMSE")
+plot_spatial_efficiency(urmse_raw, geo_coords, "Unbiased RMSE (°C)", "inferno", 0, 3)
+plot_spatial_efficiency(urmse_detr, geo_coords, "Unbiased RMSE (°C)", "inferno", 0, 3, detrended=True)
+print("uRMSE plotted!")
+print('-'*45)
