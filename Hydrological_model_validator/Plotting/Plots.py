@@ -956,4 +956,81 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     plt.draw()
     plt.pause(options.pause_time)
     plt.close()
-###############################################################################      
+###############################################################################   
+
+###############################################################################   
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+
+def plot_spatial_efficiency(data_array, geo_coords,
+                            title_prefix, cmap, vmin, vmax,
+                            detrended=False, suffix="(Model - Satellite)"):
+    """
+    Plot monthly spatial efficiency maps on Cartopy with set geographic extent.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        3D array with dims (month, y, x) to plot.
+    title_prefix : str
+        Prefix for subplot titles.
+    cmap : str or Colormap
+        Colormap for plotting.
+    vmin, vmax : float
+        Colorbar limits.
+    lon_min, lon_max : float
+        Longitude extent limits.
+    lat_min, lat_max : float
+        Latitude extent limits.
+    detrended : bool, optional
+        Whether data is detrended (default False).
+    suffix : str, optional
+        Additional suffix for the plot title.
+
+    Returns
+    -------
+    None
+        Shows the plot.
+    """
+    fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(16, 10), constrained_layout=True,
+                             subplot_kw={'projection': ccrs.PlateCarree()})
+    
+    latp = geo_coords['latp']
+    lonp = geo_coords['lonp']
+    epsilon = geo_coords.get('Epsilon', 0.06)
+    min_lon, max_lon = geo_coords['MinLambda'], geo_coords['MaxLambda']
+    min_lat, max_lat = geo_coords['MinPhi'], geo_coords['MaxPhi']
+    lat_offset = epsilon + 0.2702044
+    
+    months_str = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    for i, ax in enumerate(axes.flat):
+        bias_map = data_array.isel(month=i)
+        
+        # Set the geographic extent for each subplot
+        ax.set_extent([min_lon, max_lon, min_lat + lat_offset, max_lat], crs=ccrs.PlateCarree())
+        
+        # Plot data with Cartopy projection and no individual colorbar
+        contour_levels = np.linspace(np.nanmin(bias_map), np.nanmax(bias_map), 26)
+        contour = ax.contourf(
+            lonp + (0.35 * epsilon), latp + (0.1 * epsilon), bias_map,
+            levels=contour_levels, cmap=cmap, extend='both', transform=ccrs.PlateCarree()
+            )
+
+        
+        ax.coastlines(resolution='10m')
+        ax.add_feature(cfeature.LAND, facecolor='lightgray')
+        
+        ax.set_title(f"{title_prefix} - {months_str[i]}")
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+    
+    # Add a single colorbar for the entire figure
+    fig.colorbar(contour, ax=axes, orientation='vertical', shrink=0.8, label=f"{title_prefix}")
+    
+    det_text = "Detrended" if detrended else "Raw"
+    plt.suptitle(f"Monthly {title_prefix} ({det_text}) {suffix}", fontsize=16)
+    plt.show()
+###############################################################################   
