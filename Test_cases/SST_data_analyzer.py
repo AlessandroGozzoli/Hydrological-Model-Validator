@@ -434,22 +434,23 @@ print("Computing the geolocalization...")
 # Known values from the dataset, need to be changed if the area of analysis is changed
 grid_shape = (278, 315)
 epsilon = 0.06  # Correction factor linked to the resolution of the dataset
-x_start = 12.200
-x_step = 0.0100
-y_start = 43.774
-y_step = 0.0073
+x_start = 12.1986847
+x_step = 0.00948
+y_start = 43.5037956
+y_step = 0.00897
 
 geo_coords = compute_geolocalized_coords(grid_shape, epsilon, x_start, x_step, y_start, y_step)
 print("\033[92m✅ Geolocalization complete! \033[0m")
 print('*'*45)
 
-# Load datasets
+# ----- LOADING THE DAILY DATASETS, OUTPUT OF THE INTERPOLATOR.M -----
 print("Loading the datasets...")
 ds_model = xr.open_dataset(IDIR / "ModData_sst_interp_l3.nc")
 ds_sat = xr.open_dataset(IDIR / "SatData_sst_interp_l3.nc")
 print("The datasets have been loaded!")
 print('-'*45)
 
+# ----- TRANSPOSING -----
 print("Due to the necessity to resample the data the datasets need to be")
 print("Transposed so that the 1st dimension is the time")
 print("Transposing the datasets...")
@@ -458,7 +459,7 @@ sat_sst = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
 print("The datasets have been transposed!")
 print('-'*45)
 
-# Convert time from days since 2000-01-01 to datetime
+# ----- ADDIING CORRECT DATETIME -----
 print("Adding a datetime to aid with the resampling...")
 time_origin = pd.Timestamp("2000-01-01")
 model_sst['time'] = time_origin + pd.to_timedelta(model_sst.time.values, unit="D")
@@ -466,6 +467,7 @@ sat_sst['time'] = time_origin + pd.to_timedelta(sat_sst.time.values, unit="D")
 print("Daily datetime index added!")
 print('-'*45)
 
+# ----- WARNING AND RESAMPLING -----
 print("\n--- Data Resampling Notice ---")
 print("This dataset must be resampled to obtain *monthly averages*, which are")
 print("required for the subsequent analyses (tailored to monthly/yearly data).")
@@ -477,6 +479,7 @@ print("3. Save the dataset to resample using another program.")
 print("The resampling using a CDO is the current fastest method")
 print("But in this test case the already resampled file is already provided!")
 
+# ----- GET RESPONSES FROM USER ------
 resample = input("→ Proceed with in-code resampling? (yes/no): ").strip().lower()
 do_resample = resample in ["yes", "y"]
 
@@ -486,6 +489,7 @@ do_cdo = cdo in ["yes", "y"]
 save = input("→ Save the data to resample in another way? (yes/no): ").strip().lower()
 do_save = save in ["yes", "y"]
 
+# ----- EXTREME SCENARIO, EITHER EXAMPLE DATA OR KILL -----
 if not do_resample and not do_cdo:
     check = input("Are you using the monthly resampled datasets provided in the /Data folder? (Yes/No): ")
     if check in ["yes", "y"]:
@@ -494,12 +498,15 @@ if not do_resample and not do_cdo:
         print("\n❌ No action selected. The following analysis cannot progress without resampling.")
         exit()
 
+# ----- 1ST CHECK -----
 if do_resample:
     print("\n✅ Starting parallel resampling using Dask...")
     
+    # ----- CUTTING DATA IN CHUNKS TO SPEED UP -----
     model_sst_chunked = model_sst.chunk({'time': 100})
     sat_sst_chunked = sat_sst.chunk({'time': 100})
 
+    # ----- PERFORM THE RESAMPLING, TAKES A WHILE -----
     model_sst_monthly_lazy = model_sst_chunked.resample(time='1MS').mean()
     sat_sst_monthly_lazy = sat_sst_chunked.resample(time='1MS').mean()
 
@@ -512,12 +519,16 @@ if do_resample:
 
     print("✅ Resampling completed.\n")
     
+# ----- 2ND CHECK -----
 if do_save:
+    
+    # ----- ONLY SAVE -----
     print("Saving daily SST data for external resampling via CDO...")
     model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
     sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
     print("✅ Files saved to:", IDIR, "\n")
 
+# ----- 3RD CHECK -----
 if do_cdo:
     # About the CDO usage (this is also in the test case README)
     # The CDO is a native linux program and as such it needs to be installed
@@ -539,16 +550,16 @@ if do_cdo:
 
     print("Running the CDO...")
     print("Firstly the model data...")
-    # Define paths
+    
+    # ----- BUILD THE PATHS AS LINUX -----
     input_file = Path("/mnt") / IDIR / "model_sst_daily.nc"
-    print(input_file)
     output_file = Path('/mnt/', IDIR, "model_sst_monthly.nc")
-    print(output_file)
 
-    # Run CDO monmean
+    # ----- RUN THE CDO -----
     subprocess.run(["/usr/bin/cdo", "-v", "monmean", input_file, output_file], check=True)
     print("The model data has been resampled!")
     
+    # ----- REDO THE SAME FOR THE SATELLITE
     print("Onto the satellite data...")
     input_file_sat = os.path.join(IDIR, "sat_sst_daily.nc")
     output_file_sat = os.path.join(IDIR, "sat_sst_monthly.nc")
@@ -556,6 +567,8 @@ if do_cdo:
     subprocess.run(["cdo", "-v", "monmean", input_file_sat, output_file_sat], check=True)
     print("The satellite data has been resampled!")
     
+# ----- GET BACK TO THE ANALYSIS -----
+# ----- LOAD NEW DATASETS -----    
 print("Loading the monthly datasets...")
 model_sst_monthly = xr.open_dataset(IDIR / "model_sst_monthly.nc")
 sat_sst_monthly = xr.open_dataset(IDIR / "sat_sst_monthly.nc")
@@ -566,63 +579,76 @@ print("Fetching the data...")
 model_sst_data = model_sst_monthly["ModData_interp"]
 sat_sst_data = sat_sst_monthly["SatData_complete"]
 
-
+# ----- APPLY THE MASK -----
+# ----- REUSES THE SAME FROM THE DATA SETUPPING -----
 print("Masking...")
 mask_da = xr.DataArray(ocean_mask)
 mask_expanded = mask_da.expand_dims(time=model_sst_data.time)
 model_sst_masked = model_sst_data.where(mask_expanded)
 sat_sst_masked = sat_sst_data.where(mask_expanded)
 
+# ----- DROP THE BOUNDS DIMENSION IF IT'S THERE -----
 print("Dropping the time bounds dimension...")
 print("(This is added by the cdo)")
 model_sst_data = model_sst_data.drop_vars("time_bnds", errors="ignore")
 sat_sst_data = sat_sst_data.drop_vars("time_bnds", errors="ignore")
 
+# ----- ALIGN AS A FAILSAFE -----
 print("Aligning the data...")
 model_sst_data, sat_sst_data = xr.align(model_sst_data, sat_sst_data, join="inner")
 print("The monthly data has been prepared!")
 print('-'*45)
 
+# ----- 1ST METRICS, MONTHLY AVG, RAW DATA -----
 print("Computing the metrics from the raw data...")
 mb_raw, sde_raw, cc_raw, rm_raw, ro_raw, urmse_raw = compute_spatial_efficiency(model_sst_masked, sat_sst_masked)
 print("Metrics computed!")
 print('-'*45)
 
+# ----- DETREND -----
 print("Detrending the data...")
 model_detrended = detrend_dim(model_sst_data, dim='time', mask=mask_expanded)
 sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=mask_expanded)
 print("Data detrended!")
 
+# ----- 2ND COMPUTATION, ALSO MONTHLY AVG, DETRENDED DATA -----
 print("Computing the metrics from the detrended data...")
 mb_detr, sde_detr, cc_detr, rm_detr, ro_detr, urmse_detr = compute_spatial_efficiency(model_detrended, sat_detrended)
 print("Detrended data metrcis computed!")
 print('-'*45)
 
+# ----- SET UP THE SAVE FOLDER -----
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BDIR, "OUTPUT", "PLOTS", "EFFICIENCY", "SST", timestamp)
+os.makedirs(output_path, exist_ok=True)
+
+# ----- BEGIN PLOTTING AND SAVING -----
 print("Plotting the results...")
-plot_spatial_efficiency(mb_raw, geo_coords, "Mean Bias (°C)", "RdBu_r", -2, 2, )
-plot_spatial_efficiency(mb_detr, geo_coords, "Mean Bias (°C)", "RdBu_r", -2, 2, detrended=True)
+print("Plotting the mean bias...")
+plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (°C)", "RdBu_r", -2, 2, )
+plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (°C)", "RdBu_r", -2, 2, detrended=True)
 print("Mean bias plotted!")
 
 print("Plotting the standard deviation error...")
-plot_spatial_efficiency(sde_raw, geo_coords, "Standard Deviation Error (°C)", "viridis", 0, 3)
-plot_spatial_efficiency(sde_detr, geo_coords, "Standard Deviation Error (°C)", "viridis", 0, 3, detrended=True)
+plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (°C)", "viridis", 0, 3)
+plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (°C)", "viridis", 0, 3, detrended=True)
 print("Standard deviation error plotted!")
 
 print("Plotting the cross correlation...")
-plot_spatial_efficiency(cc_raw, geo_coords, "Cross Correlation", "RdBu_r", -1, 1)
-plot_spatial_efficiency(cc_detr, geo_coords, "Cross Correlation", "RdBu_r", -1, 1, detrended=True)
+plot_spatial_efficiency(cc_raw, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1)
+plot_spatial_efficiency(cc_detr, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1, detrended=True)
 print("Cross correlation plotted!")
 
 print("Plotting the std...")
-plot_spatial_efficiency(rm_raw, geo_coords, "Model Std Dev (°C)", "plasma", 0, 3, suffix="(Model)")
-plot_spatial_efficiency(rm_detr, geo_coords, "Model Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Model)")
+plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (°C)", "plasma", 0, 3, suffix="(Model)")
+plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Model)")
 
-plot_spatial_efficiency(ro_raw, geo_coords, "Satellite Std Dev (°C)", "plasma", 0, 3, suffix="(Satellite)")
-plot_spatial_efficiency(ro_detr, geo_coords, "Satellite Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
+plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (°C)", "plasma", 0, 3, suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
 print("Std plotted!")
 
-print("Plotting the uRMSE")
-plot_spatial_efficiency(urmse_raw, geo_coords, "Unbiased RMSE (°C)", "inferno", 0, 3)
-plot_spatial_efficiency(urmse_detr, geo_coords, "Unbiased RMSE (°C)", "inferno", 0, 3, detrended=True)
+print("Plotting the uRMSE...")
+plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (°C)", "inferno", 0, 3)
+plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (°C)", "inferno", 0, 3, detrended=True)
 print("uRMSE plotted!")
 print('-'*45)
