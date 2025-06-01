@@ -1,3 +1,60 @@
+# **Version:** 4.3.0
+**Date:** 01/06/2025
+
+## Summary
+
+This new version introduces a new section of the project focused on spatial performance analysis for the `Sea Surface Temperature (SST)` and `Chlorophyll (CHL)` fields. The `SST_data_analyser.py` and `CHL_data_analyser.py` test scripts have been expanded to demonstrate the new workflows.
+
+## Spatial Performance Analysis
+
+As a natural evolution of the project, spatial performance evaluation has been added to complement the existing temporal analysis. This feature is specifically designed for physical parameters retrieved from NEMO simulations, namely SST and CHL.
+
+### Dataset Structure
+
+Each metric is aimed to support two types of datasets:
+- **Monthly Composite Averages** (e.g., all Januaries, all Februaries, etc.)
+- **Yearly Averages** (e.g., 2000, 2001, etc.)
+
+These datasets are created by resampling interpolated outputs to regular daily values into regular monthly values, which are then used to create the final datasets illustrated above.
+
+## Resampling Methods
+
+Three approaches (two primary) are supported for generating the monthly datasets:
+
+1. **Xarray + ThreadPoolExecutor**  
+   Uses `xarray.resample` with chunking and multithreading for in-memory operations.  
+   > Currently a standalone code block in test scripts—planned for functional integration in future updates.
+
+2. **CDO-Based Resampling**  
+   If installed, `Climate Data Operators (CDO)` can be used via direct command-line calls from the scripts.  
+   > Detailed documentation for this option will be included in the upcoming 5.0 README update.
+   
+> **NOTE:**  
+> Monthly datasets are **required** for this new spatial analysis section.  
+> To ensure full usability of the test case scripts without requiring CDO installation, a **precomputed monthly dataset** is included in the test case `data/` folder. Skipping this step will prevent the spatial analysis from running as intended.
+
+
+## Efficiency Metrics
+
+Five metrics are available for spatial performance evaluation:
+- Mean Bias  
+- Standard Deviation Error  
+- Raw Standard Deviation  
+- Cross-Correlation  
+- Unbiased RMSE
+
+These can be visualized in 3×4 multi-panel plots.
+
+## Future Work
+
+- Integration of yearly spatial performance evaluation  
+- Enhanced plotting: improved colormaps and presentation  
+- Rework of cloud coverage timeseries and `timeseries()` function  
+- Final cleanup pass for docstrings and comments  
+- CLI support with `argparse`, structured logging, and function-level testing
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.2.9
 **Date:** 30/05/2025
 
