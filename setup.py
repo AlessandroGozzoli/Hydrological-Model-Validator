@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Hydrological_model_validator',
-    version='4.2.9',
+    version='4.3.0',
     packages=find_packages(),
     include_package_data=True,  # Include package data files specified in package_data or MANIFEST.in
     package_data={
@@ -23,7 +23,8 @@ setup(
         'plotly',
         'cartopy',
         'cryptography',
-        'scipy'
+        'scipy',
+        'dask'
     ],
     python_requires='>=3.7',
 )
