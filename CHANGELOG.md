@@ -1,3 +1,33 @@
+# **Version:** 4.3.1
+**Date:** 01/06/2025
+
+## Summary
+
+Hotfix release addressing issues in value range handling for spatial metrics plots, along with improvements to the visualization layout and inline documentation for test scripts.
+
+## Plot Enhancements
+
+- Subplot layout adjusted to **3 columns × 4 rows** (previously 4×3) for improved readability.
+- Added coordinate labels and grid lines to maps; improved geolocation accuracy.
+- Colorbars repositioned to the bottom of the page for consistency across metrics.
+- Introduced a **custom colorbar** for the cross-correlation metric.
+- Enhanced plot text rendering for better clarity.
+- Added support for saving plots to a specified output directory.
+
+## Hotfixes
+
+- Resolved an issue where `vmin` and `vmax` values were not correctly propagated to the plotting function, resulting in inconsistent value ranges across plots.
+
+## Test Case Updates
+
+- Added explanatory comments to the `SST_data_analyser.py` and `CHL_data_analyser.py` scripts to improve readability and ease of use.
+
+> **NOTE – Commit 797b3ab:**  
+An earlier commit message incorrectly stated the removal of an import. In reality, the update introduced a higher-resolution coastline and adjusted the land mask facecolor in map plots. Future commit messages will be reviewed more carefully to avoid misreporting changes.
+
+--------------------------------------------------------------------------------------
+
+
 # **Version:** 4.3.0
 **Date:** 01/06/2025
 
@@ -28,7 +58,7 @@ Three approaches (two primary) are supported for generating the monthly datasets
 2. **CDO-Based Resampling**  
    If installed, `Climate Data Operators (CDO)` can be used via direct command-line calls from the scripts.  
    > Detailed documentation for this option will be included in the upcoming 5.0 README update.
-   
+
 > **NOTE:**  
 > Monthly datasets are **required** for this new spatial analysis section.  
 > To ensure full usability of the test case scripts without requiring CDO installation, a **precomputed monthly dataset** is included in the test case `data/` folder. Skipping this step will prevent the spatial analysis from running as intended.
