@@ -40,8 +40,6 @@ import xarray as xr
 import calendar
 from datetime import datetime
 import re
-from dask.diagnostics import ProgressBar
-from concurrent.futures import ThreadPoolExecutor
 
 ###############################################################################
 ##                                                                           ##
@@ -52,7 +50,9 @@ from concurrent.futures import ThreadPoolExecutor
 print("Loading the necessary modules...")
 
 print("Loading the Pre-Processing modules and constants...")
-from Hydrological_model_validator.Processing.time_utils import split_to_monthly, split_to_yearly
+from Hydrological_model_validator.Processing.time_utils import (split_to_monthly, 
+                                                                split_to_yearly,
+                                                                resample_and_compute)
 from Hydrological_model_validator.Plotting.formatting import compute_geolocalized_coords
 print("\033[92m✅ Pre-processing modules have been loaded!\033[0m")
 print("-"*45)
@@ -172,6 +172,7 @@ idir_path = Path(IDIR)
 # Get the datasets, need to be changed if the L4 data is used
 BACHLmod = xr.open_dataset(idir_path / 'BA_chl_mod_L3.nc')['BAmod_L3'].values
 BACHLsat = xr.open_dataset(idir_path / 'BA_chl_sat_l3.nc')['BAsat_L3'].values
+cloud_cover = xr.open_dataset(idir_path / "cloud_cover_chl.nc")['cloud_cover_chl']
 print("\033[92m✅ Level 3 datasets loaded!\033[0m")
 
 # ----- CREATING DATETIME-INDEXED SERIES -----
@@ -186,8 +187,8 @@ BACHLsat_series = pd.Series(BACHLsat, index=dates)
 
 print("Adding them to a dictionary...")
 BACHL = {
-    'BACHLmod': BACHLmod_series,
-    'BACHLsat': BACHLsat_series
+    'BACHLsat': BACHLsat_series,
+    'BACHLmod': BACHLmod_series
 }
 print("\033[92m✅ 3D dictionary created!\033[0m")
 print("-" * 45)
@@ -238,12 +239,23 @@ os.makedirs(output_path, exist_ok=True)
 # ----- TIMESERIES PLOTS -----
 
 print("Computing the BIAS...")
-BIAS_Bavg = BACHLsat - BACHLmod
+BIAS_Bavg = BACHLmod - BACHLsat
+BIAS = pd.Series(BIAS_Bavg, index=dates)
+# Also adding the dates to the cloud cover %
+cloud_coverage = pd.Series(cloud_cover, index=dates)
 print("\033[92m✅ BIAS computed! \033[0m")
 print("-"*45)
 
 print("Plotting the timeseries...")
-timeseries(BACHL, BIAS_Bavg, output_path=output_path, variable_name='CHL_L3', BA=True)
+timeseries(BACHL,
+           BIAS, 
+           cloud_coverage=cloud_coverage,
+           output_path=output_path,
+           variable_name='CHL_L3',
+           BA=True,
+           smooth7=True,   
+           smooth30=True  
+           )
 print("\033[92m✅ Time series plotted! \033[0m")
 
 # ----- SCATTERPLOTS -----
@@ -504,15 +516,7 @@ if do_resample:
     sat_chl_chunked = sat_chl.chunk({'time': 100})
 
     # ----- PERFORM THE RESAMPLING, TAKES A WHILE -----
-    model_chl_monthly_lazy = model_chl_chunked.resample(time='1MS').mean()
-    sat_chl_monthly_lazy = sat_chl_chunked.resample(time='1MS').mean()
-
-    with ProgressBar(), ThreadPoolExecutor(max_workers=2) as executor:
-        future_model = executor.submit(model_chl_monthly_lazy.compute, scheduler='threads')
-        future_sat = executor.submit(sat_chl_monthly_lazy.compute, scheduler='threads')
-
-        model_chl_monthly = future_model.result()
-        sat_chl_monthly = future_sat.result()
+    model_monthly, sat_monthly = resample_and_compute(model_chl_chunked, sat_chl_chunked)
 
     print("✅ Resampling completed.\n")
     
@@ -653,32 +657,125 @@ os.makedirs(output_path, exist_ok=True)
 
 # ----- BEGIN PLOTTING AND SAVING -----
 print("Plotting the results...")
+
 print("Plotting the mean bias...")
-plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, )
-plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, detrended=True)
+plot_spatial_efficiency(mb_raw,
+                       geo_coords,
+                       output_path,
+                       "Mean Bias",
+                       unit="mg/m3",
+                       cmap="RdBu_r",
+                       vmin=-2,
+                       vmax=2)
+plot_spatial_efficiency(mb_detr,
+                       geo_coords,
+                       output_path,
+                       "Mean Bias",
+                       unit="mg/m3",
+                       cmap="RdBu_r",
+                       vmin=-2,
+                       vmax=2,
+                       detrended=True)
 print("Mean bias plotted!")
 
 print("Plotting the standard deviation error...")
-plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (mg/m3)", "viridis", 0, 3)
-plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (mg/m3)", "viridis", 0, 3, detrended=True)
+plot_spatial_efficiency(sde_raw,
+                       geo_coords,
+                       output_path,
+                       "Standard Deviation Error",
+                       unit="mg/m3",
+                       cmap="viridis",
+                       vmin=0,
+                       vmax=3)
+plot_spatial_efficiency(sde_detr,
+                       geo_coords,
+                       output_path,
+                       "Standard Deviation Error",
+                       unit="mg/m3",
+                       cmap="viridis",
+                       vmin=0,
+                       vmax=3,
+                       detrended=True)
 print("Standard deviation error plotted!")
 
 print("Plotting the cross correlation...")
-plot_spatial_efficiency(cc_raw, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1)
-plot_spatial_efficiency(cc_detr, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1, detrended=True)
+plot_spatial_efficiency(cc_raw,
+                       geo_coords,
+                       output_path,
+                       "Cross Correlation",
+                       cmap="OrangeGreen",
+                       vmin=-1,
+                       vmax=1)
+plot_spatial_efficiency(cc_detr,
+                       geo_coords,
+                       output_path,
+                       "Cross Correlation",
+                       cmap="OrangeGreen",
+                       vmin=-1,
+                       vmax=1,
+                       detrended=True)
 print("Cross correlation plotted!")
 
 print("Plotting the std...")
-plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (mg/m3)", "plasma", 0, 3, suffix="(Model)")
-plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (mg/m3)", "plasma", 0, 3, detrended=True, suffix="(Model)")
+plot_spatial_efficiency(rm_raw,
+                       geo_coords,
+                       output_path,
+                       "Model Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       suffix="(Model)")
+plot_spatial_efficiency(rm_detr,
+                       geo_coords,
+                       output_path,
+                       "Model Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       detrended=True,
+                       suffix="(Model)")
 
-plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (mg/m3)", "plasma", 0, 3, suffix="(Satellite)")
-plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (mg/m3)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
+plot_spatial_efficiency(ro_raw,
+                       geo_coords,
+                       output_path,
+                       "Satellite Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr,
+                       geo_coords,
+                       output_path,
+                       "Satellite Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       detrended=True,
+                       suffix="(Satellite)")
 print("Std plotted!")
 
 print("Plotting the uRMSE...")
-plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (mg/m3)", "inferno", 0, 3)
-plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (mg/m3)", "inferno", 0, 3, detrended=True)
+plot_spatial_efficiency(urmse_raw,
+                       geo_coords,
+                       output_path,
+                       "Unbiased RMSE",
+                       unit="mg/m3",
+                       cmap="inferno",
+                       vmin=0,
+                       vmax=3)
+plot_spatial_efficiency(urmse_detr,
+                       geo_coords,
+                       output_path,
+                       "Unbiased RMSE",
+                       unit="mg/m3",
+                       cmap="inferno",
+                       vmin=0,
+                       vmax=3,
+                       detrended=True)
 print("uRMSE plotted!")
 print('-'*45)
 
@@ -736,30 +833,122 @@ print('-'*45)
 # ----- BEGIN PLOTTING AND SAVING -----
 print("Plotting the results...")
 print("Plotting the mean bias...")
-plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, )
-plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, detrended=True)
+plot_spatial_efficiency(mb_raw,
+                       geo_coords,
+                       output_path,
+                       "Mean Bias",
+                       unit="mg/m3",
+                       cmap="RdBu_r",
+                       vmin=-2,
+                       vmax=2)
+plot_spatial_efficiency(mb_detr,
+                       geo_coords,
+                       output_path,
+                       "Mean Bias",
+                       unit="mg/m3",
+                       cmap="RdBu_r",
+                       vmin=-2,
+                       vmax=2,
+                       detrended=True)
 print("Mean bias plotted!")
 
 print("Plotting the standard deviation error...")
-plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (mg/m^3)", "viridis", 0, 3)
-plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (mg/m^3)", "viridis", 0, 3, detrended=True)
+plot_spatial_efficiency(sde_raw,
+                       geo_coords,
+                       output_path,
+                       "Standard Deviation Error",
+                       unit="mg/m3",
+                       cmap="viridis",
+                       vmin=0,
+                       vmax=3)
+plot_spatial_efficiency(sde_detr,
+                       geo_coords,
+                       output_path,
+                       "Standard Deviation Error",
+                       unit="mg/m3",
+                       cmap="viridis",
+                       vmin=0,
+                       vmax=3,
+                       detrended=True)
 print("Standard deviation error plotted!")
 
 print("Plotting the cross correlation...")
-plot_spatial_efficiency(cc_raw, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1)
-plot_spatial_efficiency(cc_detr, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1, detrended=True)
+plot_spatial_efficiency(cc_raw,
+                       geo_coords,
+                       output_path,
+                       "Cross Correlation",
+                       cmap="OrangeGreen",
+                       vmin=-1,
+                       vmax=1)
+plot_spatial_efficiency(cc_detr,
+                       geo_coords,
+                       output_path,
+                       "Cross Correlation",
+                       cmap="OrangeGreen",
+                       vmin=-1,
+                       vmax=1,
+                       detrended=True)
 print("Cross correlation plotted!")
 
 print("Plotting the std...")
-plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (mg/m^3)", "plasma", 0, 8, suffix="(Model)")
-plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (mg/m^3)", "plasma", 0, 8, detrended=True, suffix="(Model)")
+plot_spatial_efficiency(rm_raw,
+                       geo_coords,
+                       output_path,
+                       "Model Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       suffix="(Model)")
+plot_spatial_efficiency(rm_detr,
+                       geo_coords,
+                       output_path,
+                       "Model Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       detrended=True,
+                       suffix="(Model)")
 
-plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (mg/m^3)", "plasma", 0, 8, suffix="(Satellite)")
-plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (mg/m^3)", "plasma", 0, 8, detrended=True, suffix="(Satellite)")
+plot_spatial_efficiency(ro_raw,
+                       geo_coords,
+                       output_path,
+                       "Satellite Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr,
+                       geo_coords,
+                       output_path,
+                       "Satellite Std Dev",
+                       unit="mg/m3",
+                       cmap="plasma",
+                       vmin=0,
+                       vmax=8,
+                       detrended=True,
+                       suffix="(Satellite)")
 print("Std plotted!")
 
 print("Plotting the uRMSE...")
-plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (mg/m^3)", "inferno", 0, 3)
-plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (mg/m^3)", "inferno", 0, 3, detrended=True)
+plot_spatial_efficiency(urmse_raw,
+                       geo_coords,
+                       output_path,
+                       "Unbiased RMSE",
+                       unit="mg/m3",
+                       cmap="inferno",
+                       vmin=0,
+                       vmax=3)
+plot_spatial_efficiency(urmse_detr,
+                       geo_coords,
+                       output_path,
+                       "Unbiased RMSE",
+                       unit="mg/m3",
+                       cmap="inferno",
+                       vmin=0,
+                       vmax=3,
+                       detrended=True)
 print("uRMSE plotted!")
 print('-'*45)
