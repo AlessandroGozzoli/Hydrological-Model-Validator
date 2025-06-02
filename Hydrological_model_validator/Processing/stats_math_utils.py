@@ -4,6 +4,7 @@ from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import xarray as xr
 from scipy.signal import detrend
+import pandas as pd
 
 ###############################################################################
 def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -311,6 +312,12 @@ def cross_correlation(m, o, time_dim='time'):
     std_m = (m_anom ** 2).mean(dim=time_dim) ** 0.5
     std_o = (o_anom ** 2).mean(dim=time_dim) ** 0.5
     return cov * ((1 / std_m) * (1 / std_o))
+###############################################################################
+
+###############################################################################
+def corr_no_nan(series1, series2):
+    combined = pd.concat([series1, series2], axis=1).dropna()
+    return combined.iloc[:,0].corr(combined.iloc[:,1])
 ###############################################################################
 
 ###############################################################################
