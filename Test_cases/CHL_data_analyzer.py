@@ -599,6 +599,22 @@ print('-'*45)
 # ----- 1ST METRICS, MONTHLY AVG, RAW DATA -----
 print("Computing the metrics from the raw data...")
 mb_raw, sde_raw, cc_raw, rm_raw, ro_raw, urmse_raw = compute_spatial_efficiency(model_chl_masked, sat_chl_masked)
+
+# Create a dict with metrics as keys, and each value is a list of 12 2D arrays (one per month)
+metrics_dict_raw = {
+    'MB_raw': [mb_raw.isel(month=month) for month in range(12)],
+    'SDE_raw': [sde_raw.isel(month=month) for month in range(12)],
+    'CC_raw': [cc_raw.isel(month=month) for month in range(12)],
+    'RM_raw': [rm_raw.isel(month=month) for month in range(12)],
+    'RO_raw': [ro_raw.isel(month=month) for month in range(12)],
+    'URMSE_raw': [urmse_raw.isel(month=month) for month in range(12)],
+}
+
+# Convert to DataFrame: rows=months, columns=metrics, cells=2D DataArrays
+metrics_df_raw = pd.DataFrame(metrics_dict_raw)
+
+# Set index to months
+metrics_df_raw.index = [f'Month_{i+1}' for i in range(12)]
 print("Metrics computed!")
 print('-'*45)
 
@@ -611,6 +627,22 @@ print("Data detrended!")
 # ----- 2ND COMPUTATION, ALSO MONTHLY AVG, DETRENDED DATA -----
 print("Computing the metrics from the detrended data...")
 mb_detr, sde_detr, cc_detr, rm_detr, ro_detr, urmse_detr = compute_spatial_efficiency(model_detrended, sat_detrended)
+
+# Create a dict with metrics as keys, and each value is a list of 12 2D arrays (one per month)
+metrics_dict_detr = {
+    'MB_detr': [mb_detr.isel(month=month) for month in range(12)],
+    'SDE_detr': [sde_detr.isel(month=month) for month in range(12)],
+    'CC_detr': [cc_detr.isel(month=month) for month in range(12)],
+    'RM_detr': [rm_detr.isel(month=month) for month in range(12)],
+    'RO_detr': [ro_detr.isel(month=month) for month in range(12)],
+    'URMSE_detr': [urmse_detr.isel(month=month) for month in range(12)],
+}
+
+# Convert to DataFrame: rows=months, columns=metrics, cells=2D DataArrays
+metrics_df_detr = pd.DataFrame(metrics_dict_detr)
+
+# Set index to months
+metrics_df_detr.index = [f'Month_{i+1}' for i in range(12)]
 print("Detrended data metrcis computed!")
 print('-'*45)
 
@@ -622,13 +654,13 @@ os.makedirs(output_path, exist_ok=True)
 # ----- BEGIN PLOTTING AND SAVING -----
 print("Plotting the results...")
 print("Plotting the mean bias...")
-plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (°C)", "RdBu_r", -2, 2, )
-plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (°C)", "RdBu_r", -2, 2, detrended=True)
+plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, )
+plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, detrended=True)
 print("Mean bias plotted!")
 
 print("Plotting the standard deviation error...")
-plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (°C)", "viridis", 0, 3)
-plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (°C)", "viridis", 0, 3, detrended=True)
+plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (mg/m3)", "viridis", 0, 3)
+plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (mg/m3)", "viridis", 0, 3, detrended=True)
 print("Standard deviation error plotted!")
 
 print("Plotting the cross correlation...")
@@ -637,15 +669,97 @@ plot_spatial_efficiency(cc_detr, geo_coords, output_path, "Cross Correlation", "
 print("Cross correlation plotted!")
 
 print("Plotting the std...")
-plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (°C)", "plasma", 0, 3, suffix="(Model)")
-plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Model)")
+plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (mg/m3)", "plasma", 0, 3, suffix="(Model)")
+plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (mg/m3)", "plasma", 0, 3, detrended=True, suffix="(Model)")
 
-plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (°C)", "plasma", 0, 3, suffix="(Satellite)")
-plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (°C)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
+plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (mg/m3)", "plasma", 0, 3, suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (mg/m3)", "plasma", 0, 3, detrended=True, suffix="(Satellite)")
 print("Std plotted!")
 
 print("Plotting the uRMSE...")
-plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (°C)", "inferno", 0, 3)
-plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (°C)", "inferno", 0, 3, detrended=True)
+plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (mg/m3)", "inferno", 0, 3)
+plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (mg/m3)", "inferno", 0, 3, detrended=True)
+print("uRMSE plotted!")
+print('-'*45)
+
+# ----- COMPUTING THE YEARLY METRCIS -----
+# ----- 1ST METRICS, YEARLY AVG, RAW DATA -----
+print("Computing the metrics from the raw data...")
+mb_raw, sde_raw, cc_raw, rm_raw, ro_raw, urmse_raw = compute_spatial_efficiency(model_chl_masked, sat_chl_masked, time_group="year")
+
+# Create a dict with metrics as keys, and each value is a list of 2D arrays, one per year
+metrics_dict_raw = {
+    'MB_raw': [mb_raw.isel(year=i) for i in range(len(mb_raw.year))],
+    'SDE_raw': [sde_raw.isel(year=i) for i in range(len(sde_raw.year))],
+    'CC_raw': [cc_raw.isel(year=i) for i in range(len(cc_raw.year))],
+    'RM_raw': [rm_raw.isel(year=i) for i in range(len(rm_raw.year))],
+    'RO_raw': [ro_raw.isel(year=i) for i in range(len(ro_raw.year))],
+    'URMSE_raw': [urmse_raw.isel(year=i) for i in range(len(urmse_raw.year))],
+}
+
+# Convert to DataFrame: rows=years, columns=metrics, cells=2D DataArrays
+metrics_df_raw = pd.DataFrame(metrics_dict_raw)
+
+# Set index to years (as strings)
+metrics_df_raw.index = [f'Year_{year}' for year in mb_raw.year.values]
+print("Metrics computed!")
+print('-'*45)
+
+# ----- DETREND -----
+print("Detrending the data...")
+model_detrended = detrend_dim(model_chl_data, dim='time', mask=mask_expanded)
+sat_detrended = detrend_dim(sat_chl_data, dim='time', mask=mask_expanded)
+print("Data detrended!")
+
+# ----- 2ND COMPUTATION, ALSO YEARLY AVG, DETRENDED DATA -----
+print("Computing the metrics from the detrended data...")
+mb_detr, sde_detr, cc_detr, rm_detr, ro_detr, urmse_detr = compute_spatial_efficiency(model_detrended, sat_detrended, time_group="year")
+
+# Create a dict with metrics as keys, and each value is a list of 2D arrays, one per year
+metrics_dict_detr = {
+    'MB_detr': [mb_detr.isel(year=i) for i in range(len(mb_detr.year))],
+    'SDE_detr': [sde_detr.isel(year=i) for i in range(len(sde_detr.year))],
+    'CC_detr': [cc_detr.isel(year=i) for i in range(len(cc_detr.year))],
+    'RM_detr': [rm_detr.isel(year=i) for i in range(len(rm_detr.year))],
+    'RO_detr': [ro_detr.isel(year=i) for i in range(len(ro_detr.year))],
+    'URMSE_detr': [urmse_detr.isel(year=i) for i in range(len(urmse_detr.year))],
+}
+
+# Convert to DataFrame: rows=years, columns=metrics, cells=2D DataArrays
+metrics_df_detr = pd.DataFrame(metrics_dict_detr)
+
+# Set index to years (as strings)
+metrics_df_detr.index = [f'Year_{year}' for year in mb_detr.year.values]
+print("Detrended data metrics computed!")
+print('-'*45)
+
+# ----- BEGIN PLOTTING AND SAVING -----
+print("Plotting the results...")
+print("Plotting the mean bias...")
+plot_spatial_efficiency(mb_raw, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, )
+plot_spatial_efficiency(mb_detr, geo_coords, output_path, "Mean Bias (mg/m3)", "RdBu_r", -2, 2, detrended=True)
+print("Mean bias plotted!")
+
+print("Plotting the standard deviation error...")
+plot_spatial_efficiency(sde_raw, geo_coords, output_path, "Standard Deviation Error (mg/m^3)", "viridis", 0, 3)
+plot_spatial_efficiency(sde_detr, geo_coords, output_path, "Standard Deviation Error (mg/m^3)", "viridis", 0, 3, detrended=True)
+print("Standard deviation error plotted!")
+
+print("Plotting the cross correlation...")
+plot_spatial_efficiency(cc_raw, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1)
+plot_spatial_efficiency(cc_detr, geo_coords, output_path, "Cross Correlation", "OrangeGreen", -1, 1, detrended=True)
+print("Cross correlation plotted!")
+
+print("Plotting the std...")
+plot_spatial_efficiency(rm_raw, geo_coords, output_path, "Model Std Dev (mg/m^3)", "plasma", 0, 8, suffix="(Model)")
+plot_spatial_efficiency(rm_detr, geo_coords, output_path, "Model Std Dev (mg/m^3)", "plasma", 0, 8, detrended=True, suffix="(Model)")
+
+plot_spatial_efficiency(ro_raw, geo_coords, output_path, "Satellite Std Dev (mg/m^3)", "plasma", 0, 8, suffix="(Satellite)")
+plot_spatial_efficiency(ro_detr, geo_coords, output_path, "Satellite Std Dev (mg/m^3)", "plasma", 0, 8, detrended=True, suffix="(Satellite)")
+print("Std plotted!")
+
+print("Plotting the uRMSE...")
+plot_spatial_efficiency(urmse_raw, geo_coords, output_path, "Unbiased RMSE (mg/m^3)", "inferno", 0, 3)
+plot_spatial_efficiency(urmse_detr, geo_coords, output_path, "Unbiased RMSE (mg/m^3)", "inferno", 0, 3, detrended=True)
 print("uRMSE plotted!")
 print('-'*45)
