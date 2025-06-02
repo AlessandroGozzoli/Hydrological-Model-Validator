@@ -5,7 +5,9 @@ default_plot_options_ts = {
     "BA": False,
     "variable": None,
     "unit": None,
-    "figsize": (20, 10),
+    "variable_name": None,          # added
+    "output_path": None,            # added, must be specified
+    "figsize": (20, 8),
     "dpi": 300,
     "color_palette": itertools.cycle(['#BF636B', '#5976A2']),
     "title_fontsize": 20,
@@ -14,6 +16,8 @@ default_plot_options_ts = {
     "bias_title_fontsize": 18,
     "line_width": 1,
     "savefig_kwargs": {},
+    "smooth7": False,               # added default
+    "smooth30": False,              # added default
 }
 ###############################################################################
 
@@ -140,3 +144,38 @@ default_efficiency_plot_options = {
     'pause_time': 3,
 }
 ###############################################################################
+
+###############################################################################
+spatial_efficiency_defaults = {
+    "cmap": "OrangeGreen",
+    "vmin": -1.0,
+    "vmax": 1.0,
+    "suffix": "(Model - Satellite)",
+    "suptitle_fontsize": 20,
+    "suptitle_fontweight": "bold",
+    "suptitle_y": 1.03,
+    "title_fontsize": 16,
+    "title_fontweight": "bold",
+    "cbar_labelsize": 12,
+    "cbar_labelpad": 10,
+    "cbar_shrink": 0.6,
+    "cbar_ticks": 11,
+    "figsize_per_plot": (5, 4),
+    "max_cols": 3,
+    "epsilon": 0.06,
+    "lat_offset_base": 0.2702044,
+    "gridline_color": "gray",
+    "gridline_style": "--",
+    "gridline_alpha": 0.7,
+    "gridline_dms": True,
+    "gridline_labels_top": True,
+    "gridline_labels_right": True,
+    "projection": "PlateCarree",
+    "resolution": "10m",
+    "land_color": "lightgray",
+    "show": True,
+    "block": False,
+    "pause_duration": 3,
+    "dpi": 100,
+    "unit" : None,
+}
