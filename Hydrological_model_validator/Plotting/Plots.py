@@ -963,17 +963,19 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
 ###############################################################################   
 def plot_spatial_efficiency(data_array, geo_coords, output_path,
                             title_prefix, cmap, vmin, vmax,
-                            detrended=False, suffix="(Model - Satellite)",):
+                            detrended=False, suffix="(Model - Satellite)"):
     """
-    Plot monthly spatial efficiency maps with shared color scale and Cartopy projection.
+    Plot monthly or yearly spatial efficiency maps with shared color scale and Cartopy projection.
 
     Parameters
     ----------
     data_array : xarray.DataArray
-        3D array with dims (month, y, x) to plot.
+        3D array with dims (month/year, y, x) to plot.
     geo_coords : dict
         Dictionary with keys: 'latp', 'lonp', 'MinLambda', 'MaxLambda',
         'MinPhi', 'MaxPhi', and optional 'Epsilon'.
+    output_path : str or Path
+        Directory to save the plot.
     title_prefix : str
         Prefix for subplot titles.
     cmap : str or Colormap
@@ -988,10 +990,7 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path,
     Returns
     -------
     None
-        Displays the plot.
     """
-    fig, axes = plt.subplots(nrows=4, ncols=3, figsize=(14, 16), constrained_layout=True,
-                             subplot_kw={'projection': ccrs.PlateCarree()})
 
     latp = geo_coords['latp']
     lonp = geo_coords['lonp']
@@ -1000,64 +999,89 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path,
     min_lat, max_lat = geo_coords['MinPhi'], geo_coords['MaxPhi']
     lat_offset = epsilon + 0.2702044
 
-    months_str = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    # Determine if data is monthly or yearly
+    if 'month' in data_array.dims:
+        labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        dim_name = 'month'
+        n_plots = data_array.sizes['month']
+        suptitle_prefix = "Monthly"
+        filename_prefix = "Monthly"
+    elif 'year' in data_array.dims:
+        labels = data_array.year.values.astype(str)
+        dim_name = 'year'
+        n_plots = data_array.sizes['year']
+        suptitle_prefix = "Yearly"
+        filename_prefix = "Yearly"
+    else:
+        raise ValueError("data_array must have either 'month' or 'year' dimension.")
 
-    # Consistent contour levels based on global vmin/vmax
-    contour_levels = np.linspace(vmin, vmax, 11)
-    
+    max_cols = 3
+    nrows = int(np.ceil(n_plots / max_cols))
+    remainder = n_plots % max_cols
+    full_rows = n_plots // max_cols
+
+    fig = plt.figure(figsize=(5 * max_cols, 4 * nrows), constrained_layout=True)
+    gs = GridSpec(nrows, max_cols, figure=fig)
+    axes = []
+
+    for row in range(nrows):
+        if row < full_rows:
+            for col in range(max_cols):
+                ax = fig.add_subplot(gs[row, col], projection=ccrs.PlateCarree())
+                axes.append(ax)
+        else:  # Last row with fewer plots
+            if remainder == 1:
+                ax = fig.add_subplot(gs[row, 1], projection=ccrs.PlateCarree())
+                axes.append(ax)
+            elif remainder == 2:
+                ax1 = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree())
+                ax2 = fig.add_subplot(gs[row, 2], projection=ccrs.PlateCarree())
+                axes.extend([ax1, ax2])
+
+    # Custom diverging colormap
     if cmap == 'OrangeGreen':
-        colors = ['#086e04', 'white', '#ff6700']  # Lower, middle, and upper limits
-        corr_cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors)
-
-        # Normalize the correlation data between -1 and 1 (for correlation coefficient)
+        colors = ['#086e04', 'white', '#ff6700']
+        base_cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors)
         norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-
-        # Apply the same logic to make the white range
-        white_start = int(norm(-0.1) * 255)  # Start of the white range
-        white_end = int(norm(0.1) * 255)    # End of the white range
-        new_colors = corr_cmap(np.linspace(0, 1, 256))
-        new_colors[white_start:white_end, :] = np.array([1, 1, 1, 1])  # RGBA for white
-
-        # Create the new custom colormap with white range
+        white_start = int(norm(-0.2) * 255)
+        white_end = int(norm(0.2) * 255)
+        new_colors = base_cmap(np.linspace(0, 1, 256))
+        new_colors[white_start:white_end, :] = np.array([1, 1, 1, 1])
         cmap = mcolors.ListedColormap(new_colors)
 
-    for i, ax in enumerate(axes.flat):
-        bias_map = data_array.isel(month=i)
+    contour_levels = np.linspace(vmin, vmax, 11)
 
+    for i, ax in enumerate(axes):
+        data_slice = data_array.isel({dim_name: i})
         ax.set_extent([min_lon, max_lon, min_lat + lat_offset, max_lat], crs=ccrs.PlateCarree())
-
         contour = ax.contourf(
-            lonp + (0.35 * epsilon), latp + (0.1 * epsilon), bias_map,
+            lonp + (0.35 * epsilon), latp + (0.1 * epsilon), data_slice,
             levels=contour_levels, cmap=cmap, vmin=vmin, vmax=vmax,
             extend='both', transform=ccrs.PlateCarree()
         )
-
         ax.coastlines(resolution='10m')
         ax.add_feature(cfeature.LAND, facecolor='lightgray')
-        ax.set_title(f"{title_prefix} - {months_str[i]}", fontsize=16, fontweight='bold')
+        label = labels[i] if i < len(labels) else f"{dim_name.capitalize()} {i+1}"
+        ax.set_title(f"{title_prefix} - {label}", fontsize=16, fontweight='bold')
         ax.set_xlabel("")
         ax.set_ylabel("")
-        
         gl = ax.gridlines(draw_labels=True, dms=True, color='gray', linestyle='--', alpha=0.7)
         gl.top_labels = True
         gl.right_labels = True
 
-    # Shared colorbar
     cbar = fig.colorbar(contour, ax=axes, orientation='horizontal', shrink=0.6,
-                    ticks=np.linspace(vmin, vmax, 11))
-    cbar.ax.tick_params(direction='in', length=28, labelsize=12)  # Tick labels
-    cbar.set_label(f"{title_prefix}", fontsize=14)  # Colorbar label
+                        ticks=np.linspace(vmin, vmax, 11))
+    cbar.ax.tick_params(direction='in', length=32, labelsize=12)
+    cbar.set_label(f"{title_prefix}", fontsize=18, labelpad=10)
 
     det_text = "Detrended" if detrended else "Raw"
-    plt.suptitle(f"Monthly {title_prefix} ({det_text}) {suffix}", fontsize=20, fontweight='bold') 
-    
-    # ----- CHECK EXISTENCE OF THE SAVE FOLDER -----
+    plt.suptitle(f"{suptitle_prefix} {title_prefix} ({det_text}) {suffix}", fontsize=20, fontweight='bold')
+
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
-    
-    # ----- PRINT AND SAVE -----
-    plt.savefig(output_path / f'Monthly {title_prefix} ({det_text}) {suffix}.png')
+    safe_title = title_prefix.replace("/", "_").replace("\\", "_")
+    plt.savefig(output_path / f'{filename_prefix} {safe_title} ({det_text}) {suffix}.png')
     plt.show(block=False)
     plt.draw()
     plt.pause(3)
