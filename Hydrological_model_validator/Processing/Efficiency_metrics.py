@@ -804,31 +804,41 @@ def monthly_relative_index_of_agreement(dictionary):
 ###############################################################################
 
 ###############################################################################
-def compute_spatial_efficiency(model_da, sat_da):
-    months = range(1, 13)
+def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
+    if time_group == "month":
+        groups = range(1, 13)
+        time_sel = 'month'
+    elif time_group == "year":
+        groups = sorted(np.unique(model_da['time.year'].values))
+        time_sel = 'year'
+    else:
+        raise ValueError(f"Invalid time_group '{time_group}', must be 'month' or 'year'")
     
-    def compute_metrics_for_month(month):
-        m_month = model_da.sel(time=model_da['time.month'] == month)
-        o_month = sat_da.sel(time=sat_da['time.month'] == month)
+    def compute_metrics_for_group(group):
+        m_sel = model_da.sel(time=model_da['time.' + time_sel] == group)
+        o_sel = sat_da.sel(time=sat_da['time.' + time_sel] == group)
         
         return (
-            mean_bias(m_month, o_month),
-            standard_deviation_error(m_month, o_month),
-            cross_correlation(m_month, o_month),
-            std_dev(m_month),
-            std_dev(o_month),
-            unbiased_rmse(m_month, o_month),
+            mean_bias(m_sel, o_sel),
+            standard_deviation_error(m_sel, o_sel),
+            cross_correlation(m_sel, o_sel),
+            std_dev(m_sel),
+            std_dev(o_sel),
+            unbiased_rmse(m_sel, o_sel),
         )
     
-    results = list(map(compute_metrics_for_month, months))
+    results = list(map(compute_metrics_for_group, groups))
     mb_maps, sde_maps, cc_maps, rm_maps, ro_maps, urmse_maps = zip(*results)
     
-    mb_all = xr.concat(mb_maps, dim='month').assign_coords(month=months)
-    sde_all = xr.concat(sde_maps, dim='month').assign_coords(month=months)
-    cc_all = xr.concat(cc_maps, dim='month').assign_coords(month=months)
-    rm_all = xr.concat(rm_maps, dim='month').assign_coords(month=months)
-    ro_all = xr.concat(ro_maps, dim='month').assign_coords(month=months)
-    urmse_all = xr.concat(urmse_maps, dim='month').assign_coords(month=months)
+    dim_name = time_group
+    coord_vals = groups
+    
+    mb_all = xr.concat(mb_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+    sde_all = xr.concat(sde_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+    cc_all = xr.concat(cc_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+    rm_all = xr.concat(rm_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+    ro_all = xr.concat(ro_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+    urmse_all = xr.concat(urmse_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
     
     return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
 ###############################################################################
