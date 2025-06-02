@@ -33,22 +33,26 @@ import cartopy.feature as cfeature
 from .formatting import (plot_line,
                         get_min_max_for_identity_line,
                         get_variable_label_unit,
-                        style_axes_spines)
+                        style_axes_spines,
+                        format_unit)
 
 from ..Processing.data_alignment import (extract_mod_sat_keys,
                                          gather_monthly_data_across_years)
 
 from ..Processing.stats_math_utils import (fit_huber,
-                                           fit_lowess)
+                                           fit_lowess,
+                                           corr_no_nan)
 
 from ..Processing.time_utils import get_season_mask
+from ..Processing.utils import extract_options
 
 from .default_plot_options import (default_plot_options_ts,
                                    default_plot_options_scatter,
                                    default_scatter_by_season_options,
                                    default_boxplot_options,
                                    default_violinplot_options,
-                                   default_efficiency_plot_options)
+                                   default_efficiency_plot_options,
+                                   spatial_efficiency_defaults )
 
 ###############################################################################
 ##                                                                           ##
@@ -57,87 +61,88 @@ from .default_plot_options import (default_plot_options_ts,
 ###############################################################################
 
 ###############################################################################
-def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Series, list], **kwargs: Any) -> None:
+def timeseries(
+    data_dict: Dict[str, Union[pd.Series, list]],
+    BIAS: Union[pd.Series, list, None] = None,
+    cloud_coverage: Union[pd.Series, list, None] = None,
+    **kwargs: Any
+) -> None:
     """
-    Plot time series of daily mean values from multiple datasets along with BIAS.
-
-    This function generates a two-panel time series plot:
-      1. The upper subplot displays daily mean values of each dataset (typically model and satellite data).
-      2. The lower subplot shows the BIAS (model - satellite) as a time series.
-
-    The figure is saved to a specified output directory as a PNG file and displayed using matplotlib.
-
+    Plot time series of daily mean values from multiple datasets along with BIAS and optional cloud coverage.
+    
+    This function generates up to two-panel time series plots:
+        1. The first figure shows daily mean values of each dataset (typically model and satellite data).
+        If BIAS and cloud coverage are provided, a second figure is generated with:
+            2. An upper subplot displaying the BIAS (model - satellite) time series.
+            3. A lower subplot showing cloud coverage time series, optionally smoothed by 7- or 30-day running means.
+            
+    Figures are saved to a specified output directory as PNG files and displayed using matplotlib.
+            
     Parameters
     ----------
     data_dict : Dict[str, Union[pd.Series, list]]
         Dictionary containing daily mean values for different sources (e.g., model and satellite).
         Keys are strings identifying the data source.
-        Values should be `pandas.Series` with datetime indices or lists that can be converted to Series.
+        Values should be `pandas.Series` with datetime indices or lists convertible to Series.
 
-    BIAS : Union[pd.Series, list]
+    BIAS : Union[pd.Series, list, None], optional
         Series (or list) representing the BIAS time series (typically model - satellite).
-        Should be time-aligned with the values in `data_dict`.
+        Should be time-aligned with the values in `data_dict`. If None, only the time series plot is generated.
+
+    cloud_coverage : Union[pd.Series, list, None], optional
+        Series (or list) of daily cloud coverage percentages aligned with `data_dict` and `BIAS`.
+        If provided alongside BIAS, a second figure with BIAS and cloud coverage plots is generated.
 
     Accepted kwargs include:
-    -------------------------
+    -----------------------
     Keyword arguments overriding default plotting options. Include:
-        - output_path (str or Path)       : Required. Path where the figure should be saved.
-        - variable_name (str)             : Required. Variable code name (used to infer full name and unit).
-        - variable (str)                  : Full variable name (e.g., "Chlorophyll"). Used in titles and axis.
-        - unit (str)                     : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
-        - BA (bool)                     : If True, appends " (Basin Average)" to the title.
-        - figsize (tuple of float)        : Size of figure in inches (default typically (12, 8)).
-        - dpi (int)                     : Resolution of the figure (default 100).
+        - output_path (str or Path)        : **Required.** Directory path to save figures.
+        - variable_name (str)              : Variable code name to infer full name and unit.
+        - variable (str)                   : Full variable name (e.g., "Chlorophyll"). Used in titles and axis labels.
+        - unit (str)                      : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
+        - BA (bool)                       : If True, appends " (Basin Average)" to the title.
+        - figsize (tuple of float)        : Figure size in inches (default e.g., (20, 8)).
+        - dpi (int)                      : Figure resolution in dots per inch (default 300).
         - color_palette (iterator)        : Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
-        - line_width (float)             : Width of plotted lines (default 2.0).
-        - title_fontsize (int)          : Font size of the main title.
-        - bias_title_fontsize (int)     : Font size of the BIAS subplot title.
-        - label_fontsize (int)          : Font size of axis labels.
-        - legend_fontsize (int)         : Font size of the legend.
-        - savefig_kwargs (dict)           : Additional args for `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
-        
+        - line_width (float)              : Width of plotted lines (default 1.0).
+        - title_fontsize (int)            : Font size of the main title.
+        - bias_title_fontsize (int)       : Font size of the BIAS subplot title.
+        - label_fontsize (int)            : Font size of axis labels.
+        - legend_fontsize (int)           : Font size of the legend.
+        - savefig_kwargs (dict)            : Additional keyword arguments passed to `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
+        - smooth7 (bool)                  : If True, adds a 7-day running mean smoothing line to cloud coverage plot.
+        - smooth30 (bool)                 : If True, adds a 30-day running mean smoothing line to cloud coverage plot.
+
     Example
     -------
     >>> timeseries(
     ...     data_dict={'model': model_series, 'satellite': sat_series},
     ...     BIAS=model_series - sat_series,
+    ...     cloud_coverage=cloud_series,
     ...     variable_name='Chl',
     ...     output_path='figures/',
-    ...     BA=True
+    ...     BA=True,
+    ...     smooth7=True
     ... )
-
-    Notes
-    -----
-    - If `variable` or `unit` is not provided, the function attempts to resolve them using
-      `get_variable_label_unit(variable_name)`.
-
-    - The data series are auto-converted to `pandas.Series` if passed as lists.
-    
-    - The order and coloring of plotted datasets depend on the order in `data_dict` and `color_palette`.
     """
-
-    # ----- RETRIEVE DEFAUL OPTIONS -----
+    # ----- RETRIEVE DEFAULT OPTIONS AND OVERRIDE WITH kwargs -----
     options = SimpleNamespace(**{**default_plot_options_ts, **kwargs})
 
-    # ----- RETRIEVE NECESSARY OUTPUT PATH AND VARIABLE/UNIT INFO -----
+    # Check mandatory output path
     if options.output_path is None:
         raise ValueError("output_path must be specified either in kwargs or default options.")
 
+    # Handle variable and unit extraction
     if options.variable_name is not None:
-        # Infer full variable name and unit from short name
         variable, unit = get_variable_label_unit(options.variable_name)
         options.variable = options.variable or variable
         options.unit = options.unit or unit
     else:
-        # variable_name not given — require both variable and unit
         if options.variable is None or options.unit is None:
-            raise ValueError(
-                "If 'variable_name' is not provided, both 'variable' and 'unit' must be specified in kwargs or defaults."
-                )
+            raise ValueError("If 'variable_name' is not provided, both 'variable' and 'unit' must be specified.")
 
-    # ----- ADD BASIN AVERAGE LABEL, STRONGLY SUGGESTED IF DATA USED IS -----
-    # ----- L4 BUT NOT NECESSARY -----
-    title = f'Daily Mean Values for {options.variable_name} Datasets'
+    # Title construction
+    title = f'Daily Mean Values for {options.variable_name or options.variable} Datasets'
     if options.BA:
         title += ' (Basin Average)'
 
@@ -147,56 +152,125 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
         sat_key: "Satellite Observations"
     }
 
-    # ----- PRE-CONVERT DATA_DICT AND BIAS TO PANDAS SERIES IF -----
-    # ----- NOT ALREADY IN THIS FORMAT WHEN GIVE IN INPUT -----
-    # ----- DONE TO PASS THEM MORE EASILY TO SEABORN FOR PLOTTING -----
+    # Convert to pandas.Series if not already
     data_dict = {k: pd.Series(v) if not isinstance(v, pd.Series) else v for k, v in data_dict.items()}
-    BIAS = pd.Series(BIAS) if not isinstance(BIAS, pd.Series) else BIAS
+    if BIAS is not None:
+        BIAS = pd.Series(BIAS) if not isinstance(BIAS, pd.Series) else BIAS
+    if cloud_coverage is not None:
+        cloud_coverage = pd.Series(cloud_coverage) if not isinstance(cloud_coverage, pd.Series) else cloud_coverage
 
-    # ----- CREATE FIGURE -----
-    fig = plt.figure(figsize=options.figsize, dpi=options.dpi)
-    gs = GridSpec(2, 1, height_ratios=[8, 4])
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    # ----- FIRST SUBPLOT: TIMESERIES -----
-    ax1 = fig.add_subplot(gs[0])
+    # SINGLE PAGE: only timeseries (no BIAS or cloud_coverage)
+    if BIAS is None or cloud_coverage is None:
+        fig = plt.figure(figsize=options.figsize, dpi=options.dpi)
+        ax1 = fig.add_subplot(1, 1, 1)
+
+        plotter = partial(
+            plot_line,
+            ax=ax1,
+            label_lookup=label_lookup,
+            color_palette=options.color_palette,
+            line_width=options.line_width
+        )
+        list(starmap(plotter, data_dict.items()))
+
+        ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+        ax1.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
+        ax1.tick_params(width=2)
+        ax1.legend(loc='upper left', fontsize=options.legend_fontsize)
+        ax1.grid(True, linestyle='--')
+        style_axes_spines(ax1)
+
+        plt.tight_layout()
+        filename = f'{options.variable_name or options.variable}_timeseries.png'
+        plt.savefig(output_path / filename, **options.savefig_kwargs)
+        plt.show(block=False)
+        plt.draw()
+        plt.close()
+        return
+
+    # TWO PAGE PLOTS: Page 1 is timeseries + BIAS, Page 2 is BIAS + cloud coverage plots
+    # --- PAGE 1: timeseries + BIAS ---
+    fig1 = plt.figure(figsize=options.figsize, dpi=options.dpi)
+    gs1 = GridSpec(2, 1, height_ratios=[8, 4])
+    ax1a = fig1.add_subplot(gs1[0])
+
     plotter = partial(
         plot_line,
-        ax=ax1,
+        ax=ax1a,
         label_lookup=label_lookup,
         color_palette=options.color_palette,
         line_width=options.line_width
     )
     list(starmap(plotter, data_dict.items()))
 
-    # ----- PLOTTING OPTIONS -----
-    ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
-    ax1.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
-    ax1.tick_params(width=2)
-    ax1.legend(loc='upper left', fontsize=options.legend_fontsize)
-    ax1.grid(True, linestyle='--')
-    style_axes_spines(ax1)
-
-    # ----- BIAS TIMESERIES -----
-    ax2 = fig.add_subplot(gs[1])
-    sns.lineplot(data=BIAS, color='k', ax=ax2)
-    
-    # ----- PLOTTING OPTIONS -----
-    ax2.set_title(f'BIAS ({options.variable_name})', fontsize=options.bias_title_fontsize, fontweight='bold')
-    ax2.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
-    ax2.tick_params(width=2)
-    ax2.grid(True, linestyle='--')
-    style_axes_spines(ax2)
+    ax1a.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+    ax1a.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
+    ax1a.tick_params(width=2)
+    ax1a.legend(loc='upper left', fontsize=options.legend_fontsize)
+    ax1a.grid(True, linestyle='--')
+    style_axes_spines(ax1a)
 
     plt.tight_layout()
-    
-    # ----- CHECK IF FOLDER IS AVAILABLE -----
-    output_path = Path(options.output_path)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    # ----- SAVE AND PRINT THE PLOT/S -----
-    filename = f'{options.variable_name}_timeseries.png'
-    save_path = output_path / filename
-    plt.savefig(save_path, **options.savefig_kwargs)
+    filename1 = f'{options.variable_name or options.variable}_timeseries_bias.png'
+    plt.savefig(output_path / filename1, **options.savefig_kwargs)
+    plt.show(block=False)
+    plt.draw()
+    plt.close()
+
+    # --- PAGE 2: BIAS + Cloud Coverage (with smoothing if requested) ---
+
+    if BIAS is not None or cloud_coverage is not None:
+        fig2 = plt.figure(figsize=options.figsize, dpi=options.dpi)
+        gs2 = GridSpec(2, 1, height_ratios=[8, 4])
+        ax2a = fig2.add_subplot(gs2[0])
+        ax2b = fig2.add_subplot(gs2[1])
+
+        # Plot BIAS if present, else hide upper subplot
+        if BIAS is not None:
+            sns.lineplot(data=BIAS, color='k', ax=ax2a)
+            ax2a.set_title(f'BIAS ({options.variable_name or options.variable})', fontsize=options.bias_title_fontsize, fontweight='bold')
+            ax2a.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
+            ax2a.tick_params(width=2)
+            ax2a.grid(True, linestyle='--')
+            style_axes_spines(ax2a)
+        else:
+            ax2a.set_visible(False)
+
+        # Plot cloud coverage if present, else hide lower subplot
+        if cloud_coverage is not None:
+            sns.lineplot(data=cloud_coverage, color='gray', ax=ax2b, label='Daily Cloud Coverage')
+            if getattr(options, 'smooth7', False):
+                cc_smooth7 = cloud_coverage.rolling(window=7, center=True, min_periods=1).mean()
+                sns.lineplot(data=cc_smooth7, color='r', linestyle='--', ax=ax2b, label='7-day Smooth')
+            if getattr(options, 'smooth30', False):
+                cc_smooth30 = cloud_coverage.rolling(window=30, center=True, min_periods=1).mean()
+                sns.lineplot(data=cc_smooth30, color='blue', linestyle='--', ax=ax2b, label='30-day Smooth')
+
+            ax2b.set_title('Cloud Coverage (%)', fontsize=options.bias_title_fontsize, fontweight='bold')
+            ax2b.set_ylabel('Cloud Coverage (%)', fontsize=options.label_fontsize)
+            ax2b.tick_params(width=2)
+            ax2b.grid(True, linestyle='--')
+            ax2b.legend(fontsize=options.legend_fontsize)
+            style_axes_spines(ax2b)
+        else:
+            ax2b.set_visible(False)
+        
+    # Compute and print correlations only if both BIAS and cloud coverage are present
+    if BIAS is not None and cloud_coverage is not None:
+        corr_raw = corr_no_nan(BIAS, cloud_coverage)
+        corr_smooth7_val = corr_no_nan(BIAS, cc_smooth7) if cc_smooth7 is not None else float('nan')
+        corr_smooth30_val = corr_no_nan(BIAS, cc_smooth30) if cc_smooth30 is not None else float('nan')
+
+        print(f"Correlation between BIAS and raw cloud coverage: {corr_raw:.3f}")
+        print(f"Correlation between BIAS and 7-day smoothed cloud coverage: {corr_smooth7_val:.3f}")
+        print(f"Correlation between BIAS and 30-day smoothed cloud coverage: {corr_smooth30_val:.3f}")
+
+    plt.tight_layout()
+    filename2 = f'{options.variable_name or options.variable}_bias_cloudcoverage.png'
+    plt.savefig(output_path / filename2, **options.savefig_kwargs)
     plt.show(block=False)
     plt.draw()
     plt.close()
@@ -961,48 +1035,94 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
 ###############################################################################   
 
 ###############################################################################   
-def plot_spatial_efficiency(data_array, geo_coords, output_path,
-                            title_prefix, cmap, vmin, vmax,
-                            detrended=False, suffix="(Model - Satellite)"):
+def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, **kwargs):
     """
-    Plot monthly or yearly spatial efficiency maps with shared color scale and Cartopy projection.
+    Plot spatial efficiency metric maps (e.g., correlation, NSE) by month or year with Cartopy projection.
+
+    This function generates a grid of spatial maps (e.g., for each month or year) showing the
+    spatial distribution of a performance metric such as correlation or NSE between model and
+    satellite data. It supports extensive customization via keyword arguments and a centralized
+    defaults dictionary.
 
     Parameters
     ----------
     data_array : xarray.DataArray
-        3D array with dims (month/year, y, x) to plot.
+        3D data with shape (month/year, lat, lon). Must contain either a 'month' or 'year' dimension.
+
     geo_coords : dict
-        Dictionary with keys: 'latp', 'lonp', 'MinLambda', 'MaxLambda',
-        'MinPhi', 'MaxPhi', and optional 'Epsilon'.
+        Dictionary containing:
+            - 'latp' (2D array): Latitude grid.
+            - 'lonp' (2D array): Longitude grid.
+            - 'MinLambda', 'MaxLambda' (float): Longitude bounds.
+            - 'MinPhi', 'MaxPhi' (float): Latitude bounds.
+            - 'Epsilon' (float, optional): Spatial padding offset (used for label adjustment).
+
     output_path : str or Path
-        Directory to save the plot.
+        Directory where the figure will be saved.
+
     title_prefix : str
-        Prefix for subplot titles.
-    cmap : str or Colormap
-        Colormap for plotting.
-    vmin, vmax : float
-        Global colorbar limits.
-    detrended : bool, optional
-        Whether data is detrended.
-    suffix : str, optional
-        Suffix in the overall plot title.
+        Title prefix for the colorbar and each subplot (e.g., "Correlation").
 
-    Returns
-    -------
-    None
+    Keyword Arguments
+    -----------------
+    - cmap (str or Colormap)           : Colormap to use (e.g., "coolwarm").
+    - vmin, vmax (float)               : Min and max values for colorbar.
+    - suffix (str)                     : Suffix for plot title and filename.
+    - suptitle_fontsize (int)         : Font size of the super title.
+    - suptitle_fontweight (str)       : Font weight of the super title.
+    - suptitle_y (float)              : Vertical position of the super title.
+    - title_fontsize (int)            : Font size of subplot titles.
+    - title_fontweight (str)          : Font weight of subplot titles.
+    - cbar_labelsize (int)            : Font size of colorbar tick labels.
+    - cbar_labelpad (int)             : Padding between colorbar and label.
+    - cbar_shrink (float)             : Shrink factor for horizontal colorbar.
+    - cbar_ticks (int)                : Number of colorbar ticks.
+    - figsize_per_plot (tuple)        : Size per subplot (width, height).
+    - max_cols (int)                  : Max number of columns in subplot grid.
+    - epsilon (float)                 : Padding fallback if not in geo_coords.
+    - lat_offset_base (float)         : Latitude offset for label placement.
+    - gridline_color (str)            : Color of gridlines.
+    - gridline_style (str)            : Line style of gridlines (e.g., "--").
+    - gridline_alpha (float)          : Gridline transparency.
+    - gridline_dms (bool)             : Format labels in DMS (deg:min:sec).
+    - gridline_labels_top (bool)      : Show labels on top axis.
+    - gridline_labels_right (bool)    : Show labels on right axis.
+    - projection (str)                : Cartopy projection class name.
+    - resolution (str)                : Resolution of coastlines (e.g., "10m").
+    - land_color (str)                : Color for landmasses.
+    - show (bool)                     : Display the plot interactively.
+    - block (bool)                    : Block execution on plt.show().
+    - pause_duration (float)          : Time (sec) to pause after plotting.
+    - dpi (int)                       : Resolution of the output figure.
+    
+    Raises
+    ------
+    ValueError
+        If the `data_array` does not contain a 'month' or 'year' dimension.
+
+    Examples
+    --------
+    >>> plot_spatial_efficiency(data_array, geo_coords, "figures", "Correlation",
+    ...                         cmap="coolwarm", vmax=1.0, vmin=-1.0, show=True)
     """
+    
+    # ----- GET DEFAULT OPTIONS -----
+    options = extract_options(kwargs, spatial_efficiency_defaults)
 
+    # ----- SET GEOMETRY -----
     latp = geo_coords['latp']
     lonp = geo_coords['lonp']
-    epsilon = geo_coords.get('Epsilon', 0.06)
-    min_lon, max_lon = geo_coords['MinLambda'], geo_coords['MaxLambda']
-    min_lat, max_lat = geo_coords['MinPhi'], geo_coords['MaxPhi']
-    lat_offset = epsilon + 0.2702044
+    epsilon = geo_coords.get("Epsilon", options["epsilon"])
+    lat_offset = epsilon + options["lat_offset_base"]
+    min_lon = geo_coords['MinLambda']
+    max_lon = geo_coords['MaxLambda']
+    min_lat = geo_coords['MinPhi']
+    max_lat = geo_coords['MaxPhi']
 
-    # Determine if data is monthly or yearly
+    # ----- FETCH THE TIME LABELS -----
     if 'month' in data_array.dims:
-        labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        labels = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December"]
         dim_name = 'month'
         n_plots = data_array.sizes['month']
         suptitle_prefix = "Monthly"
@@ -1016,74 +1136,112 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path,
     else:
         raise ValueError("data_array must have either 'month' or 'year' dimension.")
 
-    max_cols = 3
+    # ----- SETUP THE PAGE ------
+    max_cols = options["max_cols"]
     nrows = int(np.ceil(n_plots / max_cols))
     remainder = n_plots % max_cols
     full_rows = n_plots // max_cols
 
-    fig = plt.figure(figsize=(5 * max_cols, 4 * nrows), constrained_layout=True)
+    # ----- SETUP THE FIGURE AND SIZE -----
+    figsize = (options["figsize_per_plot"][0] * max_cols,
+               options["figsize_per_plot"][1] * nrows)
+    fig = plt.figure(figsize=figsize, dpi=options["dpi"], constrained_layout=True)
     gs = GridSpec(nrows, max_cols, figure=fig)
     axes = []
 
+    # ----- DEFINE CORNER CASES FOR NUMBER NOT CELLS /2 OR /3 -----
     for row in range(nrows):
         if row < full_rows:
             for col in range(max_cols):
-                ax = fig.add_subplot(gs[row, col], projection=ccrs.PlateCarree())
+                ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
                 axes.append(ax)
-        else:  # Last row with fewer plots
+        else:
             if remainder == 1:
-                ax = fig.add_subplot(gs[row, 1], projection=ccrs.PlateCarree())
+                ax = fig.add_subplot(gs[row, 1], projection=getattr(ccrs, options["projection"])())
                 axes.append(ax)
             elif remainder == 2:
-                ax1 = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree())
-                ax2 = fig.add_subplot(gs[row, 2], projection=ccrs.PlateCarree())
+                ax1 = fig.add_subplot(gs[row, 0], projection=getattr(ccrs, options["projection"])())
+                ax2 = fig.add_subplot(gs[row, 2], projection=getattr(ccrs, options["projection"])())
                 axes.extend([ax1, ax2])
 
-    # Custom diverging colormap
-    if cmap == 'OrangeGreen':
+    # ---- BUILD ORANGE - GREEEN COLORMAP -----
+    cmap = options["cmap"]
+    vmin = options["vmin"]
+    vmax = options["vmax"]
+    if cmap == "OrangeGreen":
         colors = ['#086e04', 'white', '#ff6700']
         base_cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors)
         norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
         white_start = int(norm(-0.2) * 255)
         white_end = int(norm(0.2) * 255)
         new_colors = base_cmap(np.linspace(0, 1, 256))
-        new_colors[white_start:white_end, :] = np.array([1, 1, 1, 1])
+        new_colors[white_start:white_end, :] = [1, 1, 1, 1]
         cmap = mcolors.ListedColormap(new_colors)
 
     contour_levels = np.linspace(vmin, vmax, 11)
 
+    # ----- BEGIN PLOTTING -----
     for i, ax in enumerate(axes):
         data_slice = data_array.isel({dim_name: i})
         ax.set_extent([min_lon, max_lon, min_lat + lat_offset, max_lat], crs=ccrs.PlateCarree())
         contour = ax.contourf(
             lonp + (0.35 * epsilon), latp + (0.1 * epsilon), data_slice,
             levels=contour_levels, cmap=cmap, vmin=vmin, vmax=vmax,
-            extend='both', transform=ccrs.PlateCarree()
+            extend="both", transform=ccrs.PlateCarree()
         )
-        ax.coastlines(resolution='10m')
-        ax.add_feature(cfeature.LAND, facecolor='lightgray')
+        ax.coastlines(resolution=options["resolution"])
+        ax.add_feature(cfeature.LAND, facecolor=options["land_color"])
         label = labels[i] if i < len(labels) else f"{dim_name.capitalize()} {i+1}"
-        ax.set_title(f"{title_prefix} - {label}", fontsize=16, fontweight='bold')
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        gl = ax.gridlines(draw_labels=True, dms=True, color='gray', linestyle='--', alpha=0.7)
-        gl.top_labels = True
-        gl.right_labels = True
+        ax.set_title(label, fontsize=options["title_fontsize"], fontweight=options["title_fontweight"])
+        gl = ax.gridlines(draw_labels=True, dms=options["gridline_dms"],
+                          color=options["gridline_color"], linestyle=options["gridline_style"],
+                          alpha=options["gridline_alpha"])
+        gl.top_labels = options["gridline_labels_top"]
+        gl.right_labels = options["gridline_labels_right"]
 
-    cbar = fig.colorbar(contour, ax=axes, orientation='horizontal', shrink=0.6,
-                        ticks=np.linspace(vmin, vmax, 11))
-    cbar.ax.tick_params(direction='in', length=32, labelsize=12)
-    cbar.set_label(f"{title_prefix}", fontsize=18, labelpad=10)
+    # ----- ADD A COLORBAR -----
+    unit = options["unit"]
+    
+    # Only format if unit is not None, else use empty string
+    if unit is not None:
+        formatted_unit = format_unit(unit)[1:-1]
+    else:
+        formatted_unit = ""
 
+    cbar = fig.colorbar(contour, ax=axes, orientation="horizontal",
+                    shrink=options["cbar_shrink"],
+                    ticks=np.linspace(vmin, vmax, options["cbar_ticks"]))
+    cbar.ax.tick_params(direction='in', length=32, labelsize=options["cbar_labelsize"])
+
+    if formatted_unit:
+        cbar.set_label(rf'$\left[{formatted_unit}\right]$', fontsize=18, labelpad=options["cbar_labelpad"])
+    else:
+        cbar.set_label("", fontsize=18, labelpad=options["cbar_labelpad"])
+
+    # ----- MAKE THE TITLE -----
+    detrended = kwargs.get("detrended", False)
     det_text = "Detrended" if detrended else "Raw"
-    plt.suptitle(f"{suptitle_prefix} {title_prefix} ({det_text}) {suffix}", fontsize=20, fontweight='bold')
 
+    # Prepare unit string for title safely:
+    unit_title = unit if unit is not None else ""
+
+    plt.suptitle(
+        f"{suptitle_prefix} {title_prefix} {unit_title} ({det_text}) {options['suffix']}",
+        fontsize=options["suptitle_fontsize"],
+        fontweight=options["suptitle_fontweight"],
+        y=options["suptitle_y"]
+        )
+
+    # ----- SET OUTPUT PATH -----
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
     safe_title = title_prefix.replace("/", "_").replace("\\", "_")
-    plt.savefig(output_path / f'{filename_prefix} {safe_title} ({det_text}) {suffix}.png')
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
+    filename = f"{filename_prefix} {safe_title} ({det_text}) {options['suffix']}.png"
+    plt.savefig(output_path / filename)
+
+    if options["show"]:
+        plt.show(block=options["block"])
+        plt.draw()
+        plt.pause(options["pause_duration"])
     plt.close()
 ###############################################################################   
