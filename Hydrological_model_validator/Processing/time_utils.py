@@ -2,6 +2,8 @@ from typing import Dict, List, Union, Any
 import pandas as pd
 import numpy as np
 import itertools
+from dask.diagnostics import ProgressBar
+from concurrent.futures import ThreadPoolExecutor
 
 ###############################################################################
 def leapyear(year: int) -> int:
@@ -324,3 +326,34 @@ def get_season_mask(
 
     return mask
 ###############################################################################
+
+###############################################################################
+def resample_and_compute(model_sst_chunked, sat_sst_chunked):
+    """
+    Resample the input chunked SST datasets to monthly means and compute them concurrently.
+
+    Parameters
+    ----------
+    model_sst_chunked : xarray.DataArray or Dataset
+        The model SST dataset chunked for dask processing.
+    sat_sst_chunked : xarray.DataArray or Dataset
+        The satellite SST dataset chunked for dask processing.
+
+    Returns
+    -------
+    model_sst_monthly : xarray.DataArray or Dataset
+        The computed monthly mean resampled model SST.
+    sat_sst_monthly : xarray.DataArray or Dataset
+        The computed monthly mean resampled satellite SST.
+    """
+    model_sst_monthly_lazy = model_sst_chunked.resample(time='1MS').mean()
+    sat_sst_monthly_lazy = sat_sst_chunked.resample(time='1MS').mean()
+
+    with ProgressBar(), ThreadPoolExecutor(max_workers=2) as executor:
+        future_model = executor.submit(model_sst_monthly_lazy.compute, scheduler='threads')
+        future_sat = executor.submit(sat_sst_monthly_lazy.compute, scheduler='threads')
+
+        model_sst_monthly = future_model.result()
+        sat_sst_monthly = future_sat.result()
+
+    return model_sst_monthly, sat_sst_monthly
