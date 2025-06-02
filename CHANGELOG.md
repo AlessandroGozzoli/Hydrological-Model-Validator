@@ -1,3 +1,38 @@
+# **Version:** 4.4.0
+**Date:** 02/06/2025
+
+## Summary
+
+This minor release introduces cloud coverage analysis and improves the spatial efficiency plotting system. It also formalizes the resampling process into a reusable function for streamlined time-based analysis.
+
+## New Feature: Cloud Coverage Timeseries
+
+- The **% of cloud cover** over the basin is now plotted alongside the temporal bias in a dedicated timeseries figure.
+- The plotting function has been updated to **split the output into two plots**:
+  - **Plot 1:** Standard timeseries metrics (e.g., observed vs. modeled values).
+  - **Plot 2:** BIAS (moved from Plot 1) and the new **cloud coverage percentage**, visualized using:
+    - Raw data,
+    - 7-day running mean,
+    - 30-day running mean.
+- **Pearson correlation coefficients** are computed and printed for each version using the BIAS and the cloud coverage.
+
+## Resampling Function
+
+- The previously inline resampling logic has been extracted into a standalone function.
+- This function is now part of the `time_utils.py` submodule and supports consistent and efficient time aggregation for monthly and yearly analyses.
+
+## Spatial Efficiency Plot Enhancements
+
+- Subplot label alignment and positioning have been adjusted to improve readability and reduce clutter.
+- All previously hardcoded configuration values (e.g., vmin/vmax, colormap, layout) have been moved into a **default options file** for easier maintenance and customization.
+- **Colorbar unit labels now support LaTeX-style formatting**, improving clarity and visual consistency across plots.
+
+## Future works
+
+Unless a further expansion of the project is required the future patches will focus on improving the documentation by adding extensive comments to the existing functions.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.3.2
 **Date:** 02/06/2025
 
