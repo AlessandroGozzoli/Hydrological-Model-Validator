@@ -1,3 +1,45 @@
+# **Version:** 4.3.2
+**Date:** 02/06/2025
+
+## Summary
+
+This patch extends the spatial performance evaluation capabilities to include **yearly average datasets**, alongside enhancements to plotting, code robustness, and minor hotfixes.
+
+## Yearly Spatial Performance
+
+The `compute_spatial_efficiency` function has been adapted to support **yearly performance evaluation**, in addition to the existing monthly metrics.
+
+- The `SST_data_analyser.py` and `CHL_data_analyser.py` scripts now include examples for yearly spatial analysis.
+- Supporting functions in `stats_math_utils.py` were modified to accept flexible `time` input handling via a new argument.
+- Result dictionaries have been expanded to structure yearly results for future use and reference.
+> While the data is stored, **plotting remains the primary method** of interpreting 2D spatial performance outputs.
+
+## Enhanced Plotting
+
+The plotting function has been upgraded to dynamically adapt to the number of metrics:
+
+- The figure layout now prefers a **square-like shape** (2×N for ≤4 plots, 3×N for >4 plots).
+- Rows with fewer plots than the max are **center-aligned** for improved visual balance.
+- Added fail-safes in filename generation to replace illegal path characters (e.g., `/` in metric titles).
+- Improved overall layout and clarity, with better visual spacing and text placement.
+
+## Hotfixes
+
+- Removed incorrect `(°C)` label from `CHL_data_analyser.py`, left over from SST-related code.
+- Resolved a bug in `plt.savefig()` where slashes (`/`) in titles were misinterpreted as folder paths, breaking the save process.
+
+## Future Work
+
+Planned improvements for the next patch include:
+
+- Externalizing all `plot_spatial_efficiency` configuration options to a dedicated default file.
+- Delegating unit label formatting to the `format_unit()` function with full LaTeX support.
+- Refactoring the monthly resampling code block into a standalone reusable function.
+- Introducing cloud coverage timeseries plots.
+- Separating the timeseries BIAS plot from the current gridspec (gs) layout to align it with cloud coverage analysis.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.3.1
 **Date:** 01/06/2025
 
