@@ -1,3 +1,34 @@
+# **Version:** 4.5.0
+**Date:** 04/06/2025
+
+## Summary
+
+This update introduces a complete `pytest` suite to validate the project's functionality and ensure stability. It also includes several minor hotfixes to align behavior with intended design and pass the newly added tests.
+
+## `Pytest` implementation
+
+A new `Pytests` folder has been added under the `Test cases` directory. This folder contains all the `pytest` scripts created to test nearly all implemented functions across the project. Each test includes a concise comment explaining its purpose and additional inline documentation clarifying the logic and expected results.
+
+> **NOTE**:
+> Pytests were not added for the model/satellite data loading modules and the plotting functions due to the complexity of mocking paths and structured datasets. These components are already validated through the main test-case scripts (`SST`, `CHL`, `Benthic`). However, helper functions used within those modules are fully covered — e.g., plotting helpers are tested in `test_formatting`, and file-related logic is covered in `test_file_io`.
+
+## Hotfixes
+
+Several functions were hotfixed to:
+- Restore correct behavior where recent changes introduced inconsistencies.
+- Ensure compatibility and accuracy in alignment with test coverage.
+- Standardize outputs and edge-case handling across the board.
+
+## Future Works
+
+- Expand and refine in-script documentation for improved clarity and maintainability.  
+- Rework and expand the `README.md` to better guide users through installation and usage.  
+- Implement remaining files required for complete user installation: `AUTHORS`, `MANIFEST.in`, `pyproject.toml`, `requirements.txt`, and optional `environment.yml`.  
+- Introduce a more detailed error decomposition in the temporal analysis (timeseries).  
+- Begin exploration of frequency-domain error analysis using Fast Fourier Transform (FFT).
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.4.0
 **Date:** 02/06/2025
 
