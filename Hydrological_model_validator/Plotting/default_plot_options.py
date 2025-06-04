@@ -179,3 +179,56 @@ spatial_efficiency_defaults = {
     "dpi": 100,
     "unit" : None,
 }
+###############################################################################
+
+###############################################################################
+default_error_timeseries_options = {
+    'fig_width': 25,
+    'fig_height_per_plot': 3,
+    'mean_bias_color': 'tab:blue',
+    'unbiased_rmse_color': 'tab:orange',
+    'std_error_color': 'tab:green',
+    'correlation_color': 'tab:red',
+    'cloud_cover_color': 'tab:gray',
+    'cloud_cover_smoothed_color': 'black',
+    'title_fontsize': 24,
+    'title_fontweight': 'bold',
+    'label_fontsize': 16,
+    'grid_color': 'gray',
+    'grid_linestyle': '--',
+    'grid_alpha': 0.7,
+    'cloud_cover_rolling_window': 30,
+    'filename_template': "Error_Decomposition_Timeseries_{variable_name}.png",
+    'sharex': True,
+    'spine_linewidth': 2,
+    'spine_edgecolor': 'black',
+}
+###############################################################################
+
+###############################################################################
+default_spectral = {
+    # Figure and axes
+    'figsize': (14, 6),
+
+    # Fontsizes
+    'xlabel_fontsize': 14,
+    'ylabel_fontsize': 14,
+    'title_fontsize': 16,
+    'title_fontweight': 'bold',
+    'tick_labelsize': 12,
+
+    # Grid style
+    'grid_color': 'gray',
+    'grid_alpha': 0.7,
+    'grid_linestyle': '--',
+
+    # Frequency x-axis limits
+    'freq_xlim': (0, 0.1),
+
+    # Spine styling
+    'spine_linewidth': 1.5,
+    'spine_edgecolor': 'black',
+
+    # Linestyles for additional cloud covers in CSD plot
+    'additional_linestyles': ['--', ':', '-.'],
+}
