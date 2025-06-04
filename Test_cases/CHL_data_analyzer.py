@@ -69,12 +69,16 @@ from Hydrological_model_validator.Plotting.Plots import (timeseries,
                                                            whiskerbox,
                                                            violinplot,
                                                            efficiency_plot,
-                                                           plot_spatial_efficiency)
+                                                           plot_spatial_efficiency,
+                                                           error_components_timeseries,
+                                                           plot_spectral)
 from Hydrological_model_validator.Plotting.Taylor_diagrams import (comprehensive_taylor_diagram,
                                                                    monthly_taylor_diagram)
 from Hydrological_model_validator.Plotting.Target_plots import (comprehensive_target_diagram,
                                                                 target_diagram_by_month)
-from Hydrological_model_validator.Processing.stats_math_utils import (detrend_dim)
+from Hydrological_model_validator.Processing.stats_math_utils import (detrend_dim,
+                                                                      corr_no_nan,
+                                                                      compute_fft)
 print("\033[92m✅ The plotting modules have been loaded!\033[0m")
 print('-'*45)
 
@@ -97,7 +101,8 @@ from Hydrological_model_validator.Processing.Efficiency_metrics import (r_square
                                                                         monthly_index_of_agreement_j,
                                                                         monthly_relative_nse,
                                                                         monthly_relative_index_of_agreement,
-                                                                        compute_spatial_efficiency)
+                                                                        compute_spatial_efficiency,
+                                                                        compute_error_timeseries)
 print("\033[92m✅ The validation modules have been loaded!\033[0m")
 print('*'*45)
 
@@ -952,3 +957,149 @@ plot_spatial_efficiency(urmse_detr,
                        detrended=True)
 print("uRMSE plotted!")
 print('-'*45)
+
+###############################################################################
+##                                                                           ##
+##                         CLOUD COVER CORRELATION                           ##
+##                                                                           ##
+###############################################################################
+
+print("In this section the cloud cover % will be compared to the timseries")
+print("of the error components (Mean BIAS, SDE, uRMSE and CC")
+
+print("The dataset that needs to be used is the 2D daily value one already")
+print("Imported in the previous section of this test case, but in this case")
+print("it must remain composed of daily values!")
+
+print('-'*45)
+
+# As a failsafe if the user decides to launche the code here reimport it
+
+# ----- LOADING THE DAILY DATASETS, OUTPUT OF THE INTERPOLATOR.M -----
+print("Loading the datasets...")
+ds_model = xr.open_dataset(IDIR / "ModData_chl_interp_l3.nc")
+ds_sat = xr.open_dataset(IDIR / "SatData_chl_interp_l3.nc")
+print("The datasets have been loaded!")
+print('-'*45)
+
+# ----- TRANSPOSING -----
+print("Due to the necessity to resample the data the datasets need to be")
+print("Transposed so that the 1st dimension is the time")
+print("Transposing the datasets...")
+model_chl = ds_model['ModData_interp'].transpose('time', 'lat', 'lon')
+sat_chl = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
+print("The datasets have been transposed!")
+print('-'*45)
+
+# ----- ADDIING CORRECT DATETIME -----
+print("Adding a datetime to aid with the resampling...")
+time_origin = pd.Timestamp("2000-01-01")
+model_chl['time'] = time_origin + pd.to_timedelta(model_chl.time.values, unit="D")
+sat_chl['time'] = time_origin + pd.to_timedelta(sat_chl.time.values, unit="D")
+print("Daily datetime index added!")
+print('-'*45)
+
+print("The data contains Nans so it can be either masked or, since we are")
+print("making timeseries they can be skipped...")
+print("For consistency with the previous data we are going to mask them!")
+print("We are going to the the Ocean Mask since it can be used for our case")
+
+print('-'*45)
+
+# Once again reimport it as a failsafe
+
+# ----- RETRIEVING THE MASK -----
+print("Retrieving the mask...")
+Mfsm = mask_reader(BaseDIR)
+ocean_mask = Mfsm[0]  # This returns a NumPy array
+print("\033[92m✅ Mask succesfully imported! \033[0m")
+print('-'*45)
+
+print("Computing the error components timeseries...")
+error_comp_stats_df = compute_error_timeseries(model_chl, sat_chl, ocean_mask)
+print("Error components timeseries obtaines!")
+
+print('-'*45)
+
+print("Retrieving the cloud cover...")
+cloud_cover = xr.open_dataset(idir_path / "cloud_cover_chl.nc")['cloud_cover_chl']
+cloud_cover = pd.Series(cloud_cover, index=dates)
+print("Cloud cover timeseries obtained!")
+
+print("Computing the smoothed 30 day windows...")
+cloud_cover_30d = cloud_cover.rolling(window=30, center=True).mean()
+print("Smoothed timeseries computed!")
+
+print('-'*45)
+
+# ----- SET UP THE SAVE FOLDER -----
+timestamp = datetime.now().strftime("run_%Y-%m-%d")
+output_path = os.path.join(BaseDIR, "OUTPUT", "PLOTS", "EFFICIENCY", "CHL", timestamp)
+os.makedirs(output_path, exist_ok=True)
+    
+print("Plotting the results...")
+error_components_timeseries(error_comp_stats_df, output_path, 
+                            cloud_cover, variable_name='CHL')
+print("Results plotted!")
+
+correlations = {
+    'raw_cloud_cover': {},
+    'smoothed_cloud_cover_30d': {}
+}
+
+for metric in error_comp_stats_df.columns:
+    corr_raw = corr_no_nan(error_comp_stats_df[metric], cloud_cover)
+    corr_smooth = corr_no_nan(error_comp_stats_df[metric], cloud_cover_30d)
+    correlations['raw_cloud_cover'][metric] = corr_raw
+    correlations['smoothed_cloud_cover_30d'][metric] = corr_smooth
+
+print("The correlation between cloud cover and error components are...")
+print("Correlation between stats metrics and RAW cloud cover:")
+for metric, corr_val in correlations['raw_cloud_cover'].items():
+    print(f"  {metric}: {corr_val:.4f}")
+
+print("\nCorrelation between stats metrics and SMOOTHED (30d) cloud cover:")
+for metric, corr_val in correlations['smoothed_cloud_cover_30d'].items():
+    print(f"  {metric}: {corr_val:.4f}")
+    
+# ----- CLEAN DATA -----
+combined_df = error_comp_stats_df.copy()
+combined_df['cloud_cover'] = cloud_cover
+combined_df['cloud_cover_30d'] = cloud_cover_30d
+
+combined_df = combined_df.dropna()
+
+# Separate cleaned data
+error_comp_clean = combined_df[error_comp_stats_df.columns]
+cloud_cover_clean = combined_df['cloud_cover']
+cloud_cover_30d_clean = combined_df['cloud_cover_30d']
+
+# ----- DETREND ------
+# It is not necessary to use the detrend function as it is designe for 2D data
+error_comp_detrended = error_comp_clean - error_comp_clean.mean()
+cloud_cover_detrended = cloud_cover_clean - cloud_cover_clean.mean()
+cloud_cover_30d_detrended = cloud_cover_30d_clean - cloud_cover_30d_clean.mean()
+
+# ----- MAKE THE FFT -----
+
+# For dict of error components
+freqs, fft_components = compute_fft(error_comp_detrended.to_dict('series'))
+
+# For cloud cover series
+_, fft_cloud = compute_fft(cloud_cover_detrended.values)
+
+# For 30-day cloud cover
+_, fft_cloud_30d = compute_fft(cloud_cover_30d_detrended.values)
+
+# PSD plot
+plot_spectral(plot_type='PSD', freqs=freqs, fft_components=fft_components)
+
+# CSD vs cloud_cover
+plot_spectral(
+    plot_type='CSD',
+    error_comp=error_comp_clean,
+    cloud_covers=[
+        (cloud_cover_clean, 'cloud_cover'),
+        (cloud_cover_30d_clean, 'cloud_cover_30d')
+    ]
+)
