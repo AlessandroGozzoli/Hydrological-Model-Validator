@@ -17,7 +17,7 @@ import calendar
 from typing import Union, Dict, Any
 from types import SimpleNamespace
 import itertools
-from itertools import starmap, chain
+from itertools import starmap, chain, cycle
 from functools import partial
 
 # Plotting Libraries
@@ -28,6 +28,7 @@ import matplotlib.colors as mcolors
 import seaborn as sns
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from scipy.signal import csd
 
 # Custom Imports
 from .formatting import (plot_line,
@@ -41,7 +42,7 @@ from ..Processing.data_alignment import (extract_mod_sat_keys,
 
 from ..Processing.stats_math_utils import (fit_huber,
                                            fit_lowess,
-                                           corr_no_nan)
+                                           )
 
 from ..Processing.time_utils import get_season_mask
 from ..Processing.utils import extract_options
@@ -52,7 +53,9 @@ from .default_plot_options import (default_plot_options_ts,
                                    default_boxplot_options,
                                    default_violinplot_options,
                                    default_efficiency_plot_options,
-                                   spatial_efficiency_defaults )
+                                   spatial_efficiency_defaults,
+                                   default_error_timeseries_options,
+                                   default_spectral)
 
 ###############################################################################
 ##                                                                           ##
@@ -61,78 +64,47 @@ from .default_plot_options import (default_plot_options_ts,
 ###############################################################################
 
 ###############################################################################
-def timeseries(
-    data_dict: Dict[str, Union[pd.Series, list]],
-    BIAS: Union[pd.Series, list, None] = None,
-    cloud_coverage: Union[pd.Series, list, None] = None,
-    **kwargs: Any
-) -> None:
+def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Series, list, None], **kwargs: Any) -> None:
     """
-    Plot time series of daily mean values from multiple datasets along with BIAS and optional cloud coverage.
-    
-    This function generates up to two-panel time series plots:
-        1. The first figure shows daily mean values of each dataset (typically model and satellite data).
-        If BIAS and cloud coverage are provided, a second figure is generated with:
-            2. An upper subplot displaying the BIAS (model - satellite) time series.
-            3. A lower subplot showing cloud coverage time series, optionally smoothed by 7- or 30-day running means.
-            
-    Figures are saved to a specified output directory as PNG files and displayed using matplotlib.
-            
+    Plot time series of daily mean values from multiple datasets along with BIAS.
+
+    This function generates a two-panel time series plot:
+      1. The upper subplot displays daily mean values of each dataset (typically model and satellite data).
+      2. The lower subplot shows the BIAS (model - satellite) as a time series.
+
+    If BIAS is None, the second panel is skipped.
+
     Parameters
     ----------
     data_dict : Dict[str, Union[pd.Series, list]]
-        Dictionary containing daily mean values for different sources (e.g., model and satellite).
-        Keys are strings identifying the data source.
-        Values should be `pandas.Series` with datetime indices or lists convertible to Series.
+        Dictionary containing daily mean values for different sources.
+    BIAS : Union[pd.Series, list, None]
+        Series (or list) representing the BIAS time series, or None to skip bias plot.
 
-    BIAS : Union[pd.Series, list, None], optional
-        Series (or list) representing the BIAS time series (typically model - satellite).
-        Should be time-aligned with the values in `data_dict`. If None, only the time series plot is generated.
-
-    cloud_coverage : Union[pd.Series, list, None], optional
-        Series (or list) of daily cloud coverage percentages aligned with `data_dict` and `BIAS`.
-        If provided alongside BIAS, a second figure with BIAS and cloud coverage plots is generated.
-
-    Accepted kwargs include:
-    -----------------------
-    Keyword arguments overriding default plotting options. Include:
-        - output_path (str or Path)        : **Required.** Directory path to save figures.
-        - variable_name (str)              : Variable code name to infer full name and unit.
-        - variable (str)                   : Full variable name (e.g., "Chlorophyll"). Used in titles and axis labels.
-        - unit (str)                      : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
-        - BA (bool)                       : If True, appends " (Basin Average)" to the title.
-        - figsize (tuple of float)        : Figure size in inches (default e.g., (20, 8)).
-        - dpi (int)                      : Figure resolution in dots per inch (default 300).
-        - color_palette (iterator)        : Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
-        - line_width (float)              : Width of plotted lines (default 1.0).
-        - title_fontsize (int)            : Font size of the main title.
-        - bias_title_fontsize (int)       : Font size of the BIAS subplot title.
-        - label_fontsize (int)            : Font size of axis labels.
-        - legend_fontsize (int)           : Font size of the legend.
-        - savefig_kwargs (dict)            : Additional keyword arguments passed to `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
-        - smooth7 (bool)                  : If True, adds a 7-day running mean smoothing line to cloud coverage plot.
-        - smooth30 (bool)                 : If True, adds a 30-day running mean smoothing line to cloud coverage plot.
-
-    Example
-    -------
-    >>> timeseries(
-    ...     data_dict={'model': model_series, 'satellite': sat_series},
-    ...     BIAS=model_series - sat_series,
-    ...     cloud_coverage=cloud_series,
-    ...     variable_name='Chl',
-    ...     output_path='figures/',
-    ...     BA=True,
-    ...     smooth7=True
-    ... )
+    Additional kwargs:
+        - output_path (str or Path)
+        - variable_name (str)
+        - variable (str)
+        - unit (str)
+        - BA (bool)
+        - figsize (tuple of float)
+        - dpi (int)
+        - color_palette (iterator)
+        - line_width (float)
+        - title_fontsize (int)
+        - bias_title_fontsize (int)
+        - label_fontsize (int)
+        - legend_fontsize (int)
+        - savefig_kwargs (dict)
     """
-    # ----- RETRIEVE DEFAULT OPTIONS AND OVERRIDE WITH kwargs -----
+
+    # ----- RETRIEVE DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_plot_options_ts, **kwargs})
 
-    # Check mandatory output path
+    # ----- REQUIRED PARAMS CHECK -----
     if options.output_path is None:
         raise ValueError("output_path must be specified either in kwargs or default options.")
 
-    # Handle variable and unit extraction
     if options.variable_name is not None:
         variable, unit = get_variable_label_unit(options.variable_name)
         options.variable = options.variable or variable
@@ -141,136 +113,66 @@ def timeseries(
         if options.variable is None or options.unit is None:
             raise ValueError("If 'variable_name' is not provided, both 'variable' and 'unit' must be specified.")
 
-    # Title construction
-    title = f'Daily Mean Values for {options.variable_name or options.variable} Datasets'
+    # ----- BASIN AVERAGE LABEL -----
+    title = f'Daily Mean Values for {options.variable_name} Datasets'
     if options.BA:
         title += ' (Basin Average)'
 
     mod_key, sat_key = extract_mod_sat_keys(data_dict)
-    label_lookup = {
-        mod_key: "Model Output",
-        sat_key: "Satellite Observations"
-    }
+    label_lookup = {mod_key: "Model Output", sat_key: "Satellite Observations"}
 
-    # Convert to pandas.Series if not already
+    # ----- CONVERT INPUTS TO SERIES -----
     data_dict = {k: pd.Series(v) if not isinstance(v, pd.Series) else v for k, v in data_dict.items()}
     if BIAS is not None:
         BIAS = pd.Series(BIAS) if not isinstance(BIAS, pd.Series) else BIAS
-    if cloud_coverage is not None:
-        cloud_coverage = pd.Series(cloud_coverage) if not isinstance(cloud_coverage, pd.Series) else cloud_coverage
 
-    output_path = Path(options.output_path)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    # SINGLE PAGE: only timeseries (no BIAS or cloud_coverage)
-    if BIAS is None or cloud_coverage is None:
+    # ----- FIGURE SETUP -----
+    if BIAS is not None:
         fig = plt.figure(figsize=options.figsize, dpi=options.dpi)
-        ax1 = fig.add_subplot(1, 1, 1)
+        gs = GridSpec(2, 1, height_ratios=[8, 4])
+        ax1 = fig.add_subplot(gs[0])
+    else:
+        fig = plt.figure(figsize=(options.figsize[0], options.figsize[1] * 0.6), dpi=options.dpi)
+        gs = GridSpec(1, 1)
+        ax1 = fig.add_subplot(gs[0])
 
-        plotter = partial(
-            plot_line,
-            ax=ax1,
-            label_lookup=label_lookup,
-            color_palette=options.color_palette,
-            line_width=options.line_width
-        )
-        list(starmap(plotter, data_dict.items()))
-
-        ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
-        ax1.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
-        ax1.tick_params(width=2)
-        ax1.legend(loc='upper left', fontsize=options.legend_fontsize)
-        ax1.grid(True, linestyle='--')
-        style_axes_spines(ax1)
-
-        plt.tight_layout()
-        filename = f'{options.variable_name or options.variable}_timeseries.png'
-        plt.savefig(output_path / filename, **options.savefig_kwargs)
-        plt.show(block=False)
-        plt.draw()
-        plt.close()
-        return
-
-    # TWO PAGE PLOTS: Page 1 is timeseries + BIAS, Page 2 is BIAS + cloud coverage plots
-    # --- PAGE 1: timeseries + BIAS ---
-    fig1 = plt.figure(figsize=options.figsize, dpi=options.dpi)
-    gs1 = GridSpec(2, 1, height_ratios=[8, 4])
-    ax1a = fig1.add_subplot(gs1[0])
-
+    # ----- MAIN TIMESERIES PLOT -----
     plotter = partial(
         plot_line,
-        ax=ax1a,
+        ax=ax1,
         label_lookup=label_lookup,
         color_palette=options.color_palette,
         line_width=options.line_width
     )
     list(starmap(plotter, data_dict.items()))
 
-    ax1a.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
-    ax1a.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
-    ax1a.tick_params(width=2)
-    ax1a.legend(loc='upper left', fontsize=options.legend_fontsize)
-    ax1a.grid(True, linestyle='--')
-    style_axes_spines(ax1a)
+    ax1.set_title(title, fontsize=options.title_fontsize, fontweight='bold')
+    ax1.set_ylabel(f'{options.variable} {options.unit}', fontsize=options.label_fontsize)
+    ax1.tick_params(width=2)
+    ax1.legend(loc='upper left', fontsize=options.legend_fontsize)
+    ax1.grid(True, linestyle='--')
+    style_axes_spines(ax1)
+
+    # ----- OPTIONAL BIAS PLOT -----
+    if BIAS is not None:
+        ax2 = fig.add_subplot(gs[1])
+        sns.lineplot(data=BIAS, color='k', ax=ax2)
+
+        ax2.set_title(f'BIAS ({options.variable_name})', fontsize=options.bias_title_fontsize, fontweight='bold')
+        ax2.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
+        ax2.tick_params(width=2)
+        ax2.grid(True, linestyle='--')
+        style_axes_spines(ax2)
 
     plt.tight_layout()
-    filename1 = f'{options.variable_name or options.variable}_timeseries_bias.png'
-    plt.savefig(output_path / filename1, **options.savefig_kwargs)
-    plt.show(block=False)
-    plt.draw()
-    plt.close()
 
-    # --- PAGE 2: BIAS + Cloud Coverage (with smoothing if requested) ---
+    # ----- SAVE FIGURE -----
+    output_path = Path(options.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    if BIAS is not None or cloud_coverage is not None:
-        fig2 = plt.figure(figsize=options.figsize, dpi=options.dpi)
-        gs2 = GridSpec(2, 1, height_ratios=[8, 4])
-        ax2a = fig2.add_subplot(gs2[0])
-        ax2b = fig2.add_subplot(gs2[1])
-
-        # Plot BIAS if present, else hide upper subplot
-        if BIAS is not None:
-            sns.lineplot(data=BIAS, color='k', ax=ax2a)
-            ax2a.set_title(f'BIAS ({options.variable_name or options.variable})', fontsize=options.bias_title_fontsize, fontweight='bold')
-            ax2a.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
-            ax2a.tick_params(width=2)
-            ax2a.grid(True, linestyle='--')
-            style_axes_spines(ax2a)
-        else:
-            ax2a.set_visible(False)
-
-        # Plot cloud coverage if present, else hide lower subplot
-        if cloud_coverage is not None:
-            sns.lineplot(data=cloud_coverage, color='gray', ax=ax2b, label='Daily Cloud Coverage')
-            if getattr(options, 'smooth7', False):
-                cc_smooth7 = cloud_coverage.rolling(window=7, center=True, min_periods=1).mean()
-                sns.lineplot(data=cc_smooth7, color='r', linestyle='--', ax=ax2b, label='7-day Smooth')
-            if getattr(options, 'smooth30', False):
-                cc_smooth30 = cloud_coverage.rolling(window=30, center=True, min_periods=1).mean()
-                sns.lineplot(data=cc_smooth30, color='blue', linestyle='--', ax=ax2b, label='30-day Smooth')
-
-            ax2b.set_title('Cloud Coverage (%)', fontsize=options.bias_title_fontsize, fontweight='bold')
-            ax2b.set_ylabel('Cloud Coverage (%)', fontsize=options.label_fontsize)
-            ax2b.tick_params(width=2)
-            ax2b.grid(True, linestyle='--')
-            ax2b.legend(fontsize=options.legend_fontsize)
-            style_axes_spines(ax2b)
-        else:
-            ax2b.set_visible(False)
-        
-    # Compute and print correlations only if both BIAS and cloud coverage are present
-    if BIAS is not None and cloud_coverage is not None:
-        corr_raw = corr_no_nan(BIAS, cloud_coverage)
-        corr_smooth7_val = corr_no_nan(BIAS, cc_smooth7) if cc_smooth7 is not None else float('nan')
-        corr_smooth30_val = corr_no_nan(BIAS, cc_smooth30) if cc_smooth30 is not None else float('nan')
-
-        print(f"Correlation between BIAS and raw cloud coverage: {corr_raw:.3f}")
-        print(f"Correlation between BIAS and 7-day smoothed cloud coverage: {corr_smooth7_val:.3f}")
-        print(f"Correlation between BIAS and 30-day smoothed cloud coverage: {corr_smooth30_val:.3f}")
-
-    plt.tight_layout()
-    filename2 = f'{options.variable_name or options.variable}_bias_cloudcoverage.png'
-    plt.savefig(output_path / filename2, **options.savefig_kwargs)
+    filename = f'{options.variable_name}_timeseries.png'
+    save_path = output_path / filename
+    plt.savefig(save_path, **options.savefig_kwargs)
     plt.show(block=False)
     plt.draw()
     plt.close()
@@ -1245,3 +1147,159 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
         plt.pause(options["pause_duration"])
     plt.close()
 ###############################################################################   
+
+###############################################################################   
+def error_components_timeseries(
+    stats_df,
+    output_path,
+    cloud_cover=None,
+    variable_name='',
+    **kwargs
+):
+    # Extract options overriding defaults with user kwargs
+    options = extract_options(kwargs, default_error_timeseries_options)
+    
+    sns.set(style="whitegrid", context='notebook')
+    sns.set_style("ticks")
+    
+    n_plots = 5 if cloud_cover is not None else 4
+    fig, axes = plt.subplots(
+        n_plots, 1,
+        figsize=(options['fig_width'], options['fig_height_per_plot'] * n_plots),
+        sharex=options['sharex']
+    )
+    
+    title = "Comparison between error components timeseries"
+    if cloud_cover is not None:
+        title += " and cloud cover"
+    if variable_name:
+        title += f" ({variable_name})"
+    fig.suptitle(title, fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
+    
+    grid_style = {
+        'color': options['grid_color'],
+        'linestyle': options['grid_linestyle'],
+        'alpha': options['grid_alpha']
+    }
+    
+    stats_df['mean_bias'].plot(ax=axes[0], color=options['mean_bias_color'], legend=False)
+    axes[0].set_ylabel('Mean Bias', fontsize=options['label_fontsize'])
+    axes[0].grid(**grid_style)
+    
+    stats_df['unbiased_rmse'].plot(ax=axes[1], color=options['unbiased_rmse_color'], legend=False)
+    axes[1].set_ylabel('Unbiased RMSE', fontsize=options['label_fontsize'])
+    axes[1].grid(**grid_style)
+    
+    stats_df['std_error'].plot(ax=axes[2], color=options['std_error_color'], legend=False)
+    axes[2].set_ylabel('Std Error', fontsize=options['label_fontsize'])
+    axes[2].grid(**grid_style)
+    
+    stats_df['correlation'].plot(ax=axes[3], color=options['correlation_color'], legend=False)
+    axes[3].set_ylabel('Correlation', fontsize=options['label_fontsize'])
+    axes[3].grid(**grid_style)
+    
+    if cloud_cover is not None:
+        cloud_cover_30d = cloud_cover.rolling(window=options['cloud_cover_rolling_window'], center=True).mean()
+        axes[4].plot(cloud_cover.index, cloud_cover, color=options['cloud_cover_color'], label='Cloud Cover')
+        axes[4].plot(cloud_cover_30d.index, cloud_cover_30d, color=options['cloud_cover_smoothed_color'], label='30-day Smoothed')
+        axes[4].set_ylabel('Cloud Cover (%)', fontsize=options['label_fontsize'])
+        axes[4].grid(**grid_style)
+        axes[4].legend()
+    else:
+        axes[3].set_xlabel('')  # No x-axis label
+        axes[3].grid(**grid_style)
+    
+    for ax in axes:
+        ax.label_outer()
+        style_axes_spines(
+            ax,
+            linewidth=options['spine_linewidth'],
+            edgecolor=options['spine_edgecolor']
+            )   
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    
+    # Save plot
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = options['filename_template'].format(variable_name=variable_name)
+    plt.savefig(output_path / filename)
+    
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(3)
+    plt.close()
+###############################################################################   
+
+###############################################################################      
+def plot_spectral(
+    data=None,
+    plot_type='PSD',
+    freqs=None,
+    fft_components=None,
+    error_comp=None,
+    cloud_covers=None,
+    fs=1.0,
+    nperseg=256,
+    **kwargs
+):
+    options = extract_options(kwargs, default_spectral)
+
+    sns.set(style="whitegrid", context="notebook")
+    sns.set_style("ticks")
+
+    plt.figure(figsize=options['figsize'])
+
+    if plot_type == 'PSD':
+        if freqs is None or fft_components is None:
+            raise ValueError("freqs and fft_components must be provided for PSD plot")
+        for col, fft_vals in fft_components.items():
+            plt.plot(freqs, np.abs(fft_vals), label=col)
+        plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
+        plt.ylabel('Power', fontsize=options['ylabel_fontsize'])
+        plt.title('Power Spectral Density (PSD)', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
+        plt.legend()
+        plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
+        plt.xlim(*options['freq_xlim'])
+        plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
+
+    elif plot_type == 'CSD':
+        if error_comp is None:
+            raise ValueError("error_comp must be provided for CSD plot")
+        if cloud_covers is None or len(cloud_covers) == 0:
+            raise ValueError("At least one cloud_cover tuple (data,label) must be provided in cloud_covers")
+
+        additional_styles = cycle(options['additional_linestyles'])
+        columns = error_comp.columns if hasattr(error_comp, 'columns') else list(error_comp.keys())
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
+        var_colors = {col: colors[i % len(colors)] for i, col in enumerate(columns)}
+
+        for i, (cloud_cover, label) in enumerate(cloud_covers):
+            linestyle = '-' if i == 0 else next(additional_styles)
+            for col in columns:
+                f, Pxy = csd(error_comp[col], cloud_cover, fs=fs, nperseg=nperseg)
+                plt.semilogy(f, np.abs(Pxy), linestyle=linestyle, color=var_colors[col], label=f'{col} vs {label}')
+
+        plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
+        plt.ylabel('Cross Power', fontsize=options['ylabel_fontsize'])
+        labels = ', '.join([label for _, label in cloud_covers])
+        plt.title(f'Cross-Spectral Density with {labels}', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
+        plt.legend()
+        plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
+        plt.xlim(*options['freq_xlim'])
+        plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
+
+    else:
+        raise ValueError(f"Unknown plot_type: {plot_type}")
+
+    ax = plt.gca()
+    ax.spines['top'].set_visible(True)
+    ax.spines['right'].set_visible(True)
+    ax.spines['bottom'].set_visible(True)
+    ax.spines['left'].set_visible(True)
+
+    # Use style_axes_spines with options
+    style_axes_spines(ax, linewidth=options['spine_linewidth'], edgecolor=options['spine_edgecolor'])
+
+    plt.show()
