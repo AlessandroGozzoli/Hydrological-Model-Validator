@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.colors import BoundaryNorm, ListedColormap, LinearSegmentedColormap
 from matplotlib.cm import get_cmap
 import cmocean
-from matplotlib.patches import Polygon
+import collections.abc
 
 ###############################################################################
 def format_unit(unit: str) -> str:
@@ -292,14 +292,14 @@ def plot_line(key: str,
         raise ValueError("Input 'ax' must be a matplotlib.axes.Axes instance.")
     if not isinstance(label_lookup, dict):
         raise ValueError("Input 'label_lookup' must be a dictionary.")
-    if not hasattr(color_palette, '__iter__'):
-        raise ValueError("Input 'color_palette' must be an iterator.")
+    if not isinstance(color_palette, collections.abc.Iterator):
+        raise ValueError("Input 'color_palette' must be an iterator (e.g., from itertools.cycle).")
     if not isinstance(line_width, (int, float)) or line_width <= 0:
         raise ValueError("Input 'line_width' must be a positive number.")
 
     if not isinstance(daily_mean, pd.Series):
         daily_mean = pd.Series(daily_mean)
-
+        
     label = label_lookup.get(key, key)
     color = next(color_palette)
 
@@ -450,6 +450,12 @@ def swifs_colormap(
     z_vars = {"Z3c", "Z4c", "Z5c", "Z6c"}
     r_vars = {"R6c"}
 
+    all_vars = chla_vars | n_vars | p_vars | z_vars | r_vars
+
+    # Raise error early if variable unknown
+    if variable_name not in all_vars:
+        raise ValueError(f"Unknown variable '{variable_name}'. Allowed variables are: {sorted(all_vars)}")
+
     # Assign bin edges and colormap per variable
     if variable_name in chla_vars:
         Lticks = np.array([0.04, 0.05, 0.08, 0.12, 0.20, 0.30, 0.50,
@@ -467,8 +473,6 @@ def swifs_colormap(
         elif variable_name == 'N4n':
             Lticks = np.array([0.1, 0.2, 0.3, 0.5, 0.8, 1.0, 2.0, 3.0,
                                5.0, 8.0, 10.0, 15.0, 20.0])
-        else:
-            raise ValueError(f"Unknown nitrogen variable '{variable_name}'. Allowed: {n_vars}")
         base_cmap = get_cmap("YlGnBu")
 
     elif variable_name in p_vars:
@@ -483,8 +487,6 @@ def swifs_colormap(
         elif variable_name == 'P4c':
             Lticks = np.array([1, 2, 3, 5, 10, 15, 20, 30,
                                50, 75, 100, 150, 200, 250, 300])
-        else:
-            raise ValueError(f"Unknown primary producer variable '{variable_name}'. Allowed: {p_vars}")
         base_cmap = cmocean.cm.algae
 
     elif variable_name in z_vars:
@@ -498,30 +500,22 @@ def swifs_colormap(
             Lticks = np.array([1, 1.5, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100])
         elif variable_name == 'Z6c':
             Lticks = np.array([1, 1.5, 2, 3, 5, 7, 10, 15, 20, 30, 50])
-        else:
-            raise ValueError(f"Unknown secondary producer variable '{variable_name}'. Allowed: {z_vars}")
         base_cmap = cmocean.cm.turbid
 
     elif variable_name in r_vars:
-        if variable_name == 'R6c':
-            Lticks = np.array([1, 2, 5, 10, 20, 50, 100, 200, 300, 400, 500])
-        else:
-            raise ValueError(f"Unknown organic matter variable '{variable_name}'. Allowed: {r_vars}")
+        # Only R6c for now
+        Lticks = np.array([1, 2, 5, 10, 20, 50, 100, 200, 300, 400, 500])
         base_cmap = cmocean.cm.matter
 
-    else:
-        # Default linear bins between data min and max
-        min_val = np.nanmin(data_in)
-        max_val = np.nanmax(data_in)
-        if np.isnan(min_val) or np.isnan(max_val):
-            raise ValueError("data_in contains only NaNs, cannot determine default bins.")
-        Lticks = np.linspace(min_val, max_val, 11)
-        base_cmap = get_cmap("viridis")
+    # Validate data_in to not be all NaNs
+    min_val = np.nanmin(data_in)
+    max_val = np.nanmax(data_in)
+    if np.isnan(min_val) or np.isnan(max_val):
+        raise ValueError("data_in contains only NaNs, cannot determine bins.")
 
     n_colors = len(Lticks) - 1
 
     # Convert continuous colormap to discrete ListedColormap with n_colors
-    # Safe fallback if base_cmap.colors attribute doesn't exist
     try:
         colors = base_cmap(np.linspace(0, 1, n_colors))
     except Exception:
@@ -725,8 +719,6 @@ def custom_oxy(vmin=0, vmax=350, low=62.5, high=312.5, name='oxy_custom'):
     -------
     cmap : LinearSegmentedColormap
         The resulting custom colormap.
-    norm : Normalize
-        Normalization instance for mapping data to 0-1 for the colormap.
     """
     # Normalize threshold positions from data range to 0-1
     x_low = (low - vmin) / (vmax - vmin)
@@ -772,5 +764,5 @@ def custom_oxy(vmin=0, vmax=350, low=62.5, high=312.5, name='oxy_custom'):
         ],
     }
 
-    cmap = mcolors.LinearSegmentedColormap('CustomRedGrayYellow', segmentdata=cdict, N=256)
+    cmap = mcolors.LinearSegmentedColormap(name, segmentdata=cdict, N=256)
     return cmap

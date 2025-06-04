@@ -60,26 +60,23 @@ def monthly_r_squared(data_dict: dict) -> list[float]:
     sat_monthly = data_dict[sat_key]
 
     years = list(mod_monthly.keys())
-
     r2_monthly = []
 
     for month in range(12):
-        # Extract arrays for all years at this month
         mod_arrays = [np.asarray(mod_monthly[year][month]).ravel() for year in years]
         sat_arrays = [np.asarray(sat_monthly[year][month]).ravel() for year in years]
 
-        # Concatenate all year data for this month
         mod_concat = np.concatenate(mod_arrays)
         sat_concat = np.concatenate(sat_arrays)
 
-        # Create mask of valid pairs
         valid_mask = ~np.isnan(mod_concat) & ~np.isnan(sat_concat)
 
         if np.any(valid_mask):
-            r2 = r_squared(sat_concat[valid_mask], mod_concat[valid_mask])
+            r2 = r_squared(mod_concat[valid_mask], sat_concat[valid_mask])
         else:
             r2 = np.nan
 
+        print(f"Month {month+1}: R² = {r2}")
         r2_monthly.append(r2)
 
     return r2_monthly
@@ -109,14 +106,25 @@ def weighted_r_squared(obs, pred):
     if np.sum(mask) < 2:
         return np.nan
     
+    x = obs[mask]
+    y = pred[mask]
+
     # Compute standard R² on valid data
-    r2 = r_squared(obs[mask], pred[mask])
+    r2 = r_squared(x, y)
     
-    slope, _ = np.polyfit(obs[mask], pred[mask], 1)
-    
-    weight = abs(slope) if slope <= 1 else abs(1 / slope)
-    
-    return weight * r2
+    # Fit slope of pred vs obs
+    slope, intercept = np.polyfit(x, y, 1)
+
+    # Use absolute value of slope, clipped to [0, 1]
+    slope_abs = abs(slope)
+    weight = slope_abs if slope_abs <= 1 else 1 / slope_abs
+
+    # To avoid zero weight when slope is close to zero, add a small floor
+    weight = max(weight, 0.1)
+
+    weighted_r2 = weight * r2
+
+    return weighted_r2
 ###############################################################################
 
 ###############################################################################    
@@ -203,7 +211,7 @@ def nse(obs, pred):
     denominator = np.sum((obs_masked - np.mean(obs_masked)) ** 2)
     
     if denominator == 0:
-        return np.nan  # Avoid division by zero
+        return np.nan
     
     return 1 - numerator / denominator
 ###############################################################################
@@ -292,8 +300,8 @@ def index_of_agreement(obs, pred):
     denominator = np.sum((np.abs(pred_masked - np.mean(obs_masked)) + np.abs(obs_masked - np.mean(obs_masked))) ** 2)
 
     if denominator == 0:
-        return np.nan  # Avoid division by zero
-
+        return np.nan
+    
     return 1 - numerator / denominator
 ###############################################################################
 
@@ -733,7 +741,6 @@ def relative_index_of_agreement(obs, pred):
     obs = np.asarray(obs)
     pred = np.asarray(pred)
 
-    # Mask valid data and avoid division by zero in obs
     mask = ~np.isnan(obs) & ~np.isnan(pred) & (obs != 0)
     if np.sum(mask) < 2:
         return np.nan
@@ -747,7 +754,7 @@ def relative_index_of_agreement(obs, pred):
         ((np.abs(pred_masked - obs_mean) + np.abs(obs_masked - obs_mean)) / obs_mean) ** 2
     )
 
-    if denominator == 0:
+    if np.allclose(obs_masked, obs_mean):
         return np.nan
 
     return 1 - numerator / denominator
@@ -794,7 +801,7 @@ def monthly_relative_index_of_agreement(dictionary):
         mask = (~np.isnan(mod_all)) & (~np.isnan(sat_all)) & (sat_all != 0)
 
         if np.any(mask):
-            d_rel = relative_index_of_agreement(sat_all[mask], mod_all[mask])
+            d_rel = relative_index_of_agreement(mod_all[mask], sat_all[mask])
         else:
             d_rel = np.nan
 

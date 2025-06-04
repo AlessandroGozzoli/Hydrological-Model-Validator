@@ -250,9 +250,10 @@ def compute_dense_water_volume(
     dz: float = 2.0,
     dx: float = 800.0,
     dy: float = 800.0,
+    dens_threshold: float = 1029.2,  # Added parameter with default value
 ) -> List[Dict]:
     """
-    Compute the volume of dense water (density >= 1029.2 kg/m³) over time.
+    Compute the volume of dense water (density >= dens_threshold kg/m³) over time.
 
     Parameters
     ----------
@@ -270,6 +271,8 @@ def compute_dense_water_volume(
         Horizontal grid spacing in meters along x (default 800.0).
     dy : float, optional
         Horizontal grid spacing in meters along y (default 800.0).
+    dens_threshold : float, optional
+        Density threshold for defining dense water in kg/m³ (default 1029.2).
 
     Returns
     -------
@@ -340,7 +343,7 @@ def compute_dense_water_volume(
         density_4d = calc_density(temp, sal, depths, valid_mask, density_method)
 
         # Boolean mask of dense water cells (4D)
-        dense_cells = density_4d >= 1029.2
+        dense_cells = density_4d >= dens_threshold  # Use parameter here
 
         # Sum dense cells per time slice (axis 1,2,3)
         dense_counts = np.sum(dense_cells, axis=(1, 2, 3))

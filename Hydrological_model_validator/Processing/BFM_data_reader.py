@@ -43,7 +43,6 @@ def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> List[np.ndarray
         bottom_data[t] = data_t_flat[B_idx.ravel(), flat_spatial].reshape(ny, nx)
     
     return [bottom_data[t] for t in range(time_len)]
-
 ###############################################################################
 
 ###############################################################################

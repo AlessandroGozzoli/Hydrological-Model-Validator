@@ -42,8 +42,10 @@ def find_key(
     """
     if not isinstance(dictionary, dict):
         raise ValueError("Input 'dictionary' must be a dictionary.")
-    if not (hasattr(possible_keys, '__iter__') and all(isinstance(k, str) for k in possible_keys)):
-        raise ValueError("Input 'possible_keys' must be an iterable of strings.")
+    if not (hasattr(possible_keys, '__iter__') and
+            not isinstance(possible_keys, str) and
+            all(isinstance(k, str) for k in possible_keys)):
+        raise ValueError("Input 'possible_keys' must be an iterable of strings, not a string itself.")
 
     possible_keys_lower = [sub.lower() for sub in possible_keys]
 

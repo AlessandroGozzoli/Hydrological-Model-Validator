@@ -171,15 +171,24 @@ def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output
     ------
     ValueError
         If output_path is not a valid directory.
+    TypeError
+        If data items are not NumPy arrays or xarray DataArrays.
     """
     output_path = Path(output_path)
     if not output_path.is_dir():
         raise ValueError(f"'{output_path}' is not a valid directory")
 
     for var_name, data in data_dict.items():
-        if not isinstance(data, xr.DataArray):
+        # Ensure the data is a DataArray
+        if isinstance(data, np.ndarray):
             data = xr.DataArray(data, name=var_name)
+        elif isinstance(data, xr.DataArray):
+            if data.name is None:
+                data.name = var_name
+        else:
+            raise TypeError(f"Data for variable '{var_name}' must be a NumPy array or xarray DataArray")
 
-        ds = xr.Dataset({var_name: data})
+        # Create Dataset and save to NetCDF
+        ds = xr.Dataset({data.name: data})
         filepath = output_path / f"{var_name}.nc"
         ds.to_netcdf(filepath)

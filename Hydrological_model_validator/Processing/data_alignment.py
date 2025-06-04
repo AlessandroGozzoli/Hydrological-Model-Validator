@@ -171,7 +171,18 @@ def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> Lis
     Relies on a helper function `extract_mod_sat_keys(data_dict)` which returns
     (model_key, satellite_key) strings to access data_dict.
     """
+
+    if not isinstance(data_dict, dict):
+        raise TypeError(f"Expected input data to be dict, got {type(data_dict)}")
+
     mod_key, sat_key = extract_mod_sat_keys(data_dict)
+
+    # Added type checks for the model and satellite sub-dictionaries
+    if not isinstance(data_dict[mod_key], dict):
+        raise TypeError(f"Expected '{mod_key}' data to be a dict keyed by years, got {type(data_dict[mod_key])}")
+    if not isinstance(data_dict[sat_key], dict):
+        raise TypeError(f"Expected '{sat_key}' data to be a dict keyed by years, got {type(data_dict[sat_key])}")
+
     common_series = []
 
     for year in sorted(data_dict[mod_key].keys()):
@@ -208,17 +219,42 @@ def get_common_series_by_year_month(data_dict: Dict[str, Dict[Union[int, str], L
         - numpy array of aligned model values for that month
         - numpy array of aligned satellite values for that month
     """
-    mod_key, sat_key = extract_mod_sat_keys(data_dict)
-    result = []
+    if not isinstance(data_dict, dict):
+        raise TypeError(f"Expected data_dict to be dict, got {type(data_dict)}")
 
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+
+    if data_dict.get(mod_key) is None or data_dict.get(sat_key) is None:
+        raise TypeError(f"Missing '{mod_key}' or '{sat_key}' data in data_dict")
+
+    if not isinstance(data_dict[mod_key], dict) or not isinstance(data_dict[sat_key], dict):
+        raise TypeError(f"Expected '{mod_key}' and '{sat_key}' data to be dicts keyed by year")
+
+    result = []
     years = sorted(data_dict[mod_key].keys())
+
     for year in years:
+        mod_year_data = data_dict[mod_key].get(year)
+        sat_year_data = data_dict[sat_key].get(year)
+
+        if mod_year_data is None or sat_year_data is None:
+            # Missing data for this year
+            print(f"Warning: Missing model or satellite data for year {year}, skipping.")
+            continue
+
+        if not isinstance(mod_year_data, list) or not isinstance(sat_year_data, list):
+            raise TypeError(f"Monthly data for year {year} should be lists of arrays")
+
+        if len(mod_year_data) != 12 or len(sat_year_data) != 12:
+            raise ValueError(f"Expected 12 monthly arrays for year {year}, got {len(mod_year_data)} and {len(sat_year_data)}")
+
         for month_index in range(12):
             try:
-                mod_vals = np.asarray(data_dict[mod_key][year][month_index])
-                sat_vals = np.asarray(data_dict[sat_key][year][month_index])
-            except (IndexError, KeyError):
-                # If month or year key missing, skip
+                mod_vals = np.asarray(mod_year_data[month_index])
+                sat_vals = np.asarray(sat_year_data[month_index])
+            except (IndexError, KeyError, TypeError):
+                # If month or year key missing or invalid, skip
+                print(f"Warning: Missing or invalid data for year {year}, month {month_index}. Skipping.")
                 continue
 
             valid = get_valid_mask(mod_vals, sat_vals)
@@ -229,6 +265,7 @@ def get_common_series_by_year_month(data_dict: Dict[str, Dict[Union[int, str], L
             result.append((int(year), month_index, mod_vals[valid], sat_vals[valid]))
 
     return result
+
 ###############################################################################
 
 ###############################################################################
@@ -248,9 +285,14 @@ def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
 
     Raises
     ------
+    TypeError
+        If input is not a dictionary.
     ValueError
         If model or satellite keys cannot be found in the dictionary.
     """
+    if not isinstance(taylor_dict, dict):
+        raise TypeError("Input 'dictionary' must be a dictionary.")
+
     mod_key = find_key(taylor_dict, ['mod', 'model', 'predicted'])
     sat_key = find_key(taylor_dict, ['sat', 'satellite', 'observed'])
 
@@ -292,12 +334,12 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     if key not in data_dict:
         raise ValueError(f"Key '{key}' not found in data_dict")
     if not (isinstance(month_idx, int) and 0 <= month_idx <= 11):
-        raise ValueError("month_idx must be an integer between 0 and 11")
+        raise IndexError("month_idx must be an integer between 0 and 11")
 
     values = []
     for year, year_data in data_dict[key].items():
         if not isinstance(year_data, (list, tuple)) or len(year_data) != 12:
-            raise ValueError(f"Year {year} does not have 12 months of data")
+            raise IndexError(f"Year {year} does not have 12 months of data")
         month_data = np.asarray(year_data[month_idx]).flatten()
         values.append(month_data)
 
@@ -335,17 +377,11 @@ def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
     if mask3d.ndim != 3:
         raise ValueError("mask3d must be a 3D array")
 
-    if data.shape[-3:] != mask3d.shape:
-        try:
-            # Test broadcastability
-            np.broadcast_shapes(data[..., -3:].shape, mask3d.shape)
-        except ValueError:
-            raise ValueError(f"mask3d shape {mask3d.shape} is not broadcast-compatible with data shape {data.shape}")
+    try:
+        # Attempt to broadcast mask3d to match data shape
+        broadcast_mask = np.broadcast_to(mask3d, data.shape[-3:])
+        full_mask = np.broadcast_to(broadcast_mask, data.shape)
+    except ValueError:
+        raise ValueError(f"mask3d shape {mask3d.shape} is not broadcast-compatible with data shape {data.shape}")
 
-    masked_data = data.copy()
-    mask_bool = (mask3d == 0)
-
-    # Use broadcasting to apply mask across time or other leading dimensions
-    masked_data[..., mask_bool] = np.nan
-
-    return masked_data
+    return np.where(full_mask == 0, np.nan, data)

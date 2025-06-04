@@ -31,7 +31,18 @@ def compute_taylor_stat_tuple(mod_values: np.ndarray,
         - centered RMSD (float)
         - correlation coefficient (float)
     """
-    stats = sm.taylor_statistics(mod_values, sat_values, 'data')
+    if mod_values.size == 0 or sat_values.size == 0:
+        raise ValueError("Input arrays must not be empty.")
+
+    # Mask to keep only finite pairs
+    valid_mask = np.isfinite(mod_values) & np.isfinite(sat_values)
+    if not np.any(valid_mask):
+        raise ValueError("No valid finite data pairs found in input arrays.")
+
+    mod_valid = mod_values[valid_mask]
+    sat_valid = sat_values[valid_mask]
+
+    stats = sm.taylor_statistics(mod_valid, sat_valid, 'data')
     return (label, stats['sdev'][1], stats['crmsd'][1], stats['ccoef'][1])
 ###############################################################################
 
@@ -65,11 +76,13 @@ def compute_std_reference(sat_data_by_year: Dict[Union[int, str], List[Union[np.
     if not (0 <= month_index <= 11):
         raise ValueError(f"month_index must be between 0 and 11, got {month_index}")
 
-    monthly_data = [
-        np.asarray(sat_data_by_year[year][month_index]).flatten()
-        for year in years
-        if year in sat_data_by_year and month_index < len(sat_data_by_year[year])
-    ]
+    monthly_data = []
+    for year in years:
+        if year in sat_data_by_year and month_index < len(sat_data_by_year[year]):
+            arr = np.asarray(sat_data_by_year[year][month_index]).flatten()
+            if arr.size == 0:
+                raise ValueError(f"Empty data array for year {year}, month {month_index}")
+            monthly_data.append(arr)
 
     if not monthly_data:
         raise ValueError(f"No valid satellite data found for month index {month_index} across given years.")
