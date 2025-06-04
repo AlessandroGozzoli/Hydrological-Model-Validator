@@ -1,3 +1,47 @@
+# **Version:** 4.6.0
+**Date:** 04/06/2025
+
+## Summary
+
+This update introduces a new section focused on temporal and spectral analysis of error components (mean bias, unbiased RMSE, standard deviation error, and cross-correlation). Additionally, it fixes a critical issue in the `standard_deviation_error` computation.
+
+## Temporal Analysis
+
+The new functionality computes the time evolution of key error metrics using 2D daily mean datasets. These time series are then correlated with cloud coverage percentages to explore how cloud cover affects model performance. This analysis is handled via:
+- `compute_error_timeseries`
+- `compute_stats_single_time`  
+Both located in the `Efficiency_metrics.py` submodule and supported by statistical tools from `stats_math_utils.py`.
+
+New plotting utilities have been introduced to visualize these insights.
+
+## Spectral Analysis
+
+Two types of spectral analysis have been introduced:
+- **Power Spectral Density (PSD)**  
+- **Cross Spectral Density (CSD)**  
+
+These help identify dominant temporal frequencies and assess relationships between error signals and cloud cover.
+
+All related computations are located in `stats_math_utils.py`.
+
+## Hotfix
+
+- Fixed incorrect computation logic in the `standard_deviation_error` function, which previously returned incorrect values.
+
+## Future Works
+
+- Add test coverage for new functions introduced in this update.
+- Continue expanding and refining in-script documentation for improved clarity.
+- Rework and expand the `README.md` for clearer user guidance.
+- Complete the packaging setup:  
+  - `AUTHORS`  
+  - `MANIFEST.in`  
+  - `pyproject.toml`  
+  - `requirements.txt`  
+  - Optional `environment.yml`
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.5.0
 **Date:** 04/06/2025
 
