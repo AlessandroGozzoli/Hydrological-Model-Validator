@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 from .stats_math_utils import (mean_bias, 
                                standard_deviation_error, 
@@ -849,3 +850,51 @@ def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
     
     return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
 ###############################################################################
+
+###############################################################################
+def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.DataArray, basin_mask: xr.DataArray) -> pd.DataFrame:
+    """
+    Compute daily statistics between model and satellite SST over the basin mask.
+
+    Returns a DataFrame indexed by time with columns for each metric.
+    """
+    # Expand mask to 3D (time, lat, lon)
+
+    # Mask the datasets
+    model_masked = model_sst_data.where(basin_mask)
+    sat_masked = sat_sst_data.where(basin_mask)
+
+    n_time = model_masked.sizes['time']
+
+    stats_list = []
+    for t in range(n_time):
+        m = model_masked.isel(time=t).values.flatten()
+        o = sat_masked.isel(time=t).values.flatten()
+        stats_list.append(compute_stats_single_time(m, o))
+
+    dates = model_sst_data.time.values
+    stats_df = pd.DataFrame(stats_list, index=pd.to_datetime(dates))
+    return stats_df
+
+###############################################################################
+
+###############################################################################
+def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) -> dict:
+    """
+    Compute statistics between model and satellite for a single time slice.
+
+    Returns a dict with mean_bias, unbiased_rmse, std_error, correlation.
+    """
+    valid = ~np.isnan(model_slice) & ~np.isnan(sat_slice)
+    if valid.sum() == 0:
+        return dict(mean_bias=np.nan, unbiased_rmse=np.nan, std_error=np.nan, correlation=np.nan)
+
+    m_valid = model_slice[valid]
+    o_valid = sat_slice[valid]
+
+    return dict(
+        mean_bias=mean_bias(m_valid, o_valid),
+        unbiased_rmse=unbiased_rmse(m_valid, o_valid),
+        std_error=standard_deviation_error(m_valid, o_valid),
+        correlation=cross_correlation(m_valid, o_valid)
+    )
