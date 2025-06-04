@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
 from pathlib import Path
 import re
 import numpy as np
+import xarray as xr
 
 ###############################################################################
 def find_key(
@@ -261,3 +262,19 @@ def find_key_variable(nc_vars, candidates):
             f"\033[91m❌ None of the variables {candidates} found in the dataset\033[0m"
         )
     return found_var
+###############################################################################
+
+###############################################################################
+def _to_dataarray(val, reference_da):
+    """Ensure output is an xarray.DataArray, broadcast to reference lat/lon shape if needed."""
+    if isinstance(val, xr.DataArray):
+        return val
+
+    # Select a time slice if 'time' exists, otherwise just use the reference as-is
+    if 'time' in reference_da.dims:
+        ref = reference_da.isel(time=0)
+    else:
+        ref = reference_da
+
+    # Drop 'time' coord (if any) and fill with scalar value
+    return xr.full_like(ref, val)
