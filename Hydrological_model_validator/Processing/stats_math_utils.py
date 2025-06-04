@@ -5,6 +5,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 import xarray as xr
 from scipy.signal import detrend
 import pandas as pd
+from scipy.fft import fft, fftfreq
 
 ###############################################################################
 def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -283,46 +284,73 @@ def detrend_dim(
 ###############################################################################
 def mean_bias(m, o, time_dim='time'):
     """Compute the mean bias between model and observations."""
-    m_mean = m.mean(dim=time_dim)
-    o_mean = o.mean(dim=time_dim)
-    return m_mean - o_mean
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
+        return np.nanmean(m) - np.nanmean(o)
+    return m.mean(dim=time_dim) - o.mean(dim=time_dim)
 ###############################################################################
 
 ###############################################################################
 def standard_deviation_error(m, o, time_dim='time'):
-    """Compute standard deviation error (CRMSD) between m and o."""
-    m_mean = m.mean(dim=time_dim)
-    o_mean = o.mean(dim=time_dim)
-    m_anom = m - m_mean
-    o_anom = o - o_mean
-    var_m = (m_anom ** 2).mean(dim=time_dim)
-    var_o = (o_anom ** 2).mean(dim=time_dim)
-    cov_mo = (m_anom * o_anom).mean(dim='time')
-    return (var_m + var_o - 2 * cov_mo) ** 0.5
+    """Compute difference between standard deviations of m and o.
+
+    Raises ValueError if inputs have different lengths along time_dim.
+    """
+    # Check length compatibility
+    if isinstance(m, (pd.Series, np.ndarray)) and isinstance(o, (pd.Series, np.ndarray)):
+        if len(m) != len(o):
+            raise ValueError("Inputs 'm' and 'o' must have the same length.")
+    elif time_dim in getattr(m, 'dims', []) and time_dim in getattr(o, 'dims', []):
+        if m.sizes[time_dim] != o.sizes[time_dim]:
+            raise ValueError(f"Inputs 'm' and 'o' must have the same length along dimension '{time_dim}'.")
+    else:
+        # If dims are missing, no check is performed (optional: raise warning or error)
+        pass
+
+    # Compute difference of std devs
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+        sdm = np.nanstd(m)
+        sdo = np.nanstd(o)
+    else:
+        sdm = m.std(dim=time_dim)
+        sdo = o.std(dim=time_dim)
+    return sdm - sdo
 ###############################################################################
 
 ###############################################################################
 def cross_correlation(m, o, time_dim='time'):
     """Compute Pearson correlation coefficient between m and o."""
-    m_mean = m.mean(dim=time_dim)
-    o_mean = o.mean(dim=time_dim)
-    m_anom = m - m_mean
-    o_anom = o - o_mean
-    cov = (m_anom * o_anom).mean(dim=time_dim)
-    std_m = (m_anom ** 2).mean(dim=time_dim) ** 0.5
-    std_o = (o_anom ** 2).mean(dim=time_dim) ** 0.5
-    return cov * ((1 / std_m) * (1 / std_o))
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
+        m_mean = np.nanmean(m)
+        o_mean = np.nanmean(o)
+        m_anom = m - m_mean
+        o_anom = o - o_mean
+        cov = np.nanmean(m_anom * o_anom)
+        std_m = np.sqrt(np.nanmean(m_anom ** 2))
+        std_o = np.sqrt(np.nanmean(o_anom ** 2))
+    else:
+        m_mean = m.mean(dim=time_dim)
+        o_mean = o.mean(dim=time_dim)
+        m_anom = m - m_mean
+        o_anom = o - o_mean
+        cov = (m_anom * o_anom).mean(dim=time_dim)
+        std_m = np.sqrt((m_anom ** 2).mean(dim=time_dim))
+        std_o = np.sqrt((o_anom ** 2).mean(dim=time_dim))
+    return cov / (std_m * std_o)
 ###############################################################################
 
 ###############################################################################
 def corr_no_nan(series1, series2):
+    """Pandas-only quick Pearson correlation ignoring NaNs."""
     combined = pd.concat([series1, series2], axis=1).dropna()
-    return combined.iloc[:,0].corr(combined.iloc[:,1])
+    return combined.iloc[:, 0].corr(combined.iloc[:, 1])
 ###############################################################################
 
 ###############################################################################
 def std_dev(da, time_dim='time'):
-    """Compute standard deviation of a DataArray along time dimension."""
+    """Compute standard deviation along time dimension."""
+    if isinstance(da, (pd.Series, np.ndarray)) or time_dim not in da.dims:
+        mean = np.nanmean(da)
+        return np.sqrt(np.nanmean((da - mean) ** 2))
     mean = da.mean(dim=time_dim)
     return ((da - mean) ** 2).mean(dim=time_dim) ** 0.5
 ###############################################################################
@@ -330,9 +358,61 @@ def std_dev(da, time_dim='time'):
 ###############################################################################
 def unbiased_rmse(m, o, time_dim='time'):
     """Compute unbiased RMSE (centered RMSE) between m and o."""
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
+        m_mean = np.nanmean(m)
+        o_mean = np.nanmean(o)
+        m_anom = m - m_mean
+        o_anom = o - o_mean
+        return np.sqrt(np.nanmean((m_anom - o_anom) ** 2))
     m_mean = m.mean(dim=time_dim)
     o_mean = o.mean(dim=time_dim)
     m_anom = m - m_mean
     o_anom = o - o_mean
     return ((m_anom - o_anom) ** 2).mean(dim=time_dim) ** 0.5
 ###############################################################################
+
+###############################################################################
+def spatial_mean(data_array, mask):
+    # Mask is 2D boolean (lat, lon)
+    return data_array.where(mask).mean(dim=['lat', 'lon'], skipna=True)
+###############################################################################
+
+###############################################################################
+def compute_lagged_correlations(series1, series2, max_lag=30):
+    lags = range(-max_lag, max_lag + 1)
+    results = {}
+    for lag in lags:
+        shifted = series2.shift(lag)
+        results[lag] = corr_no_nan(series1, shifted)
+    return pd.Series(results)
+###############################################################################
+
+###############################################################################
+def compute_fft(data, dt=1):
+    """
+    Compute FFT and positive frequencies for input data.
+
+    Parameters:
+    - data: dict of 1D arrays/Series or a single 1D array/Series
+    - dt: sampling interval (default=1)
+
+    Returns:
+    - freqs: array of positive FFT frequencies
+    - fft_result: dict of FFT arrays if input is dict, else single FFT array
+    """
+    if isinstance(data, dict):
+        # Assume all series/arrays have same length
+        N = len(next(iter(data.values())))
+        freqs = fftfreq(N, dt)[:N//2]
+        fft_result = {
+            key: fft(arr)[:N//2]
+            for key, arr in data.items()
+        }
+        return freqs, fft_result
+
+    else:
+        # Single array/series input
+        N = len(data)
+        freqs = fftfreq(N, dt)[:N//2]
+        fft_result = fft(data)[:N//2]
+        return freqs, fft_result
