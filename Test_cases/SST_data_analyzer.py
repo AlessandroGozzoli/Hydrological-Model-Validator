@@ -1080,7 +1080,11 @@ _, fft_cloud_30d = compute_fft(cloud_cover_30d_detrended.values)
 plot_spectral(plot_type='PSD', freqs=freqs, fft_components=fft_components)
 
 # CSD vs cloud_cover
-plot_spectral(plot_type='CSD', error_comp=error_comp_clean, cloud_cover=cloud_cover_clean, cloud_label='cloud_cover')
-
-# CSD vs cloud_cover_30d
-plot_spectral(plot_type='CSD', error_comp=error_comp_clean, cloud_cover=cloud_cover_30d_clean, cloud_label='cloud_cover_30d')
+plot_spectral(
+    plot_type='CSD',
+    error_comp=error_comp_clean,
+    cloud_covers=[
+        (cloud_cover_clean, 'cloud_cover'),
+        (cloud_cover_30d_clean, 'cloud_cover_30d')
+    ]
+)
