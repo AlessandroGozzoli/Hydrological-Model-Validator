@@ -336,7 +336,9 @@ def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> Lis
 ###############################################################################
 
 ###############################################################################
-def get_common_series_by_year_month(data_dict: Dict[str, Dict[Union[int, str], List[np.ndarray]]]) -> List[Tuple[int, int, np.ndarray, np.ndarray]]:
+def get_common_series_by_year_month(
+    data_dict: Dict[str, Dict[Union[int, str], List[np.ndarray]]]
+) -> List[Tuple[int, int, np.ndarray, np.ndarray]]:
     """
     Extract and align monthly model and satellite data by year.
 
@@ -377,54 +379,48 @@ def get_common_series_by_year_month(data_dict: Dict[str, Dict[Union[int, str], L
     ...     'satellite': {
     ...         2000: [np.array([1.1, 2.2]), np.array([2.1]), *[np.array([])]*10]
     ...     }
-    ...     }
+    ... }
     >>> get_common_series_by_year_month(data)
     [(2000, 0, array([1.]), array([1.1])), (2000, 1, array([2.]), array([2.1]))]
     """
+
     if not isinstance(data_dict, dict):
         raise TypeError("data_dict must be a dictionary")
 
-    # Identify the keys corresponding to model and satellite data
+    # Identify model and satellite keys from the dictionary keys
     mod_key, sat_key = extract_mod_sat_keys(data_dict)
 
     model_data = data_dict.get(mod_key, {})
     satellite_data = data_dict.get(sat_key, {})
 
-    # Ensure both model and satellite data are dictionaries
     if not isinstance(model_data, dict) or not isinstance(satellite_data, dict):
         raise TypeError("Sub-values of data_dict must be dictionaries of lists of numpy arrays")
 
     results = []
 
-    # Determine the set of years that are common to both datasets
+    # Find common years
     common_years = sorted(set(model_data.keys()) & set(satellite_data.keys()))
 
     for year in common_years:
         mod_monthly = model_data[year]
         sat_monthly = satellite_data[year]
 
-        # Validate monthly data format
-        if not isinstance(mod_monthly, list) or not isinstance(sat_monthly, list):
-            raise TypeError(f"Data for year {year} must be a list of numpy arrays")
+        if not isinstance(mod_monthly, (list, tuple)) or not isinstance(sat_monthly, (list, tuple)):
+            raise TypeError(f"Data for year {year} must be a list or tuple of numpy arrays")
         if len(mod_monthly) != 12 or len(sat_monthly) != 12:
             raise ValueError(f"Year {year} does not contain 12 monthly entries")
 
         for month in range(12):
-            mod_vals = mod_monthly[month]
-            sat_vals = sat_monthly[month]
+            mod_vals = np.asarray(mod_monthly[month])
+            sat_vals = np.asarray(sat_monthly[month])
 
-            # Ensure monthly data are NumPy arrays
-            if not isinstance(mod_vals, np.ndarray) or not isinstance(sat_vals, np.ndarray):
-                raise TypeError(f"Monthly data must be numpy arrays for year {year}, month {month}")
-
-            # Skip if shapes are incompatible for alignment
+            # Skip if shapes differ
             if mod_vals.shape != sat_vals.shape:
                 continue
 
-            # Filter out NaN values and align arrays
+            # Align arrays by removing entries where either is NaN
             mod_filtered, sat_filtered = align_numpy_arrays(mod_vals, sat_vals)
 
-            # Only include month if there's at least one valid data point
             if len(mod_filtered) > 0:
                 results.append((int(year), month, mod_filtered, sat_filtered))
 
@@ -533,7 +529,7 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     Raises
     ------
     ValueError
-        If `data_dict` is not a dictionary or `key` is not found in it.
+        If `data_dict` is not a dictionary or `key` is not found in it, or data for a year/month is invalid.
     IndexError
         If `month_idx` is not in the range 0 to 11 or if any year's data does not have 12 monthly entries.
 
@@ -548,51 +544,38 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     >>> gather_monthly_data_across_years(data, 'mod', 0)
     array([1., 2., 5.])
     """
-    # Validate input type to avoid runtime errors
     if not isinstance(data_dict, dict):
         raise ValueError("data_dict must be a dictionary")
-    # Ensure the requested dataset key exists; otherwise, no data to collect
     if key not in data_dict:
         raise ValueError(f"Key '{key}' not found in data_dict")
-    # Validate month index to ensure we are within the expected range of months
-    if not (0 <= month_idx <= 11):
-        raise IndexError("month_idx must be between 0 and 11")
+    if not isinstance(month_idx, int) or not (0 <= month_idx <= 11):
+        raise IndexError("month_idx must be an integer between 0 and 11")
 
-    # Extract the dictionary mapping years to monthly data arrays/lists
     year_data = data_dict[key]
-    all_data = []  # Container for data arrays from each year
+    all_data = []
 
-    # Iterate over all years for the selected dataset key
     for year, monthly_list in year_data.items():
-        # Check that each year's data is a list or tuple to access months by index
         if not isinstance(monthly_list, (list, tuple)):
             raise ValueError(f"Year {year} data must be a list or tuple")
-        # Ensure exactly 12 entries for each month to maintain data consistency
         if len(monthly_list) != 12:
             raise IndexError(f"Year {year} does not contain 12 monthly entries")
 
-        # Extract data for the specified month index
         month_data = monthly_list[month_idx]
 
-        # Convert lists to numpy arrays for uniform processing
-        if isinstance(month_data, list):
-            month_data = np.array(month_data)
-        # Validate that data is now array-like for further operations
-        elif not isinstance(month_data, np.ndarray):
-            raise ValueError(f"Monthly data for year {year}, month {month_idx} is not array-like")
+        # Use np.asarray to handle any array-like input flexibly
+        month_array = np.asarray(month_data)
 
-        # Flatten the array to 1D to concatenate heterogeneous shapes easily
-        flat_data = month_data.ravel()
-        # Accumulate the flattened data for concatenation later
+        if month_array.ndim == 0:
+            # For scalar values, convert to 1D array explicitly
+            month_array = month_array.reshape(1)
+
+        flat_data = month_array.ravel()
         all_data.append(flat_data)
 
-    # If no data was collected (e.g., empty input), return an empty array promptly
     if not all_data:
         return np.array([])
 
-    # Concatenate all yearly monthly data into one 1D array to aggregate across years
     concatenated = np.concatenate(all_data)
-    # Remove NaN values to provide only valid measurements for analysis
     valid_data = concatenated[~np.isnan(concatenated)]
     return valid_data
 ###############################################################################
