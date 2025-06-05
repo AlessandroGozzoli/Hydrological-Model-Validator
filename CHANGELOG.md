@@ -1,5 +1,21 @@
+# **Version:** 4.7.0 
+**Date:** 05/06/2025
+
+## Summary
+
+The `Data_saver.py` script has been updated to improve clarity, robustness, and flexibility for users.
+
+## Enhancements
+
+- Expanded documentation with improved **docstrings**, **inline comments**, and **input validation** to ensure safer use.
+- Two new utility functions added to support saving data in **`.json`** format, broadening the script's export capabilities:
+  - `convert_to_serializable`: Converts standard Python objects (including NumPy arrays and datetime types) into JSON-conformant formats.
+  - `save_variable_to_json`: Handles the actual save operation to a `.json` file.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.6.3  
-**Date:** 29/05/2025
+**Date:** 05/06/2025
 
 ## Summary
 
@@ -14,7 +30,7 @@ The `data_alignment.py` script has been updated with more extensive documentatio
 --------------------------------------------------------------------------------------
 
 # **Version:** 4.6.2  
-**Date:** 29/05/2025
+**Date:** 05/06/2025
 
 ## Summary
 
@@ -32,7 +48,7 @@ The `BFM_data_reader.py` submodule, along with its corresponding pytest, has bee
 --------------------------------------------------------------------------------------
 
 # **Version:** 4.6.1  
-**Date:** 04/06/2025
+**Date:** 05/06/2025
 
 ## Summary
 
