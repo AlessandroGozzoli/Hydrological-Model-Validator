@@ -1256,7 +1256,7 @@ def plot_spectral(
         for col, fft_vals in fft_components.items():
             plt.plot(freqs, np.abs(fft_vals), label=col)
         plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
-        plt.ylabel('Power', fontsize=options['ylabel_fontsize'])
+        plt.ylabel('Aplitude', fontsize=options['ylabel_fontsize'])
         plt.title('Power Spectral Density (PSD)', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
         plt.legend()
         plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
