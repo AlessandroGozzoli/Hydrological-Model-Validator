@@ -3,6 +3,38 @@ import numpy as np
 import xarray as xr
 import gzip
 
+# ====== EARLY MOCK TO FAKE matlab.engine BEFORE ANY IMPORTS ======
+def ensure_matlab_engine_module():
+    import sys
+    import types
+
+    # Create 'matlab' package
+    if 'matlab' not in sys.modules:
+        matlab_mod = types.ModuleType('matlab')
+        matlab_mod.__path__ = []  # mark as package
+        sys.modules['matlab'] = matlab_mod
+    else:
+        matlab_mod = sys.modules['matlab']
+        if not hasattr(matlab_mod, '__path__'):
+            matlab_mod.__path__ = []
+
+    # Create 'matlab.engine' submodule
+    if 'matlab.engine' not in sys.modules:
+        engine_mod = types.ModuleType('matlab.engine')
+        sys.modules['matlab.engine'] = engine_mod
+    else:
+        engine_mod = sys.modules['matlab.engine']
+
+    # Link matlab.engine as an attribute of matlab
+    setattr(matlab_mod, 'engine', engine_mod)
+
+    # Add dummy function
+    if not hasattr(engine_mod, 'start_matlab'):
+        engine_mod.start_matlab = lambda: None
+
+# Inject mock BEFORE importing the target module
+ensure_matlab_engine_module()
+
 from Hydrological_model_validator.Processing.file_io import (
     mask_reader,
     load_dataset,
@@ -249,41 +281,6 @@ def test_read_nc_variable_from_gz_in_memory_missing_var(tmp_path):
 # --- call_interpolator tests ---
 ###############################################################################
 
-import sys
-import types
-
-def ensure_matlab_engine_module():
-    """
-    Ensure a dummy matlab.engine module exists so tests can run without MATLAB installed.
-    """
-    # Create 'matlab' as a package
-    if 'matlab' not in sys.modules:
-        matlab_mod = types.ModuleType('matlab')
-        matlab_mod.__path__ = []  # mark it as a package
-        sys.modules['matlab'] = matlab_mod
-    else:
-        matlab_mod = sys.modules['matlab']
-        if not hasattr(matlab_mod, '__path__'):
-            matlab_mod.__path__ = []
-
-    # Create 'matlab.engine' submodule
-    if 'matlab.engine' not in sys.modules:
-        engine_mod = types.ModuleType('matlab.engine')
-        sys.modules['matlab.engine'] = engine_mod
-    else:
-        engine_mod = sys.modules['matlab.engine']
-
-    # Add dummy start_matlab if not present
-    if not hasattr(engine_mod, 'start_matlab'):
-        engine_mod.start_matlab = lambda: None
-
-
-@pytest.fixture(autouse=True)
-def mock_matlab_import(monkeypatch):
-    ensure_matlab_engine_module()
-
-
-# Test that call_interpolator starts the MATLAB engine and quits without errors under normal conditions
 def test_call_interpolator_starts_and_quits(monkeypatch):
     class DummyEngine:
         def addpath(self, *args, **kwargs): pass
@@ -298,7 +295,6 @@ def test_call_interpolator_starts_and_quits(monkeypatch):
     call_interpolator("var", 1, "input", "output", "maskfile")
 
 
-# Test that call_interpolator raises RuntimeError if MATLAB engine fails to start
 def test_call_interpolator_start_fail(monkeypatch):
     def fake_start_matlab():
         raise RuntimeError("Cannot start")
@@ -309,7 +305,6 @@ def test_call_interpolator_start_fail(monkeypatch):
         call_interpolator("var", 1, "input", "output", "maskfile")
 
 
-# Test that call_interpolator raises RuntimeError if Interpolator_v2 function inside MATLAB engine fails
 def test_call_interpolator_function_fail(monkeypatch):
     class DummyEngine:
         def addpath(self, *args, **kwargs): pass
