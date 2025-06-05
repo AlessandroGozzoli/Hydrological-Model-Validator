@@ -253,29 +253,38 @@ import sys
 import types
 
 def ensure_matlab_engine_module():
-    # Create dummy matlab module
+    """
+    Ensure a dummy matlab.engine module exists so tests can run without MATLAB installed.
+    """
+    # Create 'matlab' as a package
     if 'matlab' not in sys.modules:
         matlab_mod = types.ModuleType('matlab')
+        matlab_mod.__path__ = []  # mark it as a package
         sys.modules['matlab'] = matlab_mod
     else:
         matlab_mod = sys.modules['matlab']
+        if not hasattr(matlab_mod, '__path__'):
+            matlab_mod.__path__ = []
 
-    # Create dummy matlab.engine submodule
-    if not hasattr(matlab_mod, 'engine'):
+    # Create 'matlab.engine' submodule
+    if 'matlab.engine' not in sys.modules:
         engine_mod = types.ModuleType('matlab.engine')
-        matlab_mod.engine = engine_mod
+        sys.modules['matlab.engine'] = engine_mod
     else:
-        engine_mod = matlab_mod.engine
+        engine_mod = sys.modules['matlab.engine']
 
-    # Add dummy start_matlab to avoid AttributeError during monkeypatch
+    # Add dummy start_matlab if not present
     if not hasattr(engine_mod, 'start_matlab'):
         engine_mod.start_matlab = lambda: None
 
 
-# Test that call_interpolator starts the MATLAB engine and quits without errors under normal conditions
-def test_call_interpolator_starts_and_quits(monkeypatch):
+@pytest.fixture(autouse=True)
+def mock_matlab_import(monkeypatch):
     ensure_matlab_engine_module()
 
+
+# Test that call_interpolator starts the MATLAB engine and quits without errors under normal conditions
+def test_call_interpolator_starts_and_quits(monkeypatch):
     class DummyEngine:
         def addpath(self, *args, **kwargs): pass
         def Interpolator_v2(self, *args, **kwargs): pass
@@ -286,28 +295,25 @@ def test_call_interpolator_starts_and_quits(monkeypatch):
 
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
-    # Call your function under test
     call_interpolator("var", 1, "input", "output", "maskfile")
+
 
 # Test that call_interpolator raises RuntimeError if MATLAB engine fails to start
 def test_call_interpolator_start_fail(monkeypatch):
-    ensure_matlab_engine_module()
-
     def fake_start_matlab():
         raise RuntimeError("Cannot start")
 
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="Failed to start MATLAB engine"):
         call_interpolator("var", 1, "input", "output", "maskfile")
+
 
 # Test that call_interpolator raises RuntimeError if Interpolator_v2 function inside MATLAB engine fails
 def test_call_interpolator_function_fail(monkeypatch):
-    ensure_matlab_engine_module()
-
     class DummyEngine:
         def addpath(self, *args, **kwargs): pass
-        def Interpolator_v2(self, *args, **kwargs): raise RuntimeError("Error")
+        def Interpolator_v2(self, *args, **kwargs): raise RuntimeError("Error in MATLAB")
         def quit(self): pass
 
     def fake_start_matlab():
@@ -315,5 +321,5 @@ def test_call_interpolator_function_fail(monkeypatch):
 
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="MATLAB interpolation failed"):
         call_interpolator("var", 1, "input", "output", "maskfile")
