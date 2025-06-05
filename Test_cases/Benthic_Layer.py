@@ -343,8 +343,11 @@ print("The dense water masses results computed with each method have been succes
 print('-'*45)
 
 print("Attempting to compute the volume of dense water...")
+print("SEOS...")
 dense_water_volume_SEOS = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='EOS')
+print("EOS-80...")
 dense_water_volume_EOS80 = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='EOS80')
+print("TEOS-10...")
 dense_water_volume_TEOS10 = compute_dense_water_volume(IDIR, mask3d, fragments, density_method='TEOS10')
 print("Dense water volume has been computed!")
 
@@ -399,7 +402,7 @@ while True:
         
         break
     else:
-        print(f"⚠️  '{bfm2plot}' is not a valid BFM variable code. Please try again.\n")
+        print(f"⚠️ '{bfm2plot}' is not a valid BFM variable code. Please try again.\n")
 
 print('-'*45)
 
