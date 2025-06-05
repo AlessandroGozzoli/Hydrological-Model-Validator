@@ -270,11 +270,12 @@ def _to_dataarray(val, reference_da):
     if isinstance(val, xr.DataArray):
         return val
 
-    # Select a time slice if 'time' exists, otherwise just use the reference as-is
+    if not np.isscalar(val):
+        raise ValueError(f"Expected scalar or DataArray, got {type(val)}")
+
     if 'time' in reference_da.dims:
         ref = reference_da.isel(time=0)
     else:
         ref = reference_da
 
-    # Drop 'time' coord (if any) and fill with scalar value
     return xr.full_like(ref, val)
