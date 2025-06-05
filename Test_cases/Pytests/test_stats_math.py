@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.fft import fft, fftfreq
 
 from Hydrological_model_validator.Processing.stats_math_utils import (
     fit_huber,
@@ -14,7 +15,10 @@ from Hydrological_model_validator.Processing.stats_math_utils import (
     cross_correlation,
     corr_no_nan,
     std_dev,
-    unbiased_rmse
+    unbiased_rmse,
+    spatial_mean,
+    compute_lagged_correlations,
+    compute_fft
 )
 
 ###############################################################################
@@ -475,3 +479,186 @@ def test_unbiased_rmse_different_length():
     # Expect function to raise due to length mismatch, which is invalid input
     with pytest.raises(Exception):
         unbiased_rmse(m, o)
+        
+###############################################################################
+# Tests for spatial_mean
+###############################################################################
+
+
+# Helper to create dummy DataArray with time, lat, lon
+def create_dummy_data(time_len=2, lat_len=3, lon_len=3, fill_value=1.0):
+    times = pd.date_range("2000-01-01", periods=time_len)
+    data = np.full((time_len, lat_len, lon_len), fill_value, dtype=float)
+    return xr.DataArray(data, coords=[times, np.arange(lat_len), np.arange(lon_len)], dims=["time", "lat", "lon"])
+
+# Test spatial_mean returns correct mean when mask includes all points.
+def test_full_mask():
+    data = create_dummy_data(fill_value=2.0)
+    mask = xr.DataArray(np.ones((3, 3), dtype=bool), dims=["lat", "lon"])
+    result = spatial_mean(data, mask)
+    # Since mask includes all points, mean should equal the constant fill value (2.0)
+    assert (result == 2.0).all().item()
+
+
+# Test spatial_mean correctly computes mean when some points are masked out.
+def test_partial_mask():
+    data = create_dummy_data(fill_value=2.0)
+    mask_array = np.ones((3,3), dtype=bool)
+    mask_array[0,0] = False
+    mask = xr.DataArray(mask_array, dims=["lat", "lon"])
+    result = spatial_mean(data, mask)
+    # Even with one point masked out, remaining points all have the same value,
+    # so mean should still be 2.0
+    assert (result == 2.0).all().item()
+
+
+# Test spatial_mean returns NaN when mask excludes all points.
+def test_all_false_mask():
+    data = create_dummy_data(fill_value=2.0)
+    mask = xr.DataArray(np.zeros((3,3), dtype=bool), dims=["lat", "lon"])
+    result = spatial_mean(data, mask)
+    # Mask excludes all data, so spatial_mean should return NaN (no data to average)
+    assert result.isnull().all().item()
+
+
+# Test spatial_mean skips NaNs in data and computes mean correctly.
+def test_data_with_nans():
+    data = create_dummy_data(fill_value=2.0)
+    data.values[0, 1, 1] = np.nan
+    mask = xr.DataArray(np.ones((3,3), dtype=bool), dims=["lat", "lon"])
+    result = spatial_mean(data, mask)
+    # NaNs should be ignored in mean calculation; mean at time=0 should be valid (not NaN)
+    assert not np.isnan(result[0])
+    # At other times, where no NaNs exist, mean should equal the fill value (2.0)
+    assert (result[1] == 2.0).item()
+
+
+# Test spatial_mean returns value at single unmasked point correctly.
+def test_single_point_mask():
+    data = create_dummy_data(fill_value=3.0)
+    mask_array = np.zeros((3,3), dtype=bool)
+    mask_array[1,1] = True
+    mask = xr.DataArray(mask_array, dims=["lat", "lon"])
+    result = spatial_mean(data, mask)
+    # When only one point is unmasked, the mean should equal the value at that point (3.0)
+    assert (result == 3.0).all().item()
+
+
+###############################################################################
+# Tests for compute_lagged_correlations
+###############################################################################
+
+
+# Test lagged correlation with no lag returns perfect correlation.
+def test_no_lag():
+    s1 = pd.Series([1, 2, 3, 4, 5])
+    s2 = pd.Series([1, 2, 3, 4, 5])
+    result = compute_lagged_correlations(s1, s2, max_lag=0)
+    # Expect exactly one lag result: zero lag
+    assert len(result) == 1
+    # Confirm zero lag is present in results
+    assert 0 in result.index
+    # Since series are identical, correlation at zero lag should be 1.0 (perfect)
+    assert np.isclose(result[0], 1.0)
+
+
+# Test lagged correlation detects highest correlation at positive lag.
+def test_positive_lag():
+    s1 = pd.Series([1, 2, 3, 4, 5, 6])
+    s2 = s1.shift(1)  # s2 is s1 shifted forward by 1 (NaN at start)
+    result = compute_lagged_correlations(s1, s2, max_lag=2)
+    # Correlation should peak at lag=1, indicating s1 leads s2 by 1 timestep
+    assert result[1] > 0.9
+
+
+# Test lagged correlation detects highest correlation at negative lag.
+def test_negative_lag():
+    s1 = pd.Series([1, 2, 3, 4, 5, 6])
+    s2 = pd.Series([2, 3, 4, 5, 6, 7])  # s2 leads s1 by 1
+    result = compute_lagged_correlations(s1, s2, max_lag=2)
+    # Correlation should peak at lag=-1, indicating s2 leads s1 by 1 timestep
+    assert result[-1] > 0.9
+
+
+# Test lagged correlation handles NaNs gracefully without errors.
+def test_with_nans():
+    s1 = pd.Series([1, 2, np.nan, 4, 5, 6])
+    s2 = pd.Series([6, 1, 2, np.nan, 4, 5])
+    result = compute_lagged_correlations(s1, s2, max_lag=1)
+    # The function should handle NaNs without crashing and return correlations for all requested lags
+    assert len(result) == 3
+    # Confirm all expected lags (-1, 0, 1) are present in the output
+    assert all(lag in result.index for lag in [-1, 0, 1])
+
+
+# Test lagged correlation works when series have different lengths.
+def test_series_of_different_length():
+    s1 = pd.Series([1, 2, 3, 4, 5])
+    s2 = pd.Series([5, 4, 3, 2])  # shorter length
+    result = compute_lagged_correlations(s1, s2, max_lag=1)
+    # Even with unequal lengths, correlations should be computed (though edge values may be nan)
+    assert len(result) == 3
+
+
+###############################################################################
+# Tests for compute_fft
+###############################################################################
+
+
+# Test FFT output lengths and frequency ordering for single array input.
+def test_single_array_fft_length_and_freqs():
+    data = np.sin(2 * np.pi * 0.1 * np.arange(100))
+    freqs, fft_result = compute_fft(data)
+    # FFT of length N produces N//2 frequency bins for real input due to symmetry.
+    assert len(freqs) == 50
+    assert len(fft_result) == 50
+    # Frequencies should be non-negative for real FFT output.
+    assert (freqs >= 0).all()
+    # Frequencies should be strictly increasing.
+    assert np.all(np.diff(freqs) > 0)
+
+
+# Test FFT handles dict input and produces expected keys and lengths.
+def test_dict_input_fft_length_and_freqs():
+    data = {
+        "a": np.sin(2 * np.pi * 0.1 * np.arange(80)),
+        "b": np.cos(2 * np.pi * 0.05 * np.arange(80))
+    }
+    freqs, fft_result = compute_fft(data, dt=0.5)
+    # Expect half the length of input arrays as number of frequency bins.
+    assert len(freqs) == 40
+    # Check FFT results exist for all keys provided in input dictionary.
+    assert set(fft_result.keys()) == {"a", "b"}
+    # Each FFT result array length must match number of frequency bins.
+    assert all(len(arr) == 40 for arr in fft_result.values())
+    # Frequencies must be non-negative.
+    assert (freqs >= 0).all()
+    # Frequencies should be strictly increasing.
+    assert np.all(np.diff(freqs) > 0)
+
+
+# Test FFT frequency output matches expected frequencies for given sampling interval.
+def test_fft_with_different_dt():
+    data = np.ones(64)
+    dt = 0.1
+    freqs, _ = compute_fft(data, dt=dt)
+    # Verify frequencies computed match numpy's fftfreq slicing (real FFT).
+    expected_freqs = fftfreq(64, dt)[:32]
+    np.testing.assert_allclose(freqs, expected_freqs)
+
+
+# Test FFT output matches scipy FFT for given input.
+def test_fft_output_matches_scipy_fft():
+    data = np.random.rand(50)
+    freqs, fft_res = compute_fft(data)
+    # scipy.fft produces full FFT; compare first half for real-valued input.
+    expected_fft = fft(data)[:25]
+    np.testing.assert_allclose(fft_res, expected_fft)
+
+
+# Test that empty dict input to FFT raises IndexError.
+def test_fft_empty_input_raises():
+    # Expect an error because FFT implementation attempts to access first dict item,
+    # but dict is empty, so next(iter(...)) fails.
+    with pytest.raises(ValueError, match="Input dict is empty"):
+        compute_fft({})
