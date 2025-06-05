@@ -40,6 +40,13 @@ def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> list[np.ndarray
         A list of 2D numpy arrays, each of shape (y, x), where each array corresponds to a
         time slice containing the extracted bottom layer data.
 
+    Raises
+    ------
+    TypeError
+        If input arrays are not numpy ndarrays.
+    ValueError
+        If input arrays do not have the expected dimensions or shapes, or if indices are invalid.
+
     Example
     -------
     >>> import numpy as np
@@ -52,31 +59,49 @@ def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> list[np.ndarray
     >>> print(bottom_layers[0].shape)
     (2, 2)
     """
-    # Unpack dimensions for clarity and to manage data traversal
+    # Validate input types
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"❌ data must be a numpy.ndarray, got {type(data)} ❌")
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
+
+    # Validate input dimensions
+    if data.ndim != 4:
+        raise ValueError(f"❌ data must be a 4D array with shape (time, depth, y, x), got shape {data.shape} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be a 2D array with shape (y, x), got shape {Bmost.shape} ❌")
+
     time_len, depth_len, ny, nx = data.shape
-    
+
+    # Validate spatial dimensions match
+    if Bmost.shape != (ny, nx):
+        raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dimensions (y, x) of data { (ny, nx) } ❌")
+
+    # Validate Bmost indices: must be positive integers (1-based)
+    if not np.issubdtype(Bmost.dtype, np.integer):
+        raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
+    if np.any(Bmost < 0):
+        raise ValueError("❌ Bmost indices must be >= 0")
+
+    # Clip indices to depth range, but warn if indices exceed depth
+    if np.any(Bmost > depth_len):
+        # This will be clipped silently later, but better to warn or raise
+        raise ValueError(f"❌ Bmost indices must be <= depth dimension of data ({depth_len}), found values exceeding it ❌")
+
     # Prepare an output array to hold bottom layer data for all time steps
-    # Using np.nan initialization helps easily identify any missing or invalid data later
     bottom_data = np.full((time_len, ny, nx), np.nan, dtype=data.dtype)
 
-    # Convert 1-based bottom layer indices to zero-based to match Python indexing
-    # Clip indices to valid depth range to avoid indexing errors due to out-of-bound indices
+    # Convert 1-based bottom layer indices to zero-based for indexing
     B_idx = Bmost.astype(int) - 1
-    B_idx = np.clip(B_idx, 0, depth_len - 1)
 
-    # Flatten spatial grid indices to simplify indexing into reshaped data arrays
+    # Flatten spatial grid indices for vectorized indexing
     flat_spatial = np.arange(ny * nx)
 
-    # Iterate over each time slice to extract the bottom layer values
+    # Extract bottom layer values for each time step
     for t in range(time_len):
-        # Reshape the 3D spatial data at time t to 2D (depth x flattened spatial) for vectorized indexing
         data_t_flat = data[t].reshape(depth_len, ny * nx)
-        
-        # Select the bottom layer value for each spatial location using the precomputed indices
-        # Reshape back to 2D spatial grid after extraction
         bottom_data[t] = data_t_flat[B_idx.ravel(), flat_spatial].reshape(ny, nx)
 
-    # Return a list of 2D arrays, each representing bottom layer data at each time step
     return [bottom_data[t] for t in range(time_len)]
 ###############################################################################
 
@@ -126,15 +151,39 @@ def extract_and_filter_benthic_data(data_4d: np.ndarray,
     >>> print(benthic_filtered.shape)
     (12, 5, 5)
     """
+    # === Input validation ===
+    if not isinstance(data_4d, np.ndarray):
+        raise TypeError(f"❌ data_4d must be a numpy.ndarray, got {type(data_4d)} ❌")
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
+    if data_4d.ndim != 4:
+        raise ValueError(f"❌ data_4d must be 4D with shape (time, depth, Y, X), got {data_4d.shape} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be 2D with shape (Y, X), got {Bmost.shape} ❌")
+    time_len, depth_len, Y, X = data_4d.shape
+    if Bmost.shape != (Y, X):
+        raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dims (Y, X) of data_4d {(Y, X)} ❌")
+    if not np.issubdtype(Bmost.dtype, np.integer):
+        raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
+    if np.any(Bmost < 0) or np.any(Bmost >= depth_len): # the 0 value is kept due to the 3D renders
+        raise ValueError(f"❌ Bmost indices must be in the range 0 to depth_len={depth_len} ❌")
+    if not isinstance(dz, (float, int)) or dz <= 0:
+        raise ValueError("❌ dz must be a positive number ❌")
+    if variable_key is not None and variable_key not in {'votemper', 'vosaline'}:
+        # Just warn, no filtering will be applied
+        print(f"⚠️ Warning: Unsupported variable_key '{variable_key}', no filtering will be applied ⚠️")
+ 
+    # ===== EXTRACT THE DATA =====
     # Extract dimensions for clarity and to guide indexing logic
     time_len, depth_len, Y, X = data_4d.shape
 
+    # ===== CREATE THE MASK =====
     # Create a mask to identify spatial points where bottom indices are valid
-    # This ensures we only try to extract data where the bottom layer index is within the data depth range
     valid_mask = (Bmost > 0) & (Bmost <= depth_len)
 
+    # ===== GET BOTTOM DATA WITH MASK =====
     # Convert 1-based bottom layer indices to zero-based for Python indexing
-    # For invalid indices, temporarily assign 0 to avoid indexing errors; these will be masked out later
+    # For invalid indices, temporarily assign 0 to avoid indexing errors
     Bmost_zero = np.where(valid_mask, Bmost - 1, 0)
 
     # Generate coordinate grids to index time, y, and x dimensions simultaneously
@@ -148,12 +197,14 @@ def extract_and_filter_benthic_data(data_4d: np.ndarray,
     # Using NaNs helps clearly identify missing or invalid data after extraction and filtering
     benthic_data = np.full((time_len, Y, X), np.nan, dtype=data_4d.dtype)
 
+    # ===== EXTRACT THE BOTTOM DATA =====
     # Extract bottom layer data only at valid locations; invalid locations remain NaN
     benthic_data[:, valid_mask] = data_4d[flat_indices][:, valid_mask]
 
     # Calculate actual depth (meters) of each bottom cell to apply depth-dependent filters
     depths = Bmost * dz
 
+    # ===== FILTERING OF INVALID DATA =====
     # Define masks for shallow and deep regions to apply variable-specific thresholds
     # These ranges are based on known environmental zones with distinct physical/chemical properties
     mask_shallow = (depths > 0) & (depths <= 50)
@@ -176,7 +227,7 @@ def extract_and_filter_benthic_data(data_4d: np.ndarray,
         invalid_counts = np.sum(invalid_mask, axis=(1, 2))
         for t, count in enumerate(invalid_counts):
             if count > 0:
-                print(f"Month {t+1}: {count} cells outside valid {variable_key} range set to NaN")
+                print(f"⚠️ Month {t+1}: {count} cells outside valid {variable_key} range set to NaN ⚠️")
 
         # Set invalid data points to NaN to exclude them from further analysis
         benthic_data[invalid_mask] = np.nan
@@ -250,10 +301,42 @@ def process_year(year: int,
     >>> print(benthic_arr.shape)
     (time_steps, 20, 30)
     """
+
+    # === INPUT VALIDATION ===
+    if not isinstance(year, int):
+        raise TypeError(f"❌ year must be int, got {type(year)} ❌")
+
     # Ensure input directory is a Path object for consistent path operations
     IDIR = Path(IDIR)
+    if not IDIR.exists() or not IDIR.is_dir():
+        raise ValueError(f"❌ IDIR path does not exist or is not a directory: {IDIR} ❌")
+
+    if not isinstance(mask3d, np.ndarray):
+        raise TypeError(f"❌ mask3d must be np.ndarray, got {type(mask3d)} ❌")
+    if mask3d.ndim != 3:
+        raise ValueError(f"❌ mask3d must be 3D (depth, Y, X), got shape {mask3d.shape} ❌")
+
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be np.ndarray, got {type(Bmost)} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be 2D (Y, X), got shape {Bmost.shape} ❌")
+
+    # filename_fragments keys check
+    required_keys = {'ffrag1', 'ffrag2', 'ffrag3'}
+    if not isinstance(filename_fragments, dict):
+        raise TypeError(f"❌ filename_fragments must be dict, got {type(filename_fragments)} ❌")
+    missing_keys = required_keys - filename_fragments.keys()
+    if missing_keys:
+        raise KeyError(f"❌ filename_fragments missing keys: {missing_keys} ❌")
+
+    if not isinstance(variable_key, str):
+        raise TypeError(f"❌ variable_key must be str, got {type(variable_key)} ❌")
+
+    # ===== PATH CHECK =====
+    # Ensure input directory is a Path object for consistent path operations
     year_str = str(year)
 
+    # ===== BUILD THE FILENAME AND PATH =====
     # Build the full filename using provided fragments, allowing flexible filename patterns
     filename = build_bfm_filename(year, filename_fragments)
 
@@ -264,10 +347,11 @@ def process_year(year: int,
     # Confirm the compressed data file exists before processing
     # Prevents downstream errors and provides early feedback if data missing
     if not file_gz.exists():
-        raise FileNotFoundError(f"Compressed file not found: {filename}")
+        raise FileNotFoundError(f"❌ Compressed file not found: {filename} ❌")
 
     print(f"Handling file {filename}...")
 
+    # ===== DECOMPRESS AND READ THE DATA =====
     # Decompress the gzipped model output file into memory for efficient access
     with gzip.open(file_gz, 'rb') as f_in:
         decompressed_bytes = f_in.read()
@@ -276,7 +360,7 @@ def process_year(year: int,
     with xr.open_dataset(io.BytesIO(decompressed_bytes)) as ds:
         # Validate presence of requested variable; critical for correct data extraction
         if variable_key not in ds:
-            raise KeyError(f"Variable '{variable_key}' not found in dataset.")
+            raise KeyError(f"❌ Variable '{variable_key}' not found in dataset. ❌")
 
         # Extract the raw data values for the variable as a numpy array
         # Expected shape: (time, depth, Y, X)
@@ -284,14 +368,14 @@ def process_year(year: int,
 
     # Verify spatial dimensions of loaded data match the provided 3D mask to ensure data integrity
     if data.shape[2:] != mask3d.shape[1:]:
-        raise ValueError(f"Shape mismatch between data spatial dims {data.shape[2:]} and mask3d {mask3d.shape[1:]}")
+        raise ValueError(f"❌ Shape mismatch between data spatial dims {data.shape[2:]} and mask3d {mask3d.shape[1:]} ❌")
 
+    # ===== MASKING =====
     # Apply the 3D mask by setting invalid data points (where mask==0) to NaN
-    # This step removes unreliable data prior to bottom layer extraction
     data = np.where(mask3d[None, :, :, :] == 0, np.nan, data)
 
+    # ===== CALL THE FUNCTION TO EXTRACT BOTTOM DATA =====
     # Extract and filter bottom layer benthic data based on depth indices and variable-specific thresholds
-    # This isolates the bottom-most relevant data and improves quality by filtering out invalid values
     benthic_data = extract_and_filter_benthic_data(
         data_4d=data,
         Bmost=Bmost,
@@ -299,7 +383,7 @@ def process_year(year: int,
         variable_key=variable_key
     )
 
-    print(f"Year {year} processed.")
+    print(f"\033[92m✅ Year {year} processed.\033[0m")
 
     # Return the processed year and the cleaned bottom layer data array for downstream analysis
     return year, benthic_data
@@ -365,24 +449,25 @@ def read_benthic_parameter(IDIR: Union[str, Path],
     # Convert input path to Path object for consistent filesystem operations
     IDIR = Path(IDIR)
 
+    # ===== INPUT VALIDATIONS =====
     # Check existence early to avoid wasted computation on missing data
     if not IDIR.exists():
-        raise FileNotFoundError(f"Directory {IDIR} does not exist.")
+        raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
 
     # Validate input types and dimensions to prevent downstream errors
     if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
-        raise ValueError("mask3d must be a 3D numpy array.")
+        raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
     if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
-        raise ValueError("Bmost must be a 2D numpy array.")
+        raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
     if not filename_fragments:
-        raise ValueError("filename_fragments must be provided and not None.")
+        raise ValueError("❌ filename_fragments must be provided and not None. ❌")
     for key in ('ffrag1', 'ffrag2', 'ffrag3'):
         # Ensure all required filename parts are available to correctly locate files
         if key not in filename_fragments or filename_fragments[key] is None:
-            raise ValueError(f"Missing filename fragment: '{key}'")
+            raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
 
+    # ===== SCAN THE FOLDER FOR YEAR RANGE =====
     # Identify the range of years available by scanning directory structure
-    # This allows dynamic discovery of data files without hardcoding years
     print("Scanning directory to determine available years...")
     Ybeg, Yend, ysec = infer_years_from_path(IDIR, target_type="folder", pattern=r'output\s*(\d{4})')
     print(f"Found years from {Ybeg} to {Yend}: {ysec}")
@@ -390,8 +475,8 @@ def read_benthic_parameter(IDIR: Union[str, Path],
 
     parameter_data: Dict[int, List[np.ndarray]] = {}
 
+    # ===== GET DATA ALL TOGHETHER =====
     # Use a thread pool to process multiple years concurrently
-    # This speeds up IO-bound data reading and processing tasks
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {
             executor.submit(process_year, y, IDIR, mask3d, Bmost, filename_fragments, variable_key): y for y in ysec
@@ -404,7 +489,7 @@ def read_benthic_parameter(IDIR: Union[str, Path],
                 parameter_data[yr] = values
             except Exception as exc:
                 # Log errors but continue processing other years
-                print(f"Error processing year {year}: {exc}")
+                print(f"❌ Error processing year {year}: {exc} ❌")
 
     # Sort results by year to provide ordered output
     return dict(sorted(parameter_data.items()))
@@ -426,7 +511,7 @@ def read_bfm_chemical(
     constructs filenames from provided fragments, and processes each year’s compressed
     NetCDF files. For each year, it unzips the file (if needed), reads the specified variable,
     applies a 3D mask to invalidate certain points, extracts the bottom-most valid layer
-    based on `Bmost` indices, and collects the monthly or time-step data as 2D arrays.
+    based on Bmost indices, and collects the monthly or time-step data as 2D arrays.
 
     Parameters
     ----------
@@ -449,7 +534,7 @@ def read_bfm_chemical(
 
     Notes
     -----
-    - The function will unzip compressed `.gz` files if uncompressed NetCDF files are not already present.
+    - The function will unzip compressed .gz files if uncompressed NetCDF files are not already present.
     - Unzipped files are deleted after reading to conserve disk space.
     - Processing is done concurrently across years using a thread pool for speed.
 
@@ -466,24 +551,52 @@ def read_bfm_chemical(
     """
     IDIR = Path(IDIR)
 
+    # ===== INPUT VALIDATIONS =====
+    if not IDIR.exists():
+        raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
+
+    if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
+
+    if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
+        raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
+
+    if not filename_fragments or not isinstance(filename_fragments, dict):
+        raise ValueError("❌ filename_fragments must be a non-empty dictionary. ❌")
+
+    for key in ('ffrag1', 'ffrag2', 'ffrag3'):
+        if key not in filename_fragments or filename_fragments[key] is None:
+            raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
+
+    if not isinstance(variable_key, str) or not variable_key:
+        raise ValueError("❌ variable_key must be a non-empty string. ❌")
+
+    # ===== SCAN FOLDER TO OBTAIN YEAR INFO =====
     # Identify available years by scanning output folders named like "outputYYYY"
     # Using a regex pattern to capture four-digit year numbers dynamically
+    print("Scanning directory to determine available years...")
     Ybeg, Yend, ysec = infer_years_from_path(IDIR, target_type="folder", pattern=r'output\s*(\d{4})')
-
+    print(f"Found years from {Ybeg} to {Yend}: {ysec}")
+    print("-" * 45)
+    
     results = {}
 
+    # ===== WORKERS =====
     # Worker function to process one year at a time
     def worker(year: int) -> None:
         year_str = str(year)
+        print(f"Retrieving year: {year_str}")
 
         # Construct full filename based on the year and filename fragments
         filename = build_bfm_filename(year, filename_fragments)
         file_nc = IDIR / f"output{year_str}" / filename
         file_gz = Path(str(file_nc) + ".gz")
+        print(f"Currently handling {filename}")
 
         # If the NetCDF file is not yet uncompressed, unzip it from the .gz archive
         if not file_nc.exists():
             unzip_gz_to_file(file_gz, file_nc)
+            print("\033[92m✅ File successfully unzipped\033[0m")
 
         # Read the target variable data from the unzipped NetCDF file
         P_orig = read_nc_variable_from_unzipped_file(file_nc, variable_key)
@@ -503,11 +616,14 @@ def read_bfm_chemical(
 
         # Store the extracted bottom layer data indexed by year
         results[year] = bottom_layers
+        
+        print(f"\033[92m✅ Bottom layer data extracted for year {year_str}\033[0m")
+        print("-" * 45)
 
+    # ===== READS ALL FILES =====
     # Use a thread pool to process each year concurrently for faster I/O and CPU utilization
     with ThreadPoolExecutor() as executor:
         list(executor.map(worker, ysec))
 
     # Return the results sorted by year for consistent ordering
     return dict(sorted(results.items()))
-###############################################################################
