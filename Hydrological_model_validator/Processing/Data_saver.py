@@ -3,6 +3,8 @@ import xarray as xr
 from typing import Dict, Union
 import numpy as np
 from pathlib import Path
+import pandas as pd
+import json
 ###############################################################################
 
 ###############################################################################
@@ -11,7 +13,7 @@ def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     Save satellite longitude, latitude, and data arrays to disk in user-selected formats.
 
     This function saves the provided satellite coordinate and data arrays to the specified directory,
-    allowing the user to choose between MATLAB .mat format, NetCDF .nc format, or both.
+    allowing the user to choose between MATLAB .mat format, NetCDF .nc format, .json format or all of the above.
     Longitude and latitude arrays must be 2D; the satellite data array must be 3D (time, lat, lon).
 
     Parameters
@@ -43,6 +45,8 @@ def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     1. MAT-File (.mat)
     2. NetCDF (.nc)
     3. Both MAT and NetCDF
+    4. JSON (.json)
+    5. All of the above
     Enter the number corresponding to your choice: 3
     Saving data as a single .mat file...
     Data saved as SatData_clean.mat
@@ -52,83 +56,90 @@ def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     SatData_complete saved as SatData_complete.nc
     ✅ The requested data has been saved!
     """
-    # Check if output_path is a string or Path; convert to Path object for consistent path handling
+    # Validate output path
     if not isinstance(output_path, (str, Path)):
-        raise TypeError("output_path must be a string or Path object")
+        raise TypeError("❌ output_path must be a string or Path object ❌")
     output_path = Path(output_path)
-    
-    # Verify output_path exists and is a directory to prevent writing errors
     if not output_path.is_dir():
-        raise ValueError(f"'{output_path}' is not a valid directory")
+        raise ValueError(f"❌ '{output_path}' is not a valid directory ❌")
 
-    # Validate input types for Sat_lon, Sat_lat, and SatData_complete to ensure compatibility
+    # Validate data types
     if not isinstance(Sat_lon, (np.ndarray, xr.DataArray)):
-        raise TypeError("Sat_lon must be a NumPy array or xarray DataArray")
+        raise TypeError("❌ Sat_lon must be a NumPy array or xarray DataArray ❌")
     if not isinstance(Sat_lat, (np.ndarray, xr.DataArray)):
-        raise TypeError("Sat_lat must be a NumPy array or xarray DataArray")
+        raise TypeError("❌ Sat_lat must be a NumPy array or xarray DataArray ❌")
     if not isinstance(SatData_complete, (np.ndarray, xr.DataArray)):
-        raise TypeError("SatData_complete must be a NumPy array or xarray DataArray")
+        raise TypeError("❌ SatData_complete must be a NumPy array or xarray DataArray ❌")
 
-    # Check that longitude and latitude arrays are 2D as expected for spatial grid coordinates
+    # Validate dimensions
     if Sat_lon.ndim != 2:
-        raise ValueError(f"Sat_lon should be 2D, got shape {Sat_lon.shape}")
+        raise ValueError(f"❌ Sat_lon should be 2D, got shape {Sat_lon.shape} ❌")
     if Sat_lat.ndim != 2:
-        raise ValueError(f"Sat_lat should be 2D, got shape {Sat_lat.shape}")
-    
-    # Satellite data should be 3D: time, latitude, and longitude dimensions
+        raise ValueError(f"❌ Sat_lat should be 2D, got shape {Sat_lat.shape} ❌")
     if SatData_complete.ndim != 3:
-        raise ValueError(f"SatData_complete should be 3D (time, lat, lon), got shape {SatData_complete.shape}")
+        raise ValueError(f"❌ SatData_complete should be 3D (time, lat, lon), got shape {SatData_complete.shape} ❌")
 
-    print("Saving the data in the folder...")
+    # Convert xarray to numpy if needed
+    if isinstance(Sat_lon, xr.DataArray):
+        Sat_lon = Sat_lon.values
+    if isinstance(Sat_lat, xr.DataArray):
+        Sat_lat = Sat_lat.values
+    if isinstance(SatData_complete, xr.DataArray):
+        SatData_complete = SatData_complete.values
 
-    # Prepare dictionary for MATLAB .mat saving; keys are variable names
-    data = {
-        'Sat_lon': Sat_lon,
-        'Sat_lat': Sat_lat,
-        'SatData_complete': SatData_complete
-    }
-
-    # Prompt user to choose output format(s), giving flexibility in saving
     print("Choose a file format to save the data:")
     print("1. MAT-File (.mat)")
     print("2. NetCDF (.nc)")
     print("3. Both MAT and NetCDF")
+    print("4. JSON (.json)")
+    print("5. All formats")
     choice = input("Enter the number corresponding to your choice: ").strip()
     print('-' * 45)
 
-    # If user selects MAT or both, save all variables together in one .mat file
-    if choice == '1' or choice == '3':
+    # Save as .mat
+    if choice in {'1', '3', '5'}:
         print("Saving data as a single .mat file...")
-        # scipy.io.savemat expects numpy arrays or dict of arrays; xarray objects can be passed if compatible
-        scipy.io.savemat(str(output_path / "SatData_clean.mat"), data)
+        scipy.io.savemat(str(output_path / "SatData_clean.mat"), {
+            'Sat_lon': Sat_lon,
+            'Sat_lat': Sat_lat,
+            'SatData_complete': SatData_complete
+        })
         print("Data saved as SatData_clean.mat")
         print("-" * 45)
 
-    # If user selects NetCDF or both, save each variable separately as .nc files using xarray.DataArray
-    if choice == '2' or choice == '3':
+    # Save as .nc
+    if choice in {'2', '3', '5'}:
         print("Saving the data as separate .nc files...")
-
-        # Convert Sat_lon to xarray DataArray and save as NetCDF, preserving metadata if present
         xr.DataArray(Sat_lon).to_netcdf(str(output_path / "Sat_lon.nc"))
         print("Sat_lon saved as Sat_lon.nc")
-
-        # Similarly save Sat_lat coordinates
         xr.DataArray(Sat_lat).to_netcdf(str(output_path / "Sat_lat.nc"))
         print("Sat_lat saved as Sat_lat.nc")
-
-        # Save the 3D satellite data variable in NetCDF format
         xr.DataArray(SatData_complete).to_netcdf(str(output_path / "SatData_complete.nc"))
         print("SatData_complete saved as SatData_complete.nc")
         print("-" * 45)
 
-    # Warn user if input choice was invalid; no files saved in this case
-    if choice not in {'1', '2', '3'}:
-        print("Invalid choice. Please run the script again and select a valid option.")
+    # Save as .json
+    if choice in {'4', '5'}:
+        print("Saving data as a JSON file (flattened)...")
+        data_json = {
+            'Sat_lon': Sat_lon.tolist(),
+            'Sat_lat': Sat_lat.tolist(),
+            'SatData_complete': SatData_complete.tolist()
+        }
+        json_path = output_path / "SatData_clean.json"
+        with open(json_path, 'w') as f:
+            json.dump(data_json, f)
+        print("Data saved as SatData_clean.json")
+        print("-" * 45)
 
-    # Confirm success to user with colored output for clarity
+    # Invalid choice
+    if choice not in {'1', '2', '3', '4', '5'}:
+        print("❌ Invalid choice. Please run the script again and select a valid option.")
+        return
+
+    # Done
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*" * 45)
-
 ###############################################################################
 
 ###############################################################################    
@@ -162,20 +173,20 @@ def save_model_data(output_path, ModData_complete):
     """
     # Verify output_path is a string or Path, then convert to Path object for consistency
     if not isinstance(output_path, (str, Path)):
-        raise TypeError("output_path must be a string or Path object")
+        raise TypeError("❌ output_path must be a string or Path object ❌")
     output_path = Path(output_path)
     
     # Ensure output_path exists and is a directory to avoid write errors
     if not output_path.is_dir():
-        raise ValueError(f"'{output_path}' is not a valid directory")
+        raise ValueError(f"❌ '{output_path}' is not a valid directory ❌")
 
     # Confirm ModData_complete is either a NumPy array or an xarray DataArray for compatibility
     if not isinstance(ModData_complete, (np.ndarray, xr.DataArray)):
-        raise TypeError("ModData_complete must be a NumPy array or xarray DataArray")
+        raise TypeError("❌ ModData_complete must be a NumPy array or xarray DataArray ❌")
 
     # Check that ModData_complete is 3D to fit the expected (time, lat, lon) format
     if ModData_complete.ndim != 3:
-        raise ValueError(f"ModData_complete should be 3D (e.g., [time, lat, lon]), got shape {ModData_complete.shape}")
+        raise ValueError(f"❌ ModData_complete should be 3D (e.g., [time, lat, lon]), got shape {ModData_complete.shape} ❌")
 
     # Display important warning that the satellite mask (satnan) has not been applied,
     # which could affect analysis due to missing satellite data masking
@@ -214,7 +225,7 @@ def save_model_data(output_path, ModData_complete):
 
     # If user enters an invalid option, notify and advise to rerun
     if choice not in {"1", "2", "3"}:
-        print("Invalid choice. Please run the script again and select a valid option.")
+        print("❌ Invalid choice. Please run the script again and select a valid option. ❌")
 
     # Confirm completion of saving with colored output for visibility
     print("\033[92m✅ The requested data has been saved!\033[0m")
@@ -254,7 +265,7 @@ def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output
     output_path = Path(output_path)
     # Validate the output_path exists and is a directory to avoid file saving errors
     if not output_path.is_dir():
-        raise ValueError(f"'{output_path}' is not a valid directory")
+        raise ValueError(f"❌ '{output_path}' is not a valid directory ❌")
 
     # Iterate over each key-value pair in the data dictionary
     for var_name, data in data_dict.items():
@@ -267,7 +278,7 @@ def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output
                 data.name = var_name
         else:
             # Raise an error if the data type is unsupported for saving
-            raise TypeError(f"Data for variable '{var_name}' must be a NumPy array or xarray DataArray")
+            raise TypeError(f"❌ Data for variable '{var_name}' must be a NumPy array or xarray DataArray ❌")
 
         # Wrap the DataArray inside a Dataset so we can save it to NetCDF format
         ds = xr.Dataset({data.name: data})
@@ -275,3 +286,132 @@ def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output
         filepath = output_path / f"{var_name}.nc"
         # Save the Dataset to a NetCDF file at the specified path
         ds.to_netcdf(filepath)
+###############################################################################
+
+###############################################################################         
+def convert_to_serializable(obj):
+    """
+    Recursively convert an object to a form compatible with JSON serialization.
+
+    Parameters
+    ----------
+    obj : any
+        The object to convert.
+
+    Returns
+    -------
+    obj_serializable : JSON-compatible representation
+
+    Notes
+    -----
+    Converts NumPy arrays, pandas DataFrames/Series, and xarray DataArrays/Datasets to JSON-friendly types.
+    Fallbacks to string representation for unsupported objects.
+    """
+
+    # Directly return JSON-native types
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+
+    # Recursively handle iterable types
+    elif isinstance(obj, (list, tuple, set)):
+        return [convert_to_serializable(i) for i in obj]
+
+    # Recursively handle dictionaries
+    elif isinstance(obj, dict):
+        return {str(k): convert_to_serializable(v) for k, v in obj.items()}
+
+    # Convert NumPy arrays to nested lists
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+
+    # Convert pandas DataFrame to list of row dictionaries
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="records")
+
+    # Convert pandas Series to dictionary
+    elif isinstance(obj, pd.Series):
+        return obj.to_dict()
+
+    # xarray DataArray: separate out dims, coords, and values
+    elif isinstance(obj, xr.DataArray):
+        return {
+            "dims": obj.dims,
+            "coords": {k: v.values.tolist() for k, v in obj.coords.items()},
+            "data": obj.values.tolist()
+        }
+
+    # xarray Dataset: convert to dict
+    elif isinstance(obj, xr.Dataset):
+        return obj.to_dict(data=True)
+
+    # Try using .to_dict() if available (e.g., dataclass)
+    elif hasattr(obj, "to_dict"):
+        return obj.to_dict()
+
+    # Fallback: return string representation
+    return str(obj)
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    elif isinstance(obj, (list, tuple, set)):
+        return [convert_to_serializable(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {str(k): convert_to_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (pd.Series, pd.DataFrame)):
+        return obj.to_dict(orient="records") if isinstance(obj, pd.DataFrame) else obj.to_dict()
+    elif isinstance(obj, xr.DataArray):
+        return {
+            "dims": obj.dims,
+            "coords": {k: v.values.tolist() for k, v in obj.coords.items()},
+            "data": obj.values.tolist()
+        }
+    elif isinstance(obj, xr.Dataset):
+        return obj.to_dict(data=True)
+    elif hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    else:
+        return str(obj)
+###############################################################################
+
+############################################################################### 
+def save_variable_to_json(variable, output_path):
+    """
+    Save any Python variable to a JSON file in a serializable format.
+
+    Supports basic Python types, NumPy arrays, pandas DataFrames/Series,
+    xarray DataArrays/Datasets, dictionaries, and nested combinations.
+
+    Parameters
+    ----------
+    variable : any
+        The Python object or data structure to save (e.g., dict, array, DataFrame, DataArray).
+    output_path : str or Path
+        File path (must end in .json) where the data will be saved.
+
+    Raises
+    ------
+    ValueError
+        If the output_path does not end with '.json'.
+    TypeError
+        If the object cannot be serialized to JSON and no fallback is possible.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> save_variable_to_json(np.array([[1, 2], [3, 4]]), "array_data.json")
+    """
+    output_path = Path(output_path)
+
+    # Ensure output is a JSON file
+    if output_path.suffix.lower() != '.json':
+        raise ValueError("❌ Output file must have a .json extension ❌")
+
+    # Convert the variable to a JSON-compatible object
+    serializable_obj = convert_to_serializable(variable)
+
+    # Write to file using built-in JSON module
+    with open(output_path, 'w') as f:
+        json.dump(serializable_obj, f, indent=2)
+
+    print(f"\033[92m✅ Variable saved to {output_path}\033[0m")
