@@ -1,3 +1,22 @@
+# **Version:** 4.7.1
+**Date:** 05/06/2025
+
+## Summary
+
+This patch introduces several hotfixes along with expanded documentation and enhanced input validation for the `Density.py` module.
+
+## Enhancements
+
+- Expanded **inline comments**, **docstrings**, and added **input validation** in `Density.py` for improved readability and reliability.
+
+## Hotfixes
+
+- Adjusted `dummy_Bmost` in tests to use **0-based indexing** instead of 1-based.
+- Updated `test_get_common_series_by_year_month_invalid_structure` to raise a **TypeError** (a formal fix to reflect the expected behavior).
+- Removed the **12-month validation check** in `data_alignment.py` functions to allow compatibility with smaller datasets.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.7.0 
 **Date:** 05/06/2025
 
