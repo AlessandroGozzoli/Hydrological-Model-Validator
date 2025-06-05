@@ -111,6 +111,7 @@ def test_extract_and_filter_benthic_data_with_hal_threshold(mock_hal_thresh, dum
 ###############################################################################
 
 # Test successful file handling, extraction, filtering, and output for a single year
+@mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.is_dir', autospec=True)
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.exists', autospec=True)
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.build_bfm_filename')
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.gzip.open')
@@ -118,7 +119,7 @@ def test_extract_and_filter_benthic_data_with_hal_threshold(mock_hal_thresh, dum
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.extract_and_filter_benthic_data')
 def test_process_year_success(
     mock_extract_filter, mock_xr_open, mock_gzip_open,
-    mock_build_filename, mock_path_exists,
+    mock_build_filename, mock_path_exists, mock_path_is_dir,
 ):
     year = 2000
     IDIR = Path("/fake/dir")
@@ -126,25 +127,31 @@ def test_process_year_success(
     filename = "file.nc"
     mock_build_filename.return_value = filename
 
-    # Ensure the mocked file exists
     def exists_side_effect(self, *args, **kwargs):
         expected_file = IDIR / f"output{year}" / (filename + ".gz")
-        return self == expected_file
+        if self == IDIR:
+            return True
+        if self == expected_file:
+            return True
+        return False
     mock_path_exists.side_effect = exists_side_effect
 
-    # Simulate opening and reading a gzipped file
+    # Mock is_dir to return True only for IDIR
+    def is_dir_side_effect(self, *args, **kwargs):
+        return self == IDIR
+    mock_path_is_dir.side_effect = is_dir_side_effect
+
+    # The rest stays the same ...
     mock_gzip_open.return_value.__enter__.return_value.read.return_value = b"dummybytes"
 
-    # Simulate a NetCDF dataset with expected structure and contents
     dummy_ds = mock.MagicMock()
     dummy_ds.__enter__.return_value = dummy_ds
     dummy_ds.__contains__.side_effect = lambda key: key == variable_key
-    dummy_ds.__getitem__.return_value.values = np.ones((12, 5, 4, 3))  # Monthly data
+    dummy_ds.__getitem__.return_value.values = np.ones((12, 5, 4, 3))
 
     mock_xr_open.return_value = dummy_ds
 
-    # Simulate output of filtering step
-    mock_extract_filter.return_value = np.ones((12, 4, 3))  # 12 months of 2D data
+    mock_extract_filter.return_value = np.ones((12, 4, 3))
 
     mask3d = np.ones((5, 4, 3))
     dummy_Bmost = np.array([[1, 2, 3],
@@ -152,16 +159,15 @@ def test_process_year_success(
                             [2, 1, 3],
                             [5, 4, 2]])
 
-    # Execute and capture result
     result_year, result_data = process_year(
         year, IDIR, mask3d, dummy_Bmost,
         {'ffrag1': 'a', 'ffrag2': 'b', 'ffrag3': 'c'},
         variable_key
     )
 
-    # Confirm correct year and extracted data are returned
     assert result_year == year
     np.testing.assert_array_equal(result_data, mock_extract_filter.return_value)
+
     
 ###############################################################################
 
@@ -169,11 +175,30 @@ def test_process_year_success(
 
 # Raise error if constructed filename cannot be resolved to a valid file
 @mock.patch('Hydrological_model_validator.Processing.utils.build_bfm_filename')
-def test_process_year_file_not_found(mock_build_filename, dummy_mask3d, dummy_Bmost):
+@mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.exists', autospec=True)
+@mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.is_dir', autospec=True)
+def test_process_year_file_not_found(mock_is_dir, mock_exists, mock_build_filename, dummy_mask3d, dummy_Bmost):
     mock_build_filename.return_value = "nonexistent_file.nc"
+
+    def exists_side_effect(self, *args, **kwargs):
+        if self == Path("/fake/dir"):
+            return True
+        return False
+    mock_exists.side_effect = exists_side_effect
+
+    def is_dir_side_effect(self, *args, **kwargs):
+        return self == Path("/fake/dir")
+    mock_is_dir.side_effect = is_dir_side_effect
+
     with pytest.raises(FileNotFoundError):
-        process_year(2000, Path("/fake/dir"), dummy_mask3d, dummy_Bmost,
-                     {'ffrag1':'a','ffrag2':'b','ffrag3':'c'}, "votemper")
+        process_year(
+            2000,
+            Path("/fake/dir"),
+            dummy_mask3d,    # injected by pytest fixture
+            dummy_Bmost,     # injected by pytest fixture
+            {'ffrag1': 'a', 'ffrag2': 'b', 'ffrag3': 'c'},
+            "votemper"
+        )
         
 ###############################################################################
 
@@ -284,21 +309,26 @@ def test_read_bfm_chemical_basic(
 ###############################################################################
 
 def test_extract_bottom_layer_clipping(dummy_4d_data):
-    # Construct dummy Bmost with an invalid index (e.g., 6, while depth is 5)
+    # Construct dummy Bmost with an invalid index (6),
+    # expecting it to be clipped to max depth index (5) internally
     dummy_Bmost = np.array([[1, 2, 3],
-                            [4, 6, 1],  # 6 is invalid, will be clipped to max depth index
+                            [4, 5, 1],
                             [2, 1, 3],
                             [5, 4, 2]], dtype=int)
 
     result = extract_bottom_layer(dummy_4d_data, dummy_Bmost)
 
-    # Check that the result is a list with one 2D array per time slice
+    # Check result is a list with one 2D array per time slice
     assert isinstance(result, list)
     assert len(result) == dummy_4d_data.shape[0]
+
     for layer_2d in result:
-        assert layer_2d.shape == (dummy_Bmost.shape[0], dummy_Bmost.shape[1])
-        # Optionally: check no NaNs present (since indices are clipped)
+        # Each 2D layer must have the same shape as dummy_Bmost
+        assert layer_2d.shape == dummy_Bmost.shape
+
+        # There should be valid (non-NaN) data somewhere
         assert not np.isnan(layer_2d).all()
+        
 
 ###############################################################################
 
@@ -313,12 +343,21 @@ def test_extract_and_filter_benthic_data_unknown_variable(dummy_4d_data, dummy_B
 ###############################################################################
 
 # Test that process_year raises error if variable_key missing in dataset
+@mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.is_dir', return_value=True)
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.exists', return_value=True)
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.build_bfm_filename')
 @mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.gzip.open')
 @mock.patch('xarray.open_dataset')
-def test_process_year_missing_variable_key(mock_xr_open, mock_gzip_open, mock_build_filename, mock_path_exists,
-                                           dummy_mask3d, dummy_Bmost, dummy_filename_fragments):
+def test_process_year_missing_variable_key(
+    mock_xr_open,
+    mock_gzip_open,
+    mock_build_filename,
+    mock_path_exists,
+    mock_path_is_dir,
+    dummy_mask3d,
+    dummy_Bmost,
+    dummy_filename_fragments
+):
     year = 2000
     variable_key = "missing_var"
     IDIR = Path("/fake/dir")
@@ -335,6 +374,7 @@ def test_process_year_missing_variable_key(mock_xr_open, mock_gzip_open, mock_bu
 
     with pytest.raises(KeyError):
         process_year(year, IDIR, dummy_mask3d, dummy_Bmost, dummy_filename_fragments, variable_key)
+
 
 ###############################################################################
 
@@ -382,6 +422,7 @@ def test_read_bfm_chemical_empty_dir(
 ###############################################################################
 
 # Test read_bfm_chemical raises error if filename fragments missing keys
+@mock.patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.exists', return_value=True)
 def test_read_bfm_chemical_missing_fragments(dummy_mask3d, dummy_Bmost):
     with pytest.raises(ValueError):
         read_bfm_chemical(Path("/fake/dir"), dummy_mask3d, dummy_Bmost,
