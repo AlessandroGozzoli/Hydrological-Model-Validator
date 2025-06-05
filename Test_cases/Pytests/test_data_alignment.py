@@ -333,11 +333,11 @@ def test_get_common_series_by_year_month_empty_dict():
     with pytest.raises(ValueError):
         get_common_series_by_year_month({})
 
-# Test get_common_series_by_year_month raises ValueError if input data structure is invalid.
+# Test get_common_series_by_year_month raises TypeError if input data structure is invalid.
 def test_get_common_series_by_year_month_invalid_structure():
-    # Satellite data for a month is not a numpy array, should raise ValueError
-    d = {"mod": {2000: [np.array([1])]}, "sat": {2000: [1]}}  
-    with pytest.raises(ValueError):
+    # Satellite data for a month is not a list or tuple (invalid structure)
+    d = {"mod": {2000: [np.array([1])]}, "sat": {2000: 1}}  # 1 is not list or tuple
+    with pytest.raises(TypeError):
         get_common_series_by_year_month(d)
 
 # Test get_common_series_by_year_month raises TypeError if input types are incorrect.

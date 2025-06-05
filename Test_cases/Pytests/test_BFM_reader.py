@@ -23,11 +23,13 @@ def dummy_mask3d():
 
 @pytest.fixture
 def dummy_Bmost():
-    return np.array([[1, 2, 3],
-                     [4, 5, 1],
-                     [2, 1, 3],
-                     [5, 4, 2]], dtype=int)  # Bottom layer index (2D)
-
+    # Original 1-based indices
+    bmost_1_based = np.array([[1, 2, 3],
+                              [4, 5, 1],
+                              [2, 1, 3],
+                              [5, 4, 2]], dtype=int)
+    # Convert to zero-based indices expected by the function
+    return bmost_1_based - 1
 @pytest.fixture
 def dummy_4d_data():
     return np.arange(2*5*4*3).reshape(2,5,4,3).astype(float)  # Time × Depth × Lat × Lon
@@ -70,8 +72,16 @@ def test_extract_bottom_layer_basic(dummy_4d_data, dummy_Bmost):
         assert arr.shape == dummy_Bmost.shape
 
     # Check values are pulled from correct depths based on Bmost (1-based indexing)
-    assert np.allclose(bottom_layers[0][0,0], dummy_4d_data[0,0,0,0])
-    assert np.allclose(bottom_layers[0][1,1], dummy_4d_data[0,4,1,1])
+    # So subtract 1 from Bmost to get zero-based depth index when indexing dummy_4d_data
+
+    # For position (0,0), bottom layer index from dummy_Bmost is 1-based:
+    depth_idx_00 = dummy_Bmost[0, 0] - 1
+    assert np.allclose(bottom_layers[0][0, 0], dummy_4d_data[0, depth_idx_00, 0, 0])
+
+    # For position (1,1), bottom layer index from dummy_Bmost is 1-based:
+    depth_idx_11 = dummy_Bmost[1, 1] - 1
+    assert np.allclose(bottom_layers[0][1, 1], dummy_4d_data[0, depth_idx_11, 1, 1])
+
     
 ###############################################################################
 
