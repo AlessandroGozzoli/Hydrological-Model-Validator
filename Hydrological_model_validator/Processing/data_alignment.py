@@ -415,13 +415,17 @@ def get_common_series_by_year_month(
         # ===== FURTHER VALIDATION =====
         if not isinstance(mod_monthly, (list, tuple)) or not isinstance(sat_monthly, (list, tuple)):
             raise TypeError(f"❌ Data for year {year} must be a list or tuple of numpy arrays ❌")
-        if len(mod_monthly) != 12 or len(sat_monthly) != 12:
-            raise ValueError(f"❌ Year {year} does not contain 12 monthly entries ❌")
+        if len(mod_monthly) != len(sat_monthly):
+            raise ValueError(f"❌ Year {year} does not contain the same number of monthly entries for model and satellite ❌")
 
+        month_count = len(mod_monthly)
         # ===== MONTHS LOOP =====
-        for month in range(12):
-            mod_vals = np.asarray(mod_monthly[month])
-            sat_vals = np.asarray(sat_monthly[month])
+        for month in range(month_count):
+            mod_vals = mod_monthly[month]
+            sat_vals = sat_monthly[month]
+
+            mod_vals = np.asarray(mod_vals)
+            sat_vals = np.asarray(sat_vals)
 
             # Skip if shapes differ
             if mod_vals.shape != sat_vals.shape:
@@ -527,7 +531,7 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     ----------
     data_dict : dict
         Nested dictionary containing data arrays/lists keyed first by dataset keys (e.g., 'mod', 'sat'),
-        then by year (int), where each year maps to a list of 12 monthly arrays or lists.
+        then by year (int), where each year maps to a list of monthly arrays or lists.
     key : str
         Dataset key to select data from `data_dict` (e.g., 'mod' or 'sat').
     month_idx : int
@@ -544,7 +548,7 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     ValueError
         If `data_dict` is not a dictionary or `key` is not found in it, or data for a year/month is invalid.
     IndexError
-        If `month_idx` is not in the range 0 to 11 or if any year's data does not have 12 monthly entries.
+        If `month_idx` is not in the range 0 to 11 or if any year's data does not have enough monthly entries.
 
     Example
     -------
@@ -572,8 +576,9 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     for year, monthly_list in year_data.items():
         if not isinstance(monthly_list, (list, tuple)):
             raise ValueError(f"❌ Year {year} data must be a list or tuple ❌")
-        if len(monthly_list) != 12:
-            raise IndexError(f"❌ Year {year} does not contain 12 monthly entries ❌")
+
+        if month_idx >= len(monthly_list):
+            raise IndexError(f"❌ Year {year} does not contain month index {month_idx} ❌")
 
         month_data = monthly_list[month_idx]
 
