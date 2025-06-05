@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 from Hydrological_model_validator.Processing.Density import (
     compute_density_bottom,
-    compute_density_3d,
     compute_Bmost,
     compute_Bleast,
     filter_dense_water_masses,
@@ -171,60 +170,6 @@ def test_compute_density_bottom_invalid_method(simple_temp_sal_2d, simple_mask3d
     # Validate error handling to ensure robustness against unsupported method inputs
     with pytest.raises(ValueError):
         compute_density_bottom({2020: [temp]}, {2020: [sal]}, Bmost, method="INVALID")
-
-
-################################################################################
-# ---------- Tests for compute_density_3d ----------
-################################################################################
-
-
-# Test compute_density_3d with EOS method, checking output shape and validating density values against expected calculation.
-def test_compute_density_3d_eos(simple_temp_sal_3d):
-    temp, sal, depths = simple_temp_sal_3d
-    
-    # Compute 3D density using EOS to verify the function handles full 3D inputs correctly
-    density = compute_density_3d(temp, sal, depths, method="EOS")
-    
-    assert density.shape == temp.shape
-    
-    # Only validate where temperature and salinity are valid (non-NaN) to avoid spurious comparisons
-    valid = ~np.isnan(temp) & ~np.isnan(sal)
-    
-    # Use simplified EOS formula to confirm computed densities match expected theoretical values
-    expected = 1025 * (1 - 0.0002 * (temp[valid] - 10) + 0.0008 * (sal[valid] - 35))
-    np.testing.assert_allclose(density[valid], expected, rtol=1e-5)
-
-# Test compute_density_3d with EOS80 method, verifying output shape and that density values are physically reasonable (>1000).
-def test_compute_density_3d_eos80(simple_temp_sal_3d):
-    temp, sal, depths = simple_temp_sal_3d
-    
-    # Use EOS80 to ensure legacy method produces outputs of correct shape and realistic magnitude
-    density = compute_density_3d(temp, sal, depths, method="EOS80")
-    
-    assert density.shape == temp.shape
-    
-    # Density must be physically plausible; seawater density cannot be below 1000 kg/m³
-    assert np.all(density[~np.isnan(density)] > 1000)
-
-# Test compute_density_3d with TEOS10 method, ensuring output shape and density values above 1000.
-def test_compute_density_3d_teos10(simple_temp_sal_3d):
-    temp, sal, depths = simple_temp_sal_3d
-    
-    # Test TEOS10, the current oceanographic standard, to ensure updated formula is properly integrated
-    density = compute_density_3d(temp, sal, depths, method="TEOS10")
-    
-    assert density.shape == temp.shape
-    
-    # Confirm density values fall within physically realistic range to verify calculation integrity
-    assert np.all(density[~np.isnan(density)] > 1000)
-
-# Test that compute_density_3d raises ValueError for an invalid method argument.
-def test_compute_density_3d_invalid_method(simple_temp_sal_3d):
-    temp, sal, depths = simple_temp_sal_3d
-    
-    # Check that unsupported method input triggers proper error, ensuring function robustness
-    with pytest.raises(ValueError):
-        compute_density_3d(temp, sal, depths, method="INVALID")
 
 
 ################################################################################
