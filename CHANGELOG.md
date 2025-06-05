@@ -1,5 +1,23 @@
-# **Version:** 4.6.1  
+# **Version:** 4.6.2  
 **Date:** 29/05/2025
+
+## Summary
+
+The `BFM_data_reader.py` submodule, along with its corresponding pytest, has been updated, cleaned, and enhanced with improved documentation and validation.
+
+## Documentation Expansion
+
+- Performed a comprehensive rework of `BFM_data_reader.py`, including:
+  - Expanded and clarified docstrings.
+  - Improved inline comments for better maintainability and readability.
+  - Extensive input validation checks to ensure robustness and user feedback.
+
+- Updated `test_bfm_data_reader.py` to align with the new input validation logic and avoid testing conflicts.
+
+--------------------------------------------------------------------------------------
+
+# **Version:** 4.6.1  
+**Date:** 04/06/2025
 
 ## Summary
 
