@@ -253,16 +253,24 @@ import sys
 import types
 
 def ensure_matlab_engine_module():
-    # Create dummy matlab.engine module if it doesn't exist
+    # Create dummy matlab module
     if 'matlab' not in sys.modules:
         matlab_mod = types.ModuleType('matlab')
         sys.modules['matlab'] = matlab_mod
     else:
         matlab_mod = sys.modules['matlab']
 
+    # Create dummy matlab.engine submodule
     if not hasattr(matlab_mod, 'engine'):
         engine_mod = types.ModuleType('matlab.engine')
-        setattr(matlab_mod, 'engine', engine_mod)
+        matlab_mod.engine = engine_mod
+    else:
+        engine_mod = matlab_mod.engine
+
+    # Add dummy start_matlab to avoid AttributeError during monkeypatch
+    if not hasattr(engine_mod, 'start_matlab'):
+        engine_mod.start_matlab = lambda: None
+
 
 # Test that call_interpolator starts the MATLAB engine and quits without errors under normal conditions
 def test_call_interpolator_starts_and_quits(monkeypatch):
