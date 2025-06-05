@@ -5,11 +5,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import tempfile
+import json
+import pandas as pd
 
 from Hydrological_model_validator.Processing.Data_saver import (
     save_satellite_data, 
     save_model_data,
-    save_to_netcdf
+    save_to_netcdf,
+    convert_to_serializable,
+    save_variable_to_json
 )
 
 ################################################################################
@@ -182,3 +186,122 @@ def test_save_to_netcdf_overwrites_existing_files():
         filepath = output_dir / "testvar.nc"
         with xr.open_dataset(filepath) as ds:
             assert np.allclose(ds["testvar"].values, 1.0)
+
+################################################################################
+# Tests for convert_to_serializable
+################################################################################
+
+
+# JSON-native types
+assert convert_to_serializable("text") == "text"
+assert convert_to_serializable(42.5) == 42.5
+
+# Iterable types
+assert convert_to_serializable([1, 2, 3]) == [1, 2, 3]
+assert convert_to_serializable((4, 5)) == [4, 5]  # tuple converted to list
+
+# Dictionary
+assert convert_to_serializable({"a": 1, "b": [2, 3]}) == {"a": 1, "b": [2, 3]}
+assert convert_to_serializable({1: "x", 2: "y"}) == {"1": "x", "2": "y"}  # keys to str
+
+# NumPy arrays
+assert convert_to_serializable(np.array([1, 2, 3])) == [1, 2, 3]
+assert convert_to_serializable(np.array([[1, 2], [3, 4]])) == [[1, 2], [3, 4]]
+
+# pandas DataFrame
+df = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
+assert convert_to_serializable(df) == [{'a': 1, 'b': 3}, {'a': 2, 'b': 4}]
+assert isinstance(json.dumps(convert_to_serializable(df)), str)
+
+# pandas Series
+s = pd.Series([10, 20], index=["x", "y"])
+assert convert_to_serializable(s) == {"x": 10, "y": 20}
+assert isinstance(json.dumps(convert_to_serializable(s)), str)
+
+# xarray DataArray
+da = xr.DataArray(np.array([1, 2]), dims="x", coords={"x": [10, 20]})
+assert convert_to_serializable(da) == {"dims": ('x',), "coords": {"x": [10, 20]}, "data": [1, 2]}
+assert isinstance(json.dumps(convert_to_serializable(da)), str)
+
+# xarray Dataset
+ds = xr.Dataset({"temp": (("x",), [1, 2])}, coords={"x": [10, 20]})
+assert isinstance(convert_to_serializable(ds), dict)
+assert isinstance(json.dumps(convert_to_serializable(ds)), str)
+
+# Object with to_dict()
+class Dummy:
+    def to_dict(self): 
+        return {"key": "value"}
+
+dummy = Dummy()
+assert convert_to_serializable(dummy) == {"key": "value"}
+assert isinstance(json.dumps(convert_to_serializable(dummy)), str)
+
+# Unsupported type fallback
+assert "function" in convert_to_serializable(lambda x: x)
+assert isinstance(convert_to_serializable(object()), str)
+
+
+################################################################################
+# Tests for save_variable_to_json
+################################################################################
+
+
+# Test saving a simple dictionary to JSON and verifying file contents
+def test_save_simple_dict(tmp_path):
+    data = {"a": 1, "b": [2, 3]}
+    out_file = tmp_path / "test1.json"
+    save_variable_to_json(data, out_file)  # Save dictionary to JSON file
+    
+    # Open the saved JSON file and load its contents
+    with open(out_file) as f:
+        loaded = json.load(f)
+    
+    # Assert the loaded data matches the original dictionary exactly
+    assert loaded == data
+
+# Test saving a NumPy array to JSON and verifying file contents
+def test_save_numpy_array(tmp_path):
+    arr = np.array([[1, 2], [3, 4]])
+    out_file = tmp_path / "test2.json"
+    save_variable_to_json(arr, out_file)  # Save numpy array to JSON file
+    
+    # Load JSON file back as Python list of lists
+    with open(out_file) as f:
+        loaded = json.load(f)
+    
+    # Check that numpy array was correctly converted to nested lists in JSON
+    assert loaded == [[1, 2], [3, 4]]
+
+# Test that saving to a non-.json file raises a ValueError
+def test_invalid_extension(tmp_path):
+    out_file = tmp_path / "not_json.txt"
+    try:
+        # Attempt to save with an invalid file extension (should fail)
+        save_variable_to_json({"x": 1}, out_file)
+    except ValueError as e:
+        # Verify error message contains correct info about file extension requirement
+        assert "must have a .json extension" in str(e)
+    else:
+        # Fail the test if no exception was raised
+        assert False, "Expected ValueError for wrong extension"
+
+# Test that serialization failure raises a TypeError (monkeypatch convert_to_serializable)
+def test_serialization_failure(tmp_path, monkeypatch):
+    # Define a replacement function that always raises TypeError to simulate failure
+    def fail_serialization(obj):
+        raise TypeError("Cannot serialize")
+    
+    # Monkeypatch the convert_to_serializable function to simulate serialization failure
+    monkeypatch.setattr("Hydrological_model_validator.Processing.Data_saver.convert_to_serializable", fail_serialization)
+
+    out_file = tmp_path / "fail.json"
+    try:
+        # Try saving a valid dict, expecting a serialization failure due to monkeypatch
+        save_variable_to_json({"x": 1}, out_file)
+    except TypeError as e:
+        # Confirm that TypeError was raised and contains expected message
+        assert "Cannot serialize" in str(e)
+    else:
+        # Fail the test if no exception was raised
+        assert False, "Expected TypeError from serialization failure"
