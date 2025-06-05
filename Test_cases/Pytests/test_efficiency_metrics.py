@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
+import pandas as pd
 
 from Hydrological_model_validator.Processing.Efficiency_metrics import (r_squared,
                                                                         monthly_r_squared,
@@ -20,7 +21,9 @@ from Hydrological_model_validator.Processing.Efficiency_metrics import (r_square
                                                                         monthly_index_of_agreement_j,
                                                                         relative_index_of_agreement,
                                                                         monthly_relative_index_of_agreement,
-                                                                        compute_spatial_efficiency)
+                                                                        compute_spatial_efficiency,
+                                                                        compute_error_timeseries,
+                                                                        compute_stats_single_time)
 
 ################################################################################
 # Tests for r_squared
@@ -1179,3 +1182,142 @@ def test_compute_spatial_efficiency_invalid_time_group():
     # Invalid grouping string should raise ValueError
     with pytest.raises(ValueError):
         compute_spatial_efficiency(da_model, da_sat, time_group="invalid")
+        
+###############################################################################
+# compute_error_timeseries
+###############################################################################
+
+
+# Helper function to create dummy DataArrays
+def create_dummy_xr(time_len=3, lat_len=2, lon_len=2, fill_value=1.0):
+    times = pd.date_range("2000-01-01", periods=time_len)
+    data = np.full((time_len, lat_len, lon_len), fill_value)
+    return xr.DataArray(data, coords=[times, np.arange(lat_len), np.arange(lon_len)], dims=["time", "lat", "lon"])
+
+
+# Test that compute_error_timeseries returns a DataFrame with correct shape and expected columns.
+def test_basic_functionality():
+    model = create_dummy_xr(fill_value=2.0)
+    sat = create_dummy_xr(fill_value=1.0)
+    mask = create_dummy_xr(fill_value=True, time_len=1)  # mask same shape but with bool True
+    mask = mask.astype(bool)
+
+    df = compute_error_timeseries(model, sat, mask)
+    assert isinstance(df, pd.DataFrame)
+    # Ensure the output has a row for each time step in the model data
+    assert df.shape[0] == model.sizes['time']
+    # Check that the output contains all expected statistical metrics
+    assert all(col in df.columns for col in ["mean_bias", "unbiased_rmse", "std_error", "correlation"])
+
+
+# Test that mean_bias is zero when model and satellite data are all zeros.
+def test_all_zeros():
+    model = create_dummy_xr(fill_value=0.0)
+    sat = create_dummy_xr(fill_value=0.0)
+    mask = create_dummy_xr(fill_value=True).astype(bool)
+    df = compute_error_timeseries(model, sat, mask)
+    # mean_bias should be zero because there is no difference between model and satellite data
+    assert all(abs(df['mean_bias']) < 1e-10)
+
+
+# Test that all statistics are NaN when the mask excludes all data points.
+def test_no_masked_points():
+    model = create_dummy_xr(fill_value=1.0)
+    sat = create_dummy_xr(fill_value=1.0)
+    mask = create_dummy_xr(fill_value=False).astype(bool)  # mask everything out
+    df = compute_error_timeseries(model, sat, mask)
+    # All output values should be NaN since no valid data points exist for calculation
+    assert df.isna().all().all()
+
+
+# Test that mean_bias and std_error are zero when model and satellite data perfectly match.
+def test_perfect_match():
+    model = create_dummy_xr(fill_value=3.5)
+    sat = create_dummy_xr(fill_value=3.5)
+    mask = create_dummy_xr(fill_value=True).astype(bool)
+    df = compute_error_timeseries(model, sat, mask)
+    # Perfect agreement implies no systematic bias
+    assert all(abs(df['mean_bias']) < 1e-10)
+    # Perfect agreement implies no spread/error difference
+    assert all(abs(df['std_error']) < 1e-10)
+
+
+# Test that compute_error_timeseries handles partial masking without producing all NaNs.
+def test_partial_mask():
+    model = create_dummy_xr(fill_value=2.0)
+    sat = create_dummy_xr(fill_value=1.0)
+    mask = create_dummy_xr(fill_value=True).astype(bool)
+    # Intentionally exclude a few points to test if function can handle partial data
+    mask.values[0, 0, 0] = False
+    mask.values[0, 1, 1] = False
+    df = compute_error_timeseries(model, sat, mask)
+    # Should still produce valid statistics since some data remain unmasked
+    assert not df.isna().all().all()
+
+
+# Test that function correctly processes different lengths of the time dimension.
+@pytest.mark.parametrize("time_len", [1, 5, 10])
+def test_different_time_lengths(time_len):
+    model = create_dummy_xr(time_len=time_len, fill_value=2.0)
+    sat = create_dummy_xr(time_len=time_len, fill_value=1.0)
+    mask = create_dummy_xr(time_len=time_len, fill_value=True).astype(bool)
+    df = compute_error_timeseries(model, sat, mask)
+    # Ensure function scales with input time dimension length, producing output with correct shape
+    assert df.shape[0] == time_len
+
+
+###############################################################################
+# compute_stats_single_time
+###############################################################################
+
+
+# Test stats calculation on normal input arrays without NaNs.
+def test_normal_case():
+    m = np.array([1, 2, 3, 4])
+    o = np.array([1.5, 2, 2.5, 5])
+    stats = compute_stats_single_time(m, o)
+    assert isinstance(stats, dict)
+    # Verify all expected statistics keys are present
+    assert all(key in stats for key in ["mean_bias", "unbiased_rmse", "std_error", "correlation"])
+    # mean_bias should match the average difference between model and observation values
+    np.testing.assert_almost_equal(stats["mean_bias"], np.mean(m - o))
+
+
+# Test stats calculation correctly ignores NaNs in input arrays.
+def test_partial_nans():
+    m = np.array([1, np.nan, 3, 4])
+    o = np.array([1, 2, np.nan, 4])
+    stats = compute_stats_single_time(m, o)
+    # Only non-NaN matching indices (0 and 3) are used for stats calculation
+    expected_m = np.array([1, 4])
+    expected_o = np.array([1, 4])
+    # mean_bias should be computed only from valid pairs
+    np.testing.assert_almost_equal(stats["mean_bias"], np.mean(expected_m - expected_o))
+    # correlation should be perfect because valid points are identical
+    assert np.isclose(stats["correlation"], 1.0)
+
+
+# Test that all returned stats are NaN when all input values are NaN.
+def test_all_nans():
+    m = np.array([np.nan, np.nan])
+    o = np.array([np.nan, np.nan])
+    stats = compute_stats_single_time(m, o)
+    # When no valid data points exist, all statistics should be NaN
+    assert np.isnan(stats["mean_bias"])
+    assert np.isnan(stats["unbiased_rmse"])
+    assert np.isnan(stats["std_error"])
+    assert np.isnan(stats["correlation"])
+
+
+# Test that stats reflect zero error and correlation NaN on perfectly matching inputs.
+def test_perfect_match_single():
+    m = np.array([2, 2, 2])
+    o = np.array([2, 2, 2])
+    stats = compute_stats_single_time(m, o)
+    # No difference means zero bias and zero error metrics
+    assert np.isclose(stats["mean_bias"], 0)
+    assert np.isclose(stats["unbiased_rmse"], 0)
+    assert np.isclose(stats["std_error"], 0)
+    # Correlation can be NaN due to zero variance, which is acceptable here
+    assert np.isnan(stats["correlation"]) or np.isclose(stats["correlation"], 1)
+
