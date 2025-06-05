@@ -8,7 +8,6 @@ import gzip
 from netCDF4 import Dataset
 import io
 import os
-import matlab.engine
 
 ###############################################################################
 def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray, ...], Tuple[np.ndarray, ...], np.ndarray, np.ndarray]:
@@ -363,7 +362,10 @@ def call_interpolator(
             mask_file='/data/mask/mesh_mask.nc'
         )
     """
-    # ===== input validation =====
+    # ===== ENGINE IMPORT ====
+    import matlab.engine
+    
+    # ===== INPUT VALIDATION =====
     if not isinstance(varname, str):
         raise TypeError("❌ varname must be a string ❌")
     if not isinstance(data_level, int):
