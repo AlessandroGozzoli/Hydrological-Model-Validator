@@ -55,15 +55,60 @@ def compute_density_bottom(temperature_data: dict,
     >>> density = compute_density_bottom(temperature_data, salinity_data, Bmost, method)
     >>> # density is a dict {year: [12 arrays]}, each array is density at benthic depth for that month
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(temperature_data, dict):
+        raise TypeError("❌ temperature_data must be a dictionary keyed by year. ❌")
+    if not isinstance(salinity_data, dict):
+        raise TypeError("❌ salinity_data must be a dictionary keyed by year. ❌")
+
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError("❌ Bmost must be a numpy.ndarray. ❌")
+    if Bmost.ndim != 2:
+        raise ValueError("❌ Bmost must be a 2D array. ❌")
+    if not np.all(Bmost >= 1):
+        raise ValueError("❌ All values in Bmost must be >= 1 (1-based indices). ❌")
+
+    if not isinstance(dz, (int, float)) or dz <= 0:
+        raise ValueError("❌ dz must be a positive float. ❌")
+
+    if set(temperature_data.keys()) != set(salinity_data.keys()):
+        raise ValueError("❌ temperature_data and salinity_data must have the same years as keys. ❌")
+
+    for year in temperature_data:
+        temp_list = temperature_data[year]
+        sal_list = salinity_data[year]
+
+        if not isinstance(temp_list, list) or not isinstance(sal_list, list):
+            raise TypeError(f"❌ For year {year}, temperature and salinity data must be lists of arrays. ❌")
+
+        if len(temp_list) != len(sal_list):
+            raise ValueError(f"❌ For year {year}, temperature and salinity lists must have the same number of monthly arrays. ❌")
+
+        for month_idx in range(len(temp_list)):
+            temp_arr = temp_list[month_idx]
+            sal_arr = sal_list[month_idx]
+
+            if not isinstance(temp_arr, np.ndarray) or not isinstance(sal_arr, np.ndarray):
+                raise TypeError(f"❌ For year {year}, month {month_idx+1}, temperature and salinity must be numpy arrays. ❌")
+
+            if temp_arr.shape != sal_arr.shape:
+                raise ValueError(f"❌ For year {year}, month {month_idx+1}, temperature and salinity arrays must have the same shape. ❌")
+
+            # Check the 2D shape matches Bmost shape (spatial dimensions)
+            if temp_arr.shape != Bmost.shape:
+                raise ValueError(f"❌ For year {year}, month {month_idx+1}, temperature/salinity shape {temp_arr.shape} does not match Bmost shape {Bmost.shape}. ❌")
+
     # Verify the method parameter is supported
     if method not in {"EOS", "EOS80", "TEOS10"}:
-        raise ValueError(f"Unsupported method '{method}'. Choose from: 'EOS', 'EOS80', 'TEOS10'.")
+        raise ValueError(f"❌ Unsupported method '{method}'. Choose from: 'EOS', 'EOS80', 'TEOS10'. ❌")
 
+    # ===== GET DEPTH =====
     # Convert bottom layer indices to depth by multiplying by vertical layer thickness dz
     depth = Bmost * dz
     # Initialize output dictionary to hold density results for each year and month
     density_data = {}
 
+    # ===== LOOP TO GET ALL VALUES =====
     # Loop over each year and its list of monthly temperature arrays
     for year, temp_list in temperature_data.items():
         density_data[year] = []
@@ -77,6 +122,7 @@ def compute_density_bottom(temperature_data: dict,
             temp_3d = temp_2d[None, ...]
             sal_3d = sal_2d[None, ...]
 
+            # ===== COMPUTE THE DENSITY =====
             # Calculate density depending on the specified method:
             if method == "EOS":
                 # Linear equation of state approximation parameters:
@@ -101,7 +147,7 @@ def compute_density_bottom(temperature_data: dict,
                 density_2d = density[0]
             else:
                 # Raise error if output dimensions are unexpected to avoid silent bugs
-                raise ValueError(f"Unexpected density shape: {density.shape}")
+                raise ValueError(f"❌ Unexpected density shape: {density.shape} ❌")
 
             # Append the 2D density array for this month to the output list for the year
             density_data[year].append(density_2d)
@@ -140,6 +186,12 @@ def compute_Bmost(mask3d: np.ndarray) -> np.ndarray:
     array([[1, 1],
            [1, 1]])
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(mask3d, np.ndarray):
+        raise TypeError("❌ mask3d must be a numpy.ndarray. ❌")
+    if mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D array with shape (depth, rows, cols). ❌")
+
     # Sum mask values along the depth axis (axis=0).
     # Since mask is binary (1 for valid, 0 for invalid), 
     # the sum at each (row, col) counts how many depth layers are valid.
@@ -169,8 +221,16 @@ def compute_Bleast(mask3d: np.ndarray) -> np.ndarray:
     array([[1, 0],
            [0, 1]])
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(mask3d, np.ndarray):
+        raise TypeError("❌ mask3d must be a numpy.ndarray. ❌")
+    if mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D array with shape (depth, rows, cols). ❌")
+    if mask3d.shape[0] == 0:
+        raise ValueError("❌ mask3d must have at least one depth layer. ❌")
+
     # Extract the first depth layer (index 0) from the 3D mask array.
-    # The squeeze removes any single-dimensional entries from the shape, 
+    # The squeeze removes any single-dimensional entries from the shape,
     # but here it mainly ensures a 2D array output (rows x cols).
     return np.squeeze(mask3d[0, :, :])
 ###############################################################################
@@ -214,6 +274,27 @@ def filter_dense_water_masses(
     [[   nan    nan]
      [   nan 1030.0]]
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(density_data, dict):
+        raise TypeError("❌ density_data must be a dictionary keyed by year (int). ❌")
+
+    for year, monthly_arrays in density_data.items():
+        if not isinstance(year, int):
+            raise TypeError(f"❌ Year keys must be integers, got {type(year)}. ❌")
+
+        if not isinstance(monthly_arrays, list):
+            raise TypeError(f"❌ For year {year}, density data must be a list of numpy arrays. ❌")
+
+        for idx, arr in enumerate(monthly_arrays):
+            if not isinstance(arr, np.ndarray):
+                raise TypeError(f"❌ For year {year}, month index {idx}, density data must be a numpy.ndarray. ❌")
+            if arr.ndim != 2:
+                raise ValueError(f"❌ For year {year}, month index {idx}, density array must be 2D. ❌")
+
+    if not isinstance(threshold, (int, float)):
+        raise TypeError("❌ threshold must be a numeric value (int or float). ❌")
+
+    # ===== FILTER THE DATA =====
     filtered_data = {
         year: [
             # For each 2D monthly density array:
@@ -222,10 +303,9 @@ def filter_dense_water_masses(
             np.where(density_2d >= threshold, density_2d, np.nan)
             for density_2d in monthly_arrays
         ]
-        # Loop through each year and its corresponding list of monthly arrays
         for year, monthly_arrays in density_data.items()
     }
-    
+
     return filtered_data
 ###############################################################################
 
@@ -293,12 +373,27 @@ def calc_density(
      [[1024.2   1024.  ]
       [1024.4   1024.6 ]]]
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(temp_3d, np.ndarray):
+        raise TypeError("❌ temp_3d must be a numpy.ndarray. ❌")
+    if not isinstance(sal_3d, np.ndarray):
+        raise TypeError("❌ sal_3d must be a numpy.ndarray. ❌")
+    if not isinstance(depths, np.ndarray):
+        raise TypeError("❌ depths must be a numpy.ndarray. ❌")
+    if temp_3d.shape != sal_3d.shape:
+        raise ValueError(f"❌ temp_3d and sal_3d must have the same shape. Got {temp_3d.shape} and {sal_3d.shape}. ❌")
+    if temp_3d.shape[0] != depths.shape[0]:
+        raise ValueError(f"❌ depths length must match the first dimension of temp_3d and sal_3d. Got {depths.shape[0]} and {temp_3d.shape[0]}. ❌")
+    if density_method not in {"EOS", "EOS80", "TEOS10"}:
+        raise ValueError("❌ Unsupported density method: {}. Choose from: 'EOS', 'EOS80', 'TEOS10'. ❌".format(density_method))
+
     # Define valid data points where neither temperature nor salinity is NaN
     valid_mask = ~np.isnan(temp_3d) & ~np.isnan(sal_3d)
 
     # Initialize density array with NaNs to preserve invalid points
     density = np.full(temp_3d.shape, np.nan, dtype=np.float64)
 
+    # ===== COMPUTE THE DENSITY =====
     if density_method == "EOS":
         # Linear equation of state parameters
         alpha, beta, rho0 = 0.0002, 0.0008, 1025
@@ -317,10 +412,6 @@ def calc_density(
         pressure_3d = np.broadcast_to(pressure, temp_3d.shape)
         # Compute absolute density with pressure using TEOS-10 standard from gsw
         density[valid_mask] = gsw.density.rho(sal_3d[valid_mask], temp_3d[valid_mask], pressure_3d[valid_mask])
-
-    else:
-        # Raise error if method is unsupported
-        raise ValueError(f"Unsupported density method: {density_method}")
 
     return density
 ###############################################################################
@@ -397,20 +488,48 @@ def compute_dense_water_volume(
     >>> print(dense_volumes[0])
     {'date': datetime.datetime(2000, 1, 1, 0, 0), 'volume_m3': 1234567.89}
     """
+    # ==== input validation =====
+    if not isinstance(IDIR, (str, Path)):
+        raise TypeError("❌ IDIR must be a string or Path object ❌")
+    if not isinstance(mask3d, np.ndarray):
+        raise TypeError("❌ mask3d must be a numpy ndarray ❌")
+    if mask3d.dtype != bool:
+        raise ValueError("❌ mask3d must be a boolean numpy array ❌")
+    if mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D numpy array ❌")
+    if not isinstance(filename_fragments, dict):
+        raise TypeError("❌ filename_fragments must be a dict ❌")
+    required_keys = {'ffrag1', 'ffrag2', 'ffrag3'}
+    if not required_keys.issubset(filename_fragments.keys()):
+        missing = required_keys - filename_fragments.keys()
+        raise ValueError(f"❌ filename_fragments is missing required keys: {missing} ❌")
+    if density_method not in {"EOS", "EOS80", "TEOS10"}:
+        raise ValueError('❌ density_method must be one of "EOS", "EOS80", or "TEOS10" ❌')
+    for param_name, param_value in [('dz', dz), ('dx', dx), ('dy', dy), ('dens_threshold', dens_threshold)]:
+        if not isinstance(param_value, (int, float)):
+            raise TypeError(f"❌ {param_name} must be a number ❌")
+        if param_value <= 0 and param_name != 'dens_threshold':
+            raise ValueError(f"❌ {param_name} must be positive ❌")
+    if not isinstance(dens_threshold, (int, float)):
+        raise TypeError("❌ dens_threshold must be a number ❌")
+
     IDIR = Path(IDIR)
 
+    # ===== GET THE YEARS =====
     # Identify years available based on folder naming convention
     print("Scanning directory to determine available years...")
     Ybeg, Yend, ysec = infer_years_from_path(IDIR, target_type="folder", pattern=r'output\s*(\d{4})')
     print(f"Found years from {Ybeg} to {Yend}: {ysec}")
     print("-" * 45)
 
+    # ===== CELL SPECIFICS =====
     # Compute grid cell dimensions and volume
     cell_area = dx * dy
     cell_volume = cell_area * dz
 
     volume_time_series = []  # Stores output: list of dicts with volume per month
 
+    # ==== LOOP =====
     for year in ysec:
         # Construct expected filename path for current year
         filename = build_bfm_filename(year, filename_fragments)
@@ -419,6 +538,7 @@ def compute_dense_water_volume(
 
         print(f"Working on year {year}")
 
+        # ===== FILE OPENING =====
         # Skip year if data file is missing
         if not file_gz.exists():
             print(f"File missing: {file_gz}, skipping year {year}")
@@ -434,6 +554,7 @@ def compute_dense_water_volume(
 
         time_len, depth_len, Y, X = temp.shape
 
+        # ===== MASKING AND VALIDATION =====
         # Apply static 3D spatial mask (broadcast to 4D to match time dimension)
         mask_4d = np.broadcast_to(mask3d == 0, temp.shape)
 
@@ -464,6 +585,7 @@ def compute_dense_water_volume(
         # Calculate density using the specified method
         density_4d = calc_density(temp, sal, depths, valid_mask, density_method)
 
+        # ===== THRESHOLD AND VOLUME =====
         # Identify cells with density ≥ threshold (i.e., dense water)
         dense_cells = density_4d >= dens_threshold
 
