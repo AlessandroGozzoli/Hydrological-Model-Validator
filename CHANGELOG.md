@@ -1,3 +1,24 @@
+# **Version:** 4.6.1  
+**Date:** 29/05/2025
+
+## Summary
+
+This hotfix addresses updates to keep testing aligned with recent functional updates and improves robustness through better input validation.
+
+## Hotfixes
+
+- Updated the following test modules to reflect recent changes:
+  - `test_efficiency_metrics.py`
+  - `test_stats_math_utils.py`
+  - `test_utils.py`
+  
+- Minor fixes were applied to associated functions to:
+  - Ensure consistent input validation
+  - Improve edge case handling
+  - Maintain compatibility with expanded testing coverage
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.6.0
 **Date:** 04/06/2025
 
