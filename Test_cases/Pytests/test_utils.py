@@ -1,5 +1,7 @@
 import pytest
 import numpy as np
+import xarray as xr
+import pandas as pd
 
 from Hydrological_model_validator.Processing.utils import (  # replace 'your_module' with your actual module name
     find_key,
@@ -9,6 +11,7 @@ from Hydrological_model_validator.Processing.utils import (  # replace 'your_mod
     temp_threshold,
     hal_threshold,
     find_key_variable,
+    _to_dataarray,
 )
 
 ###############################################################################
@@ -299,3 +302,76 @@ def test_find_key_variable_multiple_candidates():
     # should return 'temperature' as it appears first in candidates
     assert find_key_variable(vars_, candidates) == 'temperature'
 
+
+###############################################################################
+# Tests for _to_dataarray
+###############################################################################
+
+
+# Helper to create dummy DataArray with dims time, lat, lon
+def create_reference_da(has_time=True):
+    if has_time:
+        times = pd.date_range("2000-01-01", periods=2)
+        data = np.random.rand(2, 3, 3)
+        return xr.DataArray(data, coords=[times, np.arange(3), np.arange(3)], dims=["time", "lat", "lon"])
+    else:
+        data = np.random.rand(3, 3)
+        return xr.DataArray(data, coords=[np.arange(3), np.arange(3)], dims=["lat", "lon"])
+
+
+# Test that input already an xarray.DataArray returns itself unchanged.
+def test_val_is_dataarray():
+    val = xr.DataArray(np.ones((3,3)), dims=["lat", "lon"])
+    ref = create_reference_da()
+    result = _to_dataarray(val, ref)
+    assert isinstance(result, xr.DataArray)
+    # Returning the same object saves unnecessary copying and preserves metadata.
+    assert result is val
+
+
+# Test scalar input converts to DataArray matching reference without time dimension.
+def test_scalar_val_with_time_dim():
+    val = 5
+    ref = create_reference_da(has_time=True)
+    result = _to_dataarray(val, ref)
+    assert isinstance(result, xr.DataArray)
+    # When scalar is passed, produce a DataArray matching spatial dims of reference,
+    # but drop time because scalar cannot meaningfully broadcast over time dimension.
+    assert 'time' not in result.dims
+    assert result.shape == (3, 3)
+    # All values should equal the scalar, indicating correct filling/broadcasting.
+    assert (result.values == val).all()
+
+
+# Test scalar input converts to DataArray matching reference without time dimension when no time in reference.
+def test_scalar_val_without_time_dim():
+    val = 7
+    ref = create_reference_da(has_time=False)
+    result = _to_dataarray(val, ref)
+    assert isinstance(result, xr.DataArray)
+    # Should produce DataArray with the same shape and dims as the reference.
+    assert result.shape == (3, 3)
+    # Values filled with the scalar value.
+    assert (result.values == val).all()
+
+
+# Test scalar input fills DataArray matching reference with extra non-time dimensions.
+def test_reference_with_extra_dims():
+    # Reference has additional dims beyond lat, lon, e.g. extra_dim.
+    data = np.random.rand(3, 3, 2)
+    ref = xr.DataArray(data, dims=["lat", "lon", "extra_dim"])
+    val = 10
+    result = _to_dataarray(val, ref)
+    # Check that all dims in reference are preserved to maintain compatibility.
+    assert set(result.dims) == set(ref.dims)
+    assert result.shape == ref.shape
+    # All values filled with scalar val to support consistent broadcasting.
+    assert (result.values == val).all()
+
+
+# Test non-DataArray array-like input converts to DataArray by broadcasting to reference shape.
+def test_val_is_array_like_but_not_dataarray():
+    val = np.array([1, 2, 3])
+    ref = create_reference_da(has_time=False)
+    with pytest.raises(ValueError, match="Expected scalar or DataArray"):
+        _to_dataarray(val, ref)
