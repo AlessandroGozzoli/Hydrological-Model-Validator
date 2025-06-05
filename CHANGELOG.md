@@ -1,3 +1,18 @@
+# **Version:** 4.6.3  
+**Date:** 29/05/2025
+
+## Summary
+
+The `data_alignment.py` script has been updated with more extensive documentation and input validation enhancements.
+
+## Enhancements
+
+- Expanded and clarified all docstrings to better describe function behavior and expected inputs.
+- Added comprehensive inline comments to improve code readability and maintainability.
+- Implemented general input validation across all functions to ensure proper usage and clearer error reporting.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.6.2  
 **Date:** 29/05/2025
 
