@@ -465,50 +465,41 @@ def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
     >>> extract_mod_sat_keys(data)
     ('model', 'satellite')
     """
-    # Check input type to ensure the function is used correctly,
-    # as the logic depends on dictionary keys
     if not isinstance(taylor_dict, dict):
         raise TypeError("Input must be a dictionary")
 
-    # Define possible key names commonly used for model data,
-    # to allow flexible key matching by searching likely candidates
-    model_candidates = {'mod', 'model', 'predicted', 'model_data'}
-
-    # Define possible key names commonly used for satellite data,
-    # again to cover typical naming conventions in data dictionaries
-    satellite_candidates = {'sat', 'satellite', 'observed', 'obs', 'sat_data'}
-
-    # Convert all dictionary keys to lowercase mapped to original keys
-    # to enable case-insensitive matching while preserving original keys
-    keys_lower = {k.lower(): k for k in taylor_dict.keys()}
+    model_candidates = ['mod', 'model', 'predicted', 'model_data']
+    satellite_candidates = ['sat', 'satellite', 'observed', 'obs', 'sat_data']
 
     model_key = None
     satellite_key = None
 
-    # Iterate through the model candidates and find the first matching key in the dictionary.
-    # This prioritizes standard naming conventions, allowing flexible input formats.
+    # Iterate keys and lower them once for efficiency
+    lowered_keys = {k: k.lower() for k in taylor_dict.keys()}
+
+    # Find model key by substring matching candidates in keys
     for candidate in model_candidates:
-        if candidate in keys_lower:
-            model_key = keys_lower[candidate]
-            break  # Stop after finding the first valid model key
+        for orig_key, lowered_key in lowered_keys.items():
+            if candidate in lowered_key:
+                model_key = orig_key
+                break
+        if model_key is not None:
+            break
 
-    # Similarly, find the first matching satellite key using the candidate list.
-    # This enables consistent detection of satellite data keys despite varying naming.
+    # Find satellite key similarly
     for candidate in satellite_candidates:
-        if candidate in keys_lower:
-            satellite_key = keys_lower[candidate]
-            break  # Stop after first match
+        for orig_key, lowered_key in lowered_keys.items():
+            if candidate in lowered_key:
+                satellite_key = orig_key
+                break
+        if satellite_key is not None:
+            break
 
-    # If no suitable model key found, raise an error because downstream
-    # processing depends on correctly identifying this key.
     if model_key is None:
         raise ValueError("No suitable model key found in the dictionary")
-
-    # Similarly, raise an error if no satellite key found to avoid silent failures.
     if satellite_key is None:
         raise ValueError("No suitable satellite key found in the dictionary")
 
-    # Return the exact original keys found to allow the caller to access data correctly
     return model_key, satellite_key
 ###############################################################################
 
