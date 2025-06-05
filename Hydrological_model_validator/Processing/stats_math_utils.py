@@ -401,7 +401,8 @@ def compute_fft(data, dt=1):
     - fft_result: dict of FFT arrays if input is dict, else single FFT array
     """
     if isinstance(data, dict):
-        # Assume all series/arrays have same length
+        if len(data) == 0:
+            raise ValueError("Input dict is empty; cannot compute FFT.")
         N = len(next(iter(data.values())))
         freqs = fftfreq(N, dt)[:N//2]
         fft_result = {
@@ -409,9 +410,7 @@ def compute_fft(data, dt=1):
             for key, arr in data.items()
         }
         return freqs, fft_result
-
     else:
-        # Single array/series input
         N = len(data)
         freqs = fftfreq(N, dt)[:N//2]
         fft_result = fft(data)[:N//2]
