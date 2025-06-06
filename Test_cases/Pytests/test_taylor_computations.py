@@ -255,9 +255,13 @@ def test_build_all_points_empty_data():
         "model": {2020: [np.array([])] * 12},
         "satellite": {2020: [np.array([])] * 12}
     }
-    # Expect ValueError because no valid data exists to compute stats
-    with pytest.raises(ValueError):
-        df, years = build_all_points(data)
+    # Call the function (should NOT raise)
+    df, years = build_all_points(data)
+    # Assert that the DataFrame is empty (no valid points)
+    assert isinstance(df, pd.DataFrame)
+    assert df.empty
+    # Assert years are still returned correctly
+    assert years == [2020]
 
 # Verifies that build_all_points correctly handles multiple years of data.
 def test_build_all_points_multiple_years():
