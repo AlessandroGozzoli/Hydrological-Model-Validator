@@ -1,0 +1,30 @@
+# Your scientific stack
+numpy
+pandas
+xarray
+matplotlib
+scikit-learn
+statsmodels
+netCDF4
+SkillMetrics
+gsw
+cmocean
+seaborn
+plotly
+cartopy
+cryptography
+scipy
+dask
+
+# Testing dependencies
+pytest
+pytest-fixture-config
+
+# Documentation dependencies for Sphinx
+sphinx
+myst-parser
+sphinxcontrib-serializinghtml
+alabaster
+babel
+docutils
+Pygments
