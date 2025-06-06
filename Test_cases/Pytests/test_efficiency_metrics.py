@@ -196,6 +196,50 @@ def test_monthly_r_squared_variable_years():
     assert len(r2) == 12
     # R² can be NaN or between 0 and 1 when values differ
     assert all((np.isnan(val) or (0 <= val <= 1)) for val in r2)
+    
+# Test for input validations
+def test_monthly_r_squared_input_validation():
+
+    # Test input is not a dict
+    with pytest.raises(TypeError):
+        monthly_r_squared(None)
+    with pytest.raises(TypeError):
+        monthly_r_squared("not a dict")
+
+    # Test missing 'mod' or 'sat' keys
+    with pytest.raises(IndexError):
+        monthly_r_squared({'no_mod_here': {}, 'BASSTsat': {}})
+    with pytest.raises(IndexError):
+        monthly_r_squared({'BASSTmod': {}, 'no_sat_here': {}})
+
+    # Test model or satellite data not dict keyed by years
+    with pytest.raises(TypeError):
+        monthly_r_squared({'BASSTmod': [], 'BASSTsat': {}})
+    with pytest.raises(TypeError):
+        monthly_r_squared({'BASSTmod': {}, 'BASSTsat': []})
+
+    # Test mismatched years between model and satellite data
+    with pytest.raises(ValueError):
+        monthly_r_squared({
+            'BASSTmod': {2000: [np.array([1])] * 12},
+            'BASSTsat': {2001: [np.array([1])] * 12}
+        })
+
+    # Test valid input does not raise and returns 12 values
+    mod_data = {
+        2000: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
+        2001: [np.array([[2, 3], [4, 5]]) for _ in range(12)]
+    }
+    sat_data = {
+        2000: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
+        2001: [np.array([[2, 3], [4, 5]]) for _ in range(12)]
+    }
+    data_dict = {'BASSTmod': mod_data, 'BASSTsat': sat_data}
+
+    result = monthly_r_squared(data_dict)
+    assert isinstance(result, list)
+    assert len(result) == 12
+    assert all(isinstance(r2, float) or np.isnan(r2) for r2 in result)
 
     
 ################################################################################
@@ -536,6 +580,38 @@ def test_monthly_ioa_variable_years():
     assert len(results) == 12
     assert all(-np.inf < val <= 1 for val in results)
 
+def test_monthly_index_of_agreement_input_validation():
+    # Expect TypeError for non-dict inputs
+    with pytest.raises(TypeError):
+        monthly_index_of_agreement(None)
+    with pytest.raises(TypeError):
+        monthly_index_of_agreement("not a dict")
+
+    # Missing model keys: no key containing 'mod'
+    with pytest.raises(KeyError):
+        monthly_index_of_agreement({'nonsense': {}, 'satellite': {}})
+
+    # Missing satellite keys: no key containing 'sat'
+    with pytest.raises(KeyError):
+        monthly_index_of_agreement({'mod_data': {}, 'nothing': {}})
+
+    # Model or satellite data not dict keyed by years (should raise TypeError)
+    with pytest.raises(AttributeError):
+        monthly_index_of_agreement({'mod_data': [], 'sat_data': {}})
+    with pytest.raises(AttributeError):
+        monthly_index_of_agreement({'mod_data': {}, 'sat_data': []})
+
+    # Mismatched years
+    with pytest.raises(ValueError):
+        monthly_index_of_agreement({
+            'mod_data': {2020: [[],]*12},
+            'sat_data': {2019: [[],]*12}
+        })
+
+    # Empty years dicts
+    with pytest.raises(ValueError):
+        monthly_index_of_agreement({'mod_data': {}, 'sat_data': {}})
+
     
 ################################################################################
 # Tests for ln_nse
@@ -581,6 +657,50 @@ def test_ln_nse_zero_denominator():
     # Zero variance in log(obs) leads to undefined ln NSE (NaN)
     result = ln_nse(obs, pred)
     assert np.isnan(result)
+    
+# Test for input validation
+def test_ln_nse():
+    # Valid data, known output (approximate)
+    obs = np.array([1.0, 10.0, 100.0, 1000.0])
+    pred = np.array([1.1, 9.5, 110.0, 950.0])
+    result = ln_nse(obs, pred)
+    assert isinstance(result, float)
+    assert 0 <= result <= 1  # NSE typically in this range
+
+    # Inputs containing zeros or negatives are excluded
+    obs2 = np.array([1.0, 0.0, -5.0, 100.0])
+    pred2 = np.array([1.0, 2.0, 3.0, 110.0])
+    result2 = ln_nse(obs2, pred2)
+    # Only two valid pairs: [1.0,1.0], [100.0,110.0]
+    assert not np.isnan(result2)
+
+    # Inputs with NaNs are excluded
+    obs3 = np.array([np.nan, 10.0, 100.0])
+    pred3 = np.array([1.0, 9.5, np.nan])
+    result3 = ln_nse(obs3, pred3)
+    # Only one valid pair (10.0,9.5), insufficient for NSE
+    assert np.isnan(result3)
+
+    # Insufficient valid data (<2 valid pairs) returns np.nan
+    obs4 = np.array([1.0])
+    pred4 = np.array([1.0])
+    assert np.isnan(ln_nse(obs4, pred4))
+
+    # Different shapes raise ValueError
+    obs5 = np.array([1.0, 2.0])
+    pred5 = np.array([1.0])
+    with pytest.raises(ValueError):
+        ln_nse(obs5, pred5)
+
+    # Empty inputs raise ValueError
+    with pytest.raises(ValueError):
+        ln_nse(np.array([]), np.array([]))
+
+    # Non-iterable inputs raise TypeError
+    with pytest.raises(TypeError):
+        ln_nse(123, [1, 2, 3])
+    with pytest.raises(TypeError):
+        ln_nse([1, 2, 3], None)
 
 
 ################################################################################
