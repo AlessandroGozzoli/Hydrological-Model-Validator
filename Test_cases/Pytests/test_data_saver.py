@@ -263,145 +263,59 @@ def test_save_to_netcdf_overwrites_existing_files():
 ################################################################################
 
 
-# JSON-native types
-assert convert_to_serializable("text") == "text"
-assert convert_to_serializable(42.5) == 42.5
-
-# Iterable types
-assert convert_to_serializable([1, 2, 3]) == [1, 2, 3]
-assert convert_to_serializable((4, 5)) == [4, 5]  # tuple converted to list
-
-# Dictionary
-assert convert_to_serializable({"a": 1, "b": [2, 3]}) == {"a": 1, "b": [2, 3]}
-assert convert_to_serializable({1: "x", 2: "y"}) == {"1": "x", "2": "y"}  # keys to str
-
-# NumPy arrays
-assert convert_to_serializable(np.array([1, 2, 3])) == [1, 2, 3]
-assert convert_to_serializable(np.array([[1, 2], [3, 4]])) == [[1, 2], [3, 4]]
-
-# pandas DataFrame
-df = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
-assert convert_to_serializable(df) == [{'a': 1, 'b': 3}, {'a': 2, 'b': 4}]
-assert isinstance(json.dumps(convert_to_serializable(df)), str)
-
-# pandas Series
-s = pd.Series([10, 20], index=["x", "y"])
-assert convert_to_serializable(s) == {"x": 10, "y": 20}
-assert isinstance(json.dumps(convert_to_serializable(s)), str)
-
-# xarray DataArray
-da = xr.DataArray(np.array([1, 2]), dims="x", coords={"x": [10, 20]})
-assert convert_to_serializable(da) == {"dims": ('x',), "coords": {"x": [10, 20]}, "data": [1, 2]}
-assert isinstance(json.dumps(convert_to_serializable(da)), str)
-
-# xarray Dataset
-ds = xr.Dataset({"temp": (("x",), [1, 2])}, coords={"x": [10, 20]})
-assert isinstance(convert_to_serializable(ds), dict)
-assert isinstance(json.dumps(convert_to_serializable(ds)), str)
-
-# Object with to_dict()
-class Dummy:
-    def to_dict(self): 
-        return {"key": "value"}
-
-dummy = Dummy()
-assert convert_to_serializable(dummy) == {"key": "value"}
-assert isinstance(json.dumps(convert_to_serializable(dummy)), str)
-
-# Unsupported type fallback
-assert "function" in convert_to_serializable(lambda x: x)
-assert isinstance(convert_to_serializable(object()), str)
-
+# Dummy classes
 class DummyWithToDict:
     def to_dict(self):
         return {"foo": "bar"}
 
-def test_convert_to_serializable():
-    # List, tuple, set (recursive)
-    assert convert_to_serializable([1, 2, 3]) == [1, 2, 3]
-    assert convert_to_serializable((1, 2)) == [1, 2]
-    assert convert_to_serializable({1, 2}) == [1, 2] or convert_to_serializable({1, 2}) == [2, 1]  # order undefined in sets
-
-    # Dict (recursive)
-    d = {"a": 1, 2: "b"}
-    expected = {"a": 1, "2": "b"}  # keys converted to str
-    assert convert_to_serializable(d) == expected
-
-    # numpy array to list
-    arr = np.array([[1, 2], [3, 4]])
-    assert convert_to_serializable(arr) == [[1, 2], [3, 4]]
-
-    # pandas Series to dict
-    s = pd.Series([10, 20], index=["x", "y"])
-    assert convert_to_serializable(s) == {"x": 10, "y": 20}
-
-    # pandas DataFrame to list of records
-    df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-    assert convert_to_serializable(df) == [{"a": 1, "b": 3}, {"a": 2, "b": 4}]
-
-    # xarray DataArray
-    da = xr.DataArray(
-        np.array([[1, 2], [3, 4]]),
-        dims=("x", "y"),
-        coords={"x": [10, 20], "y": [30, 40]}
-    )
-    res = convert_to_serializable(da)
-    assert res["dims"] == ("x", "y")
-    assert res["coords"] == {"x": [10, 20], "y": [30, 40]}
-    assert res["data"] == [[1, 2], [3, 4]]
-
-    # xarray Dataset
-    ds = xr.Dataset({"var": da})
-    ds_res = convert_to_serializable(ds)
-    assert isinstance(ds_res, dict)
-    assert "coords" in ds_res and "x" in ds_res["coords"]
-
-    # Object with to_dict method
-    obj = DummyWithToDict()
-    assert convert_to_serializable(obj) == {"foo": "bar"}
-
-    # Fallback to string
-    class NoDict:
-        def __str__(self):
-            return "fallback"
-    nd = NoDict()
-    assert convert_to_serializable(nd) == "fallback"
-    
-# Dummy class with __str__ fallback
-class DummyStr:
-    def __str__(self): return "dummy"
-
-# Dummy class with to_dict fallback
 class DummyDict:
-    def to_dict(self): return {"key": "value"}
+    def to_dict(self):
+        return {"key": "value"}
+
+class DummyStr:
+    def __str__(self):
+        return "dummy"
+
+class Unknown:
+    def __str__(self):
+        return "fallback"
 
 
-def test_convert_list_tuple_set():
+def test_json_native_types():
+    assert convert_to_serializable("text") == "text"
+    assert convert_to_serializable(42.5) == 42.5
+    assert convert_to_serializable(True) is True
+    assert convert_to_serializable(None) is None
+
+
+def test_iterables():
     assert convert_to_serializable([DummyStr(), DummyStr()]) == ["dummy", "dummy"]
     assert convert_to_serializable((DummyStr(),)) == ["dummy"]
     assert set(convert_to_serializable({DummyStr()})) == {"dummy"}
 
 
-def test_convert_dict():
+def test_dict():
     d = {"a": DummyStr(), 2: DummyStr()}
     result = convert_to_serializable(d)
     assert result == {"a": "dummy", "2": "dummy"}
 
 
-def test_convert_numpy_array():
+def test_numpy_array():
     arr = np.array([[1, 2], [3, 4]])
     assert convert_to_serializable(arr) == [[1, 2], [3, 4]]
 
 
-def test_convert_pandas_objects():
+def test_pandas_objects():
     df = pd.DataFrame({'x': [1, 2]})
     assert convert_to_serializable(df) == [{'x': 1}, {'x': 2}]
-    
+    assert isinstance(json.dumps(convert_to_serializable(df)), str)
+
     s = pd.Series([1, 2], index=['a', 'b'])
     assert convert_to_serializable(s) == {'a': 1, 'b': 2}
+    assert isinstance(json.dumps(convert_to_serializable(s)), str)
 
 
-def test_convert_xarray_dataarray():
+def test_xarray_dataarray():
     da = xr.DataArray(
         np.array([[10, 20], [30, 40]]),
         dims=("lat", "lon"),
@@ -409,27 +323,31 @@ def test_convert_xarray_dataarray():
     )
     result = convert_to_serializable(da)
     assert result["dims"] == ("lat", "lon")
-    assert result["coords"]["lat"] == [1, 2]
-    assert result["coords"]["lon"] == [3, 4]
+    assert result["coords"] == {"lat": [1, 2], "lon": [3, 4]}
     assert result["data"] == [[10, 20], [30, 40]]
+    assert isinstance(json.dumps(result), str)
 
 
-def test_convert_xarray_dataset():
+def test_xarray_dataset():
     ds = xr.Dataset({"foo": (("x",), [1, 2, 3])})
     result = convert_to_serializable(ds)
     assert isinstance(result, dict)
     assert "data_vars" in result
+    assert isinstance(json.dumps(result), str)
 
 
-def test_convert_to_dict_method():
+def test_object_with_to_dict():
     obj = DummyDict()
     assert convert_to_serializable(obj) == {"key": "value"}
 
+    obj2 = DummyWithToDict()
+    assert convert_to_serializable(obj2) == {"foo": "bar"}
 
-def test_convert_fallback_str():
-    class Unknown:
-        def __str__(self): return "fallback"
+
+def test_fallback_str():
     assert convert_to_serializable(Unknown()) == "fallback"
+    assert isinstance(convert_to_serializable(object()), str)
+    assert "function" in convert_to_serializable(lambda x: x)
     
     
 ################################################################################
