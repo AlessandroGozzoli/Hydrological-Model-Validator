@@ -132,6 +132,7 @@ def test_r_squared_input_validation():
     with pytest.raises(TypeError):
         r_squared(None, [1, 2, 3])
 
+def test_r_squared_shape_input():
     # Test shape mismatch between obs and pred
     with pytest.raises(ValueError):
         r_squared([1, 2, 3], [1, 2])
@@ -140,6 +141,7 @@ def test_r_squared_input_validation():
     with pytest.raises(ValueError):
         r_squared(np.array([[1, 2], [3, 4]]), np.array([[1, 2], [3, 4]]))
 
+def test_r_squared_input_validation_pt2():
     # Test valid inputs do not raise and produce a valid result
     obs = np.array([1, 2, 3])
     pred = np.array([1, 2, 3])
@@ -199,13 +201,13 @@ def test_monthly_r_squared_variable_years():
     
 # Test for input validations
 def test_monthly_r_squared_input_validation():
-
     # Test input is not a dict
     with pytest.raises(TypeError):
         monthly_r_squared(None)
     with pytest.raises(TypeError):
         monthly_r_squared("not a dict")
 
+def test_monthly_r_squared_heys_input_validation():
     # Test missing 'mod' or 'sat' keys
     with pytest.raises(IndexError):
         monthly_r_squared({'no_mod_here': {}, 'BASSTsat': {}})
@@ -225,15 +227,13 @@ def test_monthly_r_squared_input_validation():
             'BASSTsat': {2001: [np.array([1])] * 12}
         })
 
+def test_monthly_r_squared_input_validation_return():
+    def dummy_dict():
+        return {2000: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
+                2001: [np.array([[2, 3], [4, 5]]) for _ in range(12)]}
     # Test valid input does not raise and returns 12 values
-    mod_data = {
-        2000: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        2001: [np.array([[2, 3], [4, 5]]) for _ in range(12)]
-    }
-    sat_data = {
-        2000: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        2001: [np.array([[2, 3], [4, 5]]) for _ in range(12)]
-    }
+    mod_data = dummy_dict()
+    sat_data = dummy_dict()
     data_dict = {'BASSTmod': mod_data, 'BASSTsat': sat_data}
 
     result = monthly_r_squared(data_dict)
@@ -674,6 +674,7 @@ def test_ln_nse():
     # Only two valid pairs: [1.0,1.0], [100.0,110.0]
     assert not np.isnan(result2)
 
+def test_ln_nse_input():
     # Inputs with NaNs are excluded
     obs3 = np.array([np.nan, 10.0, 100.0])
     pred3 = np.array([1.0, 9.5, np.nan])
@@ -692,6 +693,7 @@ def test_ln_nse():
     with pytest.raises(ValueError):
         ln_nse(obs5, pred5)
 
+def test_ln_nse_empty():
     # Empty inputs raise ValueError
     with pytest.raises(ValueError):
         ln_nse(np.array([]), np.array([]))
