@@ -1,1 +1,6 @@
+include *.md
+include LICENSE
+include *.txt
+include *.toml
+include *.in
 recursive-include Hydrological_model_validator/Processing *.m
