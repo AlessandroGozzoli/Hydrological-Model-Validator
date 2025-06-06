@@ -440,16 +440,7 @@ def test_monthly_ioa_basic():
 
 # Test monthly IOA handles partial NaN values correctly, expecting no NaN in output
 def test_monthly_ioa_partial_nans():
-    data_dict = {
-        "modData": {
-            2000: [np.array([[1, 2], [np.nan, 4]]) for _ in range(12)],  # some NaNs in model data
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.array([[1, 2], [3, np.nan]]) for _ in range(12)],  # some NaNs in satellite data
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-    }
+    data_dict = get_test_data_dict_partial_nans()
     # IOA calculation should handle NaNs gracefully and produce valid numbers
     results = monthly_index_of_agreement(data_dict)
     assert len(results) == 12
