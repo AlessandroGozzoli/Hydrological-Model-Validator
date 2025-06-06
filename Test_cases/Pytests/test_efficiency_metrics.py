@@ -51,6 +51,18 @@ def get_test_data_dict():
         },
     }
 
+def generate_test_data_variable_years():
+    return {
+        "modData": {
+            2000: [np.ones((2, 2)) for _ in range(12)],
+            2001: [np.ones((2, 2)) * 2 for _ in range(12)],
+        },
+        "satData": {
+            2000: [np.ones((2, 2)) * 1.5 for _ in range(12)],
+            2001: [np.ones((2, 2)) * 1.5 for _ in range(12)],
+        },
+    }
+
 ################################################################################
 # Tests for r_squared
 ################################################################################
@@ -133,16 +145,7 @@ def test_monthly_r_squared_all_nans():
 
 # Test monthly R² computes values when model and satellite have different constant values over multiple years
 def test_monthly_r_squared_variable_years():
-    data_dict = {
-        "modData": {
-            2000: [np.ones((2, 2)) for _ in range(12)],
-            2001: [np.ones((2, 2)) * 2 for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-            2001: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-        },
-    }
+    data_dict = generate_test_data_variable_years()
     r2 = monthly_r_squared(data_dict)
     assert len(r2) == 12
     # R² can be NaN or between 0 and 1 when values differ
@@ -371,16 +374,7 @@ def test_monthly_nse_all_nans():
 
 # Test monthly NSE with variable years and values, ensuring results are within valid NSE bounds or NaN
 def test_monthly_nse_variable_years():
-    data_dict = {
-        "modData": {
-            2000: [np.ones((2, 2)) for _ in range(12)],
-            2001: [np.ones((2, 2)) * 2 for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-            2001: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-        },
-    }
+    data_dict = generate_test_data_variable_years()
     results = monthly_nse(data_dict)
     assert len(results) == 12
     # NSE valid range is (-∞, 1], allow NaN if calculation is invalid
@@ -486,16 +480,7 @@ def test_monthly_ioa_all_nans():
 
 # Test monthly IOA with varying years and values, expecting outputs within valid range
 def test_monthly_ioa_variable_years():
-    data_dict = {
-        "modData": {
-            2000: [np.ones((2, 2)) for _ in range(12)],
-            2001: [np.ones((2, 2)) * 2 for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-            2001: [np.ones((2, 2)) * 1.5 for _ in range(12)],
-        },
-    }
+    data_dict = generate_test_data_variable_years()
     # IOA values should be within expected range (-inf to 1) considering possible data scenarios
     results = monthly_index_of_agreement(data_dict)
     assert len(results) == 12
