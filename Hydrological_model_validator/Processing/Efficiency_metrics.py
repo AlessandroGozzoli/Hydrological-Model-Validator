@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
+from typing import Literal, Tuple, Dict, Union, List, Sequence
 
 from .stats_math_utils import (mean_bias, 
                                standard_deviation_error, 
@@ -9,7 +10,7 @@ from .stats_math_utils import (mean_bias,
                                unbiased_rmse)
 
 ###############################################################################
-def r_squared(obs: np.ndarray, pred: np.ndarray) -> float:
+def r_squared(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
     Calculate the coefficient of determination (r²) between observed and predicted data.
 
@@ -76,7 +77,7 @@ def r_squared(obs: np.ndarray, pred: np.ndarray) -> float:
 ###############################################################################
 
 ###############################################################################
-def monthly_r_squared(data_dict: dict) -> list[float]:
+def monthly_r_squared(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute monthly R² values between model and satellite datasets over multiple years.
 
@@ -184,7 +185,7 @@ def monthly_r_squared(data_dict: dict) -> list[float]:
 ###############################################################################
 
 ###############################################################################
-def weighted_r_squared(obs, pred):
+def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, list]) -> float:
     """
     Compute weighted coefficient of determination (weighted R²) between observed and predicted data.
 
@@ -264,7 +265,7 @@ def weighted_r_squared(obs, pred):
 ###############################################################################
 
 ###############################################################################    
-def monthly_weighted_r_squared(dictionary):
+def monthly_weighted_r_squared(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute weighted coefficient of determination (weighted R²) for each calendar month across multiple years,
     using paired model and satellite datasets.
@@ -361,7 +362,7 @@ def monthly_weighted_r_squared(dictionary):
 ###############################################################################
 
 ############################################################################### 
-def nse(obs, pred):
+def nse(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
     Compute Nash–Sutcliffe Efficiency (NSE) between observed and predicted data.
 
@@ -438,7 +439,7 @@ def nse(obs, pred):
 ###############################################################################
 
 ############################################################################### 
-def monthly_nse(dictionary):
+def monthly_nse(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute monthly Nash–Sutcliffe Efficiency (NSE) between model and satellite datasets.
 
@@ -529,7 +530,8 @@ def monthly_nse(dictionary):
 ###############################################################################
 
 ############################################################################### 
-def index_of_agreement(obs, pred):
+def index_of_agreement(obs: Union[np.ndarray, Sequence[float]], 
+                       pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
     Calculate the Index of Agreement (d) between observed and predicted values.
 
@@ -597,7 +599,9 @@ def index_of_agreement(obs, pred):
 ###############################################################################
 
 ############################################################################### 
-def monthly_index_of_agreement(dictionary):
+def monthly_index_of_agreement(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]
+) -> List[float]:
     """
     Compute the monthly Index of Agreement (d) between model and satellite datasets.
 
@@ -696,7 +700,10 @@ def monthly_index_of_agreement(dictionary):
 ###############################################################################
 
 ############################################################################### 
-def ln_nse(obs, pred):
+def ln_nse(
+    obs: Union[Sequence[float], np.ndarray], 
+    pred: Union[Sequence[float], np.ndarray]
+) -> float:
     """
     Compute the Nash–Sutcliffe Efficiency (NSE) on the natural logarithms of observed and predicted data.
 
@@ -773,7 +780,9 @@ def ln_nse(obs, pred):
 ###############################################################################
 
 ############################################################################### 
-def monthly_ln_nse(dictionary):
+def monthly_ln_nse(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
+) -> List[float]:
     """
     Compute monthly logarithmic Nash–Sutcliffe Efficiency (ln NSE) from paired model and satellite data.
 
@@ -865,7 +874,11 @@ def monthly_ln_nse(dictionary):
 ###############################################################################
 
 ############################################################################### 
-def nse_j(obs, pred, j=1):
+def nse_j(
+    obs: Union[Sequence[float], np.ndarray], 
+    pred: Union[Sequence[float], np.ndarray], 
+    j: float = 1
+) -> float:
     """
     Compute modified Nash–Sutcliffe Efficiency (E_j) for an arbitrary exponent j.
 
@@ -932,7 +945,10 @@ def nse_j(obs, pred, j=1):
 ###############################################################################
 
 ############################################################################### 
-def monthly_nse_j(dictionary, j=1):
+def monthly_nse_j(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
+    j: float = 1
+) -> List[float]:
     """
     Compute monthly modified Nash–Sutcliffe Efficiency (E_j) for arbitrary exponent j
     from paired model and satellite data.
@@ -1011,7 +1027,11 @@ def monthly_nse_j(dictionary, j=1):
 ###############################################################################
 
 ############################################################################### 
-def index_of_agreement_j(obs, pred, j=1):
+def index_of_agreement_j(
+    obs: Union[Sequence[float], np.ndarray], 
+    pred: Union[Sequence[float], np.ndarray], 
+    j: float = 1
+) -> float:
     """
     Compute modified Index of Agreement (d_j) with arbitrary exponent j.
 
@@ -1076,7 +1096,10 @@ def index_of_agreement_j(obs, pred, j=1):
     return 1 - numerator / denominator  # Compute index (1 means perfect agreement)
 
 ############################################################################### 
-def monthly_index_of_agreement_j(dictionary, j=1):
+def monthly_index_of_agreement_j(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
+    j: float = 1
+) -> List[float]:
     """
     Compute monthly modified Index of Agreement (d_j) with exponent j from paired model and satellite data.
 
@@ -1165,7 +1188,10 @@ def monthly_index_of_agreement_j(dictionary, j=1):
 ###############################################################################
 
 ############################################################################### 
-def relative_nse(obs, pred):
+def relative_nse(
+    obs: Union[Sequence[float], np.ndarray], 
+    pred: Union[Sequence[float], np.ndarray]
+) -> float:
     """
     Compute the Relative Nash–Sutcliffe Efficiency (Relative NSE) between observations and predictions.
 
@@ -1224,7 +1250,9 @@ def relative_nse(obs, pred):
 ###############################################################################
 
 ############################################################################### 
-def monthly_relative_nse(dictionary):
+def monthly_relative_nse(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
+) -> List[float]:
     """
     Compute monthly Relative Nash–Sutcliffe Efficiency (Relative NSE) from paired model and satellite data.
 
@@ -1342,7 +1370,10 @@ def monthly_relative_nse(dictionary):
 ###############################################################################
 
 ############################################################################### 
-def relative_index_of_agreement(obs, pred):
+def relative_index_of_agreement(
+    obs: Union[Sequence[float], np.ndarray], 
+    pred: Union[Sequence[float], np.ndarray]
+) -> float:
     """
     Compute the Relative Index of Agreement (d_rel) between observed and predicted values.
 
@@ -1377,7 +1408,6 @@ def relative_index_of_agreement(obs, pred):
     >>> relative_index_of_agreement(obs, pred)
     0.92  # example output
     """
-
     # ===== INPUT VALIDATION =====
     if obs is None or pred is None:
         raise ValueError("❌ Observed and predicted inputs must not be None ❌")
@@ -1417,7 +1447,9 @@ def relative_index_of_agreement(obs, pred):
 ###############################################################################
 
 ############################################################################### 
-def monthly_relative_index_of_agreement(dictionary):
+def monthly_relative_index_of_agreement(
+    dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
+) -> List[float]:
     """
     Compute the Relative Index of Agreement (d_rel) for each calendar month by aggregating 
     paired observed (satellite) and predicted (model) data across multiple years.
@@ -1512,7 +1544,11 @@ def monthly_relative_index_of_agreement(dictionary):
 ###############################################################################
 
 ###############################################################################
-def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
+def compute_spatial_efficiency(
+    model_da: xr.DataArray, 
+    sat_da: xr.DataArray, 
+    time_group: Literal["month", "year"] = "month"
+) -> Tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
     """
     Compute spatial efficiency metrics between model and satellite data aggregated over time groups.
 
