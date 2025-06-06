@@ -69,6 +69,21 @@ def dict_all_Nans():
         "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
         }
 
+def basic_monthly_dict():
+    return {
+        "model": {
+            year: [np.array([[i+1, i+2], [i+3, i+4]]) + 0.01 for i in range(12)]  # slight offset added for near-perfect match
+            for year in [2000, 2001]
+        },
+        "sat": {
+            year: [np.array([[i+1, i+2], [i+3, i+4]]) for i in range(12)]  # original values, perfect match apart from small offset
+            for year in [2000, 2001]
+        },
+    }
+
+def year_random_noise():
+    return [np.ones((2, 2)) * (i + 1) + np.random.normal(0, 0.001, (2, 2)) for i in range(12)]
+
 ################################################################################
 # Tests for r_squared
 ################################################################################
@@ -783,16 +798,7 @@ def test_index_of_agreement_j_zero_denominator():
 
 # Test monthly_index_of_agreement_j returns values close to 1 for nearly identical model and satellite data.
 def test_monthly_index_of_agreement_j_basic():
-    data = {
-        "model": {
-            year: [np.array([[i+1, i+2], [i+3, i+4]]) + 0.01 for i in range(12)]  # slight offset added for near-perfect match
-            for year in [2000, 2001]
-        },
-        "sat": {
-            year: [np.array([[i+1, i+2], [i+3, i+4]]) for i in range(12)]  # original values, perfect match apart from small offset
-            for year in [2000, 2001]
-        },
-    }
+    data = basic_monthly_dict()
     results = monthly_index_of_agreement_j(data)
     assert len(results) == 12  # Expect 12 monthly results
     # Values should be very close to 1 for near-perfect agreement
@@ -899,16 +905,7 @@ def test_relative_nse_zero_denominator():
 
 # Test monthly_relative_nse returns near-perfect scores when model and satellite data match exactly.
 def test_monthly_relative_nse_basic():
-    data = {
-        "model": {
-            year: [np.array([[i + 1, i + 2], [i + 3, i + 4]]) for i in range(12)]
-            for year in [2000, 2001]
-        },
-        "sat": {
-            year: [np.array([[i + 1, i + 2], [i + 3, i + 4]]) for i in range(12)]
-            for year in [2000, 2001]
-        },
-    }
+    data = basic_monthly_dict()
     results = monthly_relative_nse(data)
     print(results)
     assert len(results) == 12
@@ -1016,11 +1013,11 @@ def test_monthly_relative_index_of_agreement_basic():
     np.random.seed(42)
     data = {
         "model": {
-            year: [np.ones((2, 2)) * (i + 1) + np.random.normal(0, 0.001, (2, 2)) for i in range(12)]
+            year: year_random_noise()
             for year in [2000, 2001]
         },
         "sat": {
-            year: [np.ones((2, 2)) * (i + 1) + np.random.normal(0, 0.001, (2, 2)) for i in range(12)]
+            year: year_random_noise()
             for year in [2000, 2001]
         },
     }
