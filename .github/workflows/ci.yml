@@ -29,9 +29,10 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=Hydrological_model_validator Test_cases/Pytests/
+          PYTHONPATH=. pytest --cov=Hydrological_model_validator --cov-report=term-missing Test_cases/Pytests/
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
