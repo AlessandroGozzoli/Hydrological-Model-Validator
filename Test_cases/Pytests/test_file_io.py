@@ -2,6 +2,8 @@ import pytest
 import numpy as np
 import xarray as xr
 import gzip
+from pathlib import Path
+from unittest.mock import patch
 
 # ====== EARLY MOCK TO FAKE matlab.engine BEFORE ANY IMPORTS ======
 def ensure_matlab_engine_module():
@@ -101,6 +103,63 @@ def test_mask_reader_wrong_type():
     with pytest.raises(TypeError):
         mask_reader(123)
 
+# Test that a KeyError is raised if required variables are missing in the NetCDF file
+def test_mask_reader_missing_required_vars(tmp_path):
+    class DummyDataset:
+        def __enter__(self): return self
+        def __exit__(self, exc_type, exc_val, exc_tb): pass
+        @property
+        def variables(self):
+            return {}  # no variables at all
+
+    (tmp_path / "mesh_mask.nc").touch()  # Create empty mask file
+
+    with patch("netCDF4.Dataset", return_value=DummyDataset()):
+        with pytest.raises(KeyError):
+            mask_reader(tmp_path)
+
+# Test that ValueError is raised if 'tmask' variable has invalid dimensions (not 3D or 4D)
+def test_mask_reader_tmask_invalid_dims(tmp_path):
+    class DummyDataset:
+        def __enter__(self): return self
+        def __exit__(self, exc_type, exc_val, exc_tb): pass
+        @property
+        def variables(self):
+            return {
+                "tmask": np.zeros((2, 2)),  # Invalid shape, 2D only
+                "nav_lat": np.zeros((1, 1)),
+                "nav_lon": np.zeros((1, 1)),
+            }
+
+    (tmp_path / "mesh_mask.nc").touch()  # Create empty mask file
+
+    with patch("netCDF4.Dataset", return_value=DummyDataset()):
+        with pytest.raises(ValueError):
+            mask_reader(tmp_path)
+
+# Test that ValueError is raised if lat/lon shapes don't match surface mask shape
+def test_mask_reader_lat_lon_shape_mismatch(tmp_path):
+    class DummyDataset:
+        def __enter__(self): return self
+        def __exit__(self, exc_type, exc_val, exc_tb): pass
+
+        @property
+        def variables(self):
+            tmask_data = np.ones((1, 3, 4, 5))  # shape (time=1, depth=3, y=4, x=5)
+            nav_lat = np.zeros((3, 4))       # mismatch y dimension
+            nav_lon = np.zeros((3, 5))       # mismatch x dimension
+
+            return {
+                "tmask": tmask_data,
+                "nav_lat": nav_lat,
+                "nav_lon": nav_lon,
+            }
+
+    (tmp_path / "mesh_mask.nc").touch()  # Create empty mask file
+
+    with patch("netCDF4.Dataset", return_value=DummyDataset()):
+        with pytest.raises(ValueError):
+            mask_reader(tmp_path)
 
 ###############################################################################
 # --- load_dataset tests ---
@@ -141,6 +200,29 @@ def test_load_dataset_bad_dir(tmp_path):
     with pytest.raises(ValueError):
         load_dataset(2020, fake_dir)
 
+# Test for input validation
+def test_load_dataset_input_validation(tmp_path):
+    # Valid directory path for other tests
+    valid_dir = tmp_path
+
+    # Invalid year type
+    with pytest.raises(TypeError):
+        load_dataset(3.14, valid_dir)  # float is invalid
+
+    # Invalid IDIR type
+    with pytest.raises(TypeError):
+        load_dataset(2023, 12345)  # int is invalid
+
+    # IDIR does not exist or not a directory
+    non_exist_dir = tmp_path / "non_exist"
+    with pytest.raises(ValueError):
+        load_dataset(2023, non_exist_dir)  # path does not exist
+
+    # Create a file instead of directory to simulate not a directory
+    file_path = tmp_path / "not_a_dir"
+    file_path.touch()
+    with pytest.raises(ValueError):
+        load_dataset(2023, file_path)  # path is file, not directory
 
 ###############################################################################
 # --- unzip_gz_to_file tests ---
@@ -318,3 +400,28 @@ def test_call_interpolator_function_fail(monkeypatch):
 
     with pytest.raises(RuntimeError, match="MATLAB interpolation failed"):
         call_interpolator("var", 1, "input", "output", "maskfile")
+        
+def test_call_interpolator_input_validation():
+    valid_str = "varname"
+    valid_int = 1
+    valid_path_str = "/valid/path"
+
+    # varname not string
+    with pytest.raises(TypeError):
+        call_interpolator(123, valid_int, valid_path_str, valid_path_str, valid_path_str)
+
+    # data_level not int
+    with pytest.raises(TypeError):
+        call_interpolator(valid_str, "not_int", valid_path_str, valid_path_str, valid_path_str)
+
+    # input_dir invalid type
+    with pytest.raises(TypeError):
+        call_interpolator(valid_str, valid_int, 123, valid_path_str, valid_path_str)
+
+    # output_dir invalid type
+    with pytest.raises(TypeError):
+        call_interpolator(valid_str, valid_int, valid_path_str, 123, valid_path_str)
+
+    # mask_file invalid type
+    with pytest.raises(TypeError):
+        call_interpolator(valid_str, valid_int, valid_path_str, valid_path_str, 123)
