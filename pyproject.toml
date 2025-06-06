@@ -66,8 +66,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = 'https://github.com/AlessandroGozzoli/Hydrological-Model-Validator'
-Bug Tracker = 'https://github.com/AlessandroGozzoli/Hydrological-Model-Validator/issues'
+Homepage = "https://github.com/AlessandroGozzoli/Hydrological-Model-Validator"
+"Bug Tracker" = "https://github.com/AlessandroGozzoli/Hydrological-Model-Validator/issues"
 
 [build-system]
 requires = ['setuptools>=42']
