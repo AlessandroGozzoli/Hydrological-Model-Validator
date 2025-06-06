@@ -1,0 +1,20 @@
+numpy
+pandas
+xarray
+matplotlib
+scikit-learn
+statsmodels
+netCDF4
+SkillMetrics
+gsw
+cmocean
+seaborn
+plotly
+cartopy
+cryptography
+scipy
+dask
+
+# Testing dependencies
+pytest
+pytest-fixture-config
