@@ -1,3 +1,53 @@
+# **Version:** 4.8.0  
+**Date:** 06/06/2025  
+
+## Summary
+
+This release introduces **continuous integration (CI)** with Codecov-linked testing, expands **installation tools**, and includes **multiple hotfixes** across test cases to ensure compatibility and consistency.
+
+## Codecov Integration
+
+To improve test quality and tracking, the **Codecov** tool has been integrated with the GitHub repository, offering automated test coverage analysis. The current test coverage is approximately **57%**, primarily limited by missing tests for data readers and plotting routines.
+
+**Target coverage:** 85–90% across all tested modules.
+
+**Current coverage highlights:**
+- `formatting.py`: 71%  
+- `BFM_data_reader.py`: 80%  
+- `Data_saver.py`: 76%  
+- `Density.py`: 63%  
+- `file_io.py`: 82%  
+
+CI badge:  
+[![CI](https://github.com/AlessandroGozzoli/Hydrological-Model-Validator/actions/workflows/ci.yml/badge.svg)](https://github.com/AlessandroGozzoli/Hydrological-Model-Validator/actions/workflows/ci.yml)
+
+## Installation Tools
+
+Multiple files have been added or enhanced to support proper installation of the package:
+- `requirements.txt`
+- `pyproject.toml`
+- `setup.py`
+- `MANIFEST.in`
+
+**Entrypoints** have been initialized, with plans to enable:
+- Running **test case scripts** as CLI entry points.
+- Executing **main processing/plotting** functions through command-line interfaces in future releases.
+
+## Hotfixes & Documentation
+
+- Expanded **docstrings**, **inline comments**, and **input validation** across modules.
+- Fixed issues in tests involving `matlab.engine` to align with CI and ensure accurate coverage tracking under Codecov.
+
+## Future Work
+
+- Finalize in-script documentation across all modules.
+- Extend test suite to improve test coverage to **>85%**, especially in:
+  - Plotting functions  
+  - Satellite/model data readers  
+  - Remaining utility modules
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.7.1
 **Date:** 05/06/2025
 
