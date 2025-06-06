@@ -14,6 +14,8 @@ release = '4.8.1'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+master_doc = 'index'
+
 extensions = [
     'myst_parser',          # enable Markdown support
     'sphinx.ext.autodoc',   # enable automatic doc generation from code docstrings
