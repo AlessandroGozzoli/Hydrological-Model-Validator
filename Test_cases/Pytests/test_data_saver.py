@@ -3,7 +3,7 @@ import xarray as xr
 import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 import tempfile
 import json
 import pandas as pd
@@ -77,6 +77,77 @@ def test_save_satellite_data_invalid_dims():
             with patch("builtins.input", return_value='1'):
                 save_satellite_data(tmpdir, Sat_lon, Sat_lat, SatData_complete)
 
+# Test for input validation
+def test_save_satellite_data_input_validation(tmp_path):
+    # Prepare valid arrays with correct dims
+    valid_lon = np.zeros((4, 5))
+    valid_lat = np.zeros((4, 5))
+    valid_data = np.zeros((3, 4, 5))
+
+    # output_path not string/Path
+    with pytest.raises(TypeError):
+        save_satellite_data(123, valid_lon, valid_lat, valid_data)
+
+    # output_path not a directory
+    fake_file = tmp_path / "not_a_dir"
+    fake_file.touch()
+    with pytest.raises(ValueError):
+        save_satellite_data(fake_file, valid_lon, valid_lat, valid_data)
+
+    # Sat_lon not ndarray/xr.DataArray
+    with pytest.raises(TypeError):
+        save_satellite_data(tmp_path, "not_array", valid_lat, valid_data)
+
+    # Sat_lat not ndarray/xr.DataArray
+    with pytest.raises(TypeError):
+        save_satellite_data(tmp_path, valid_lon, "not_array", valid_data)
+
+    # SatData_complete not ndarray/xr.DataArray
+    with pytest.raises(TypeError):
+        save_satellite_data(tmp_path, valid_lon, valid_lat, "not_array")
+
+    # Sat_lon wrong dims
+    with pytest.raises(ValueError):
+        save_satellite_data(tmp_path, np.zeros((4,)), valid_lat, valid_data)
+
+    # Sat_lat wrong dims
+    with pytest.raises(ValueError):
+        save_satellite_data(tmp_path, valid_lon, np.zeros((4,)), valid_data)
+
+    # SatData_complete wrong dims
+    with pytest.raises(ValueError):
+        save_satellite_data(tmp_path, valid_lon, valid_lat, np.zeros((4,5)))
+
+# Json save test
+@patch("builtins.input", return_value='4')  # simulate user chooses JSON save
+@patch("builtins.open", new_callable=mock_open)
+def test_save_satellite_data_json_save(mock_file, mock_input, tmp_path):
+    # Prepare valid arrays
+    Sat_lon = np.array([[1.0, 2.0], [3.0, 4.0]])
+    Sat_lat = np.array([[5.0, 6.0], [7.0, 8.0]])
+    SatData_complete = np.zeros((1, 2, 2))
+
+    # Run function, should attempt to write JSON file
+    save_satellite_data(tmp_path, Sat_lon, Sat_lat, SatData_complete)
+
+    # Check file was opened for writing the json
+    json_file_path = tmp_path / "SatData_clean.json"
+    mock_file.assert_called_with(json_file_path, 'w')
+
+    # Extract the actual written JSON data string
+    handle = mock_file()
+    written_data = ''.join(call.args[0] for call in handle.write.call_args_list)
+
+    # Parse back JSON to dict to verify keys and shapes
+    data = json.loads(written_data)
+    assert 'Sat_lon' in data
+    assert 'Sat_lat' in data
+    assert 'SatData_complete' in data
+    assert data['Sat_lon'] == Sat_lon.tolist()
+    assert data['Sat_lat'] == Sat_lat.tolist()
+    assert data['SatData_complete'] == SatData_complete.tolist()
+    
+    
 ################################################################################
 # Tests for save_model_data
 ################################################################################
@@ -241,7 +312,62 @@ assert isinstance(json.dumps(convert_to_serializable(dummy)), str)
 assert "function" in convert_to_serializable(lambda x: x)
 assert isinstance(convert_to_serializable(object()), str)
 
+class DummyWithToDict:
+    def to_dict(self):
+        return {"foo": "bar"}
 
+def test_convert_to_serializable():
+    # List, tuple, set (recursive)
+    assert convert_to_serializable([1, 2, 3]) == [1, 2, 3]
+    assert convert_to_serializable((1, 2)) == [1, 2]
+    assert convert_to_serializable({1, 2}) == [1, 2] or convert_to_serializable({1, 2}) == [2, 1]  # order undefined in sets
+
+    # Dict (recursive)
+    d = {"a": 1, 2: "b"}
+    expected = {"a": 1, "2": "b"}  # keys converted to str
+    assert convert_to_serializable(d) == expected
+
+    # numpy array to list
+    arr = np.array([[1, 2], [3, 4]])
+    assert convert_to_serializable(arr) == [[1, 2], [3, 4]]
+
+    # pandas Series to dict
+    s = pd.Series([10, 20], index=["x", "y"])
+    assert convert_to_serializable(s) == {"x": 10, "y": 20}
+
+    # pandas DataFrame to list of records
+    df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+    assert convert_to_serializable(df) == [{"a": 1, "b": 3}, {"a": 2, "b": 4}]
+
+    # xarray DataArray
+    da = xr.DataArray(
+        np.array([[1, 2], [3, 4]]),
+        dims=("x", "y"),
+        coords={"x": [10, 20], "y": [30, 40]}
+    )
+    res = convert_to_serializable(da)
+    assert res["dims"] == ("x", "y")
+    assert res["coords"] == {"x": [10, 20], "y": [30, 40]}
+    assert res["data"] == [[1, 2], [3, 4]]
+
+    # xarray Dataset
+    ds = xr.Dataset({"var": da})
+    ds_res = convert_to_serializable(ds)
+    assert isinstance(ds_res, dict)
+    assert "coords" in ds_res and "x" in ds_res["coords"]
+
+    # Object with to_dict method
+    obj = DummyWithToDict()
+    assert convert_to_serializable(obj) == {"foo": "bar"}
+
+    # Fallback to string
+    class NoDict:
+        def __str__(self):
+            return "fallback"
+    nd = NoDict()
+    assert convert_to_serializable(nd) == "fallback"
+    
+    
 ################################################################################
 # Tests for save_variable_to_json
 ################################################################################
