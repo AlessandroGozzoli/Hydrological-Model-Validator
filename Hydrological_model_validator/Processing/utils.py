@@ -41,6 +41,7 @@ def find_key(
     >>> find_key(d, ['pressure'])
     None
     """
+    # ===== VALIDATE INPUT TYPES =====
     if not isinstance(dictionary, dict):
         raise ValueError("Input 'dictionary' must be a dictionary.")
     if not (hasattr(possible_keys, '__iter__') and
@@ -48,14 +49,16 @@ def find_key(
             all(isinstance(k, str) for k in possible_keys)):
         raise ValueError("Input 'possible_keys' must be an iterable of strings, not a string itself.")
 
-    possible_keys_lower = [sub.lower() for sub in possible_keys]
+    # ===== PREPARE LOWERCASE SUBSTRINGS FOR MATCHING =====
+    possible_keys_lower = [sub.lower() for sub in possible_keys]  # Case-insensitive matching
 
+    # ===== SEARCH FOR FIRST MATCHING KEY =====
     for key in dictionary:
-        key_str = str(key).lower()
+        key_str = str(key).lower()  # Convert key to lowercase string for matching
         if any(sub in key_str for sub in possible_keys_lower):
-            return key
+            return key  # Return first matching key found
 
-    return None
+    return None  # No matching key found
 ###############################################################################
 
 ###############################################################################
@@ -100,6 +103,7 @@ def extract_options(
     >>> extract_options(user_args, defaults)
     {'color': 'blue', 'linewidth': 3}
     """
+    # ===== VALIDATE INPUT TYPES =====
     if not isinstance(user_kwargs, dict):
         raise ValueError("Input 'user_kwargs' must be a dictionary.")
     if not isinstance(default_dict, dict):
@@ -107,13 +111,14 @@ def extract_options(
     if not isinstance(prefix, str):
         raise ValueError("Input 'prefix' must be a string.")
 
-    result = default_dict.copy()
+    # ===== COPY DEFAULTS AND OVERRIDE WITH USER VALUES =====
+    result = default_dict.copy()  # Start with default options
     for key in default_dict:
-        prefixed_key = f"{prefix}{key}"
+        prefixed_key = f"{prefix}{key}"  # Compose prefixed key
         if prefixed_key in user_kwargs:
-            result[key] = user_kwargs[prefixed_key]
+            result[key] = user_kwargs[prefixed_key]  # Override with prefixed key if present
         elif key in user_kwargs:
-            result[key] = user_kwargs[key]
+            result[key] = user_kwargs[key]  # Else override with non-prefixed key if present
 
     return result
 ###############################################################################
@@ -160,24 +165,27 @@ def infer_years_from_path(
     ValueError
         If no matching years are found or directory does not exist.
     """
+    # ===== VALIDATE DIRECTORY =====
     directory = Path(directory)
     if not directory.exists():
         raise ValueError(f"Directory '{directory}' does not exist.")
 
+    # ===== LIST TARGET ITEMS =====
     target_type = target_type.lower()
     if target_type == "file":
-        items = [f for f in directory.iterdir() if f.is_file()]
+        items = [f for f in directory.iterdir() if f.is_file()]  # List files
     elif target_type == "folder":
-        items = [d for d in directory.iterdir() if d.is_dir()]
+        items = [d for d in directory.iterdir() if d.is_dir()]   # List directories
     else:
         raise ValueError(f"Invalid target_type '{target_type}'. Use 'file' or 'folder'.")
 
+    # ===== COMPILE REGEX AND EXTRACT YEARS =====
     year_re = re.compile(pattern)
-    
-    # Extract years by searching regex pattern on each item name
+
+    # Use set comprehension with regex search to find all unique years in item names
     years_found = sorted({
-        int(match.group(1))
-        for item in items
+        int(match.group(1)) 
+        for item in items 
         if (match := year_re.search(item.name))
     })
 
@@ -185,11 +193,13 @@ def infer_years_from_path(
         print(f"Scanned {len(items)} {target_type}s in {directory}")
         print(f"Found years: {years_found}")
 
+    # ===== VALIDATE YEARS FOUND =====
     if not years_found:
         raise ValueError(f"No {target_type}s with year pattern '{pattern}' found in {directory}")
 
-    Ybeg, Yend = years_found[0], years_found[-1]
-    ysec = list(range(Ybeg, Yend + 1))
+    # ===== RETURN YEAR RANGE AND SEQUENCE =====
+    Ybeg, Yend = years_found[0], years_found[-1]   # Earliest and latest years
+    ysec = list(range(Ybeg, Yend + 1))             # Full continuous list of years
 
     return Ybeg, Yend, ysec
 ###############################################################################
@@ -218,10 +228,29 @@ def temp_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: 
     -------
     np.ndarray
         Boolean mask of invalid temperature points.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> temp = np.array([[10, 36], [7, 9]])
+    >>> shallow_mask = np.array([[True, True], [False, False]])
+    >>> deep_mask = np.array([[False, False], [True, True]])
+    >>> temp_threshold(temp, shallow_mask, deep_mask)
+    array([[False,  True],
+           [ True, False]])
     """
+    # ===== APPLY SHALLOW THRESHOLD =====
+    # Valid shallow temps: 5 < temp < 35; invert and restrict to shallow mask
     invalid_shallow = ~((slice_data > 5) & (slice_data < 35)) & mask_shallow
+
+    # ===== APPLY DEEP THRESHOLD =====
+    # Valid deep temps: 8 < temp < 25; invert and restrict to deep mask
     invalid_deep = ~((slice_data > 8) & (slice_data < 25)) & mask_deep
+
+    # ===== COMBINE MASKS =====
+    # Mark points invalid if they fail either shallow or deep threshold criteria
     invalid_mask = invalid_shallow | invalid_deep
+
     return invalid_mask
 ###############################################################################
 
@@ -243,39 +272,129 @@ def hal_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: n
     -------
     np.ndarray
         Boolean mask of invalid salinity points.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> salinity = np.array([[26, 41], [37, 39]])
+    >>> shallow_mask = np.array([[True, True], [False, False]])
+    >>> deep_mask = np.array([[False, False], [True, True]])
+    >>> hal_threshold(salinity, shallow_mask, deep_mask)
+    array([[False,  True],
+           [False, False]])
     """
+    # ===== APPLY SHALLOW THRESHOLD =====
+    # Valid shallow salinity: 25 < salinity < 40; invert and restrict to shallow mask
     invalid_shallow = ~((slice_data > 25) & (slice_data < 40)) & mask_shallow
+
+    # ===== APPLY DEEP THRESHOLD =====
+    # Valid deep salinity: 36 < salinity < 40; invert and restrict to deep mask
     invalid_deep = ~((slice_data > 36) & (slice_data < 40)) & mask_deep
+
+    # ===== COMBINE MASKS =====
+    # Mark points invalid if they fail either shallow or deep threshold criteria
     invalid_mask = invalid_shallow | invalid_deep
+
     return invalid_mask
 ###############################################################################
 
 ###############################################################################
-def find_key_variable(nc_vars, candidates):
+def find_key_variable(nc_vars: Iterable[str], candidates: List[str]) -> str:
     """
     Return the first variable name found in nc_vars from candidates list,
     or raise KeyError if none found.
+
+    Parameters
+    ----------
+    nc_vars : iterable
+        Collection of variable names available (e.g., keys of a NetCDF dataset).
+    candidates : list
+        List of candidate variable names to search for.
+
+    Returns
+    -------
+    str
+        The first variable name found in nc_vars from the candidates list.
+
+    Raises
+    ------
+    KeyError
+        If none of the candidate variable names are found in nc_vars.
+
+    Example
+    -------
+    >>> vars_available = ['temp', 'salinity', 'depth']
+    >>> candidates = ['chlorophyll', 'salinity', 'temperature']
+    >>> find_key_variable(vars_available, candidates)
+    'salinity'
     """
+    # ===== SEARCH FOR FIRST MATCH =====
+    # Iterate over candidates, return first found variable in nc_vars
     found_var = next((v for v in candidates if v in nc_vars), None)
+
+    # ===== HANDLE NO MATCH =====
+    # Raise error if no candidate variable found
     if found_var is None:
         raise KeyError(
             f"\033[91m❌ None of the variables {candidates} found in the dataset\033[0m"
         )
+
     return found_var
 ###############################################################################
 
 ###############################################################################
-def _to_dataarray(val, reference_da):
-    """Ensure output is an xarray.DataArray, broadcast to reference lat/lon shape if needed."""
+def _to_dataarray(
+    val: Union[float, int, xr.DataArray], 
+    reference_da: xr.DataArray
+) -> xr.DataArray:
+    """
+    Ensure output is an xarray.DataArray, broadcast to reference lat/lon shape if needed.
+
+    Parameters
+    ----------
+    val : scalar or xarray.DataArray
+        Value to convert or broadcast. Must be scalar if not already a DataArray.
+    reference_da : xarray.DataArray
+        Reference DataArray providing target shape and coordinates for broadcasting.
+
+    Returns
+    -------
+    xarray.DataArray
+        DataArray matching the spatial dimensions of reference_da, containing val.
+
+    Raises
+    ------
+    ValueError
+        If val is neither a scalar nor a DataArray.
+
+    Example
+    -------
+    >>> import xarray as xr
+    >>> ref = xr.DataArray(np.zeros((5, 10)), dims=('lat', 'lon'))
+    >>> _to_dataarray(3.14, ref)
+    <xarray.DataArray (lat: 5, lon: 10)>
+    array([[3.14, 3.14, ..., 3.14]])
+    Coordinates:
+      * lat      (lat) int64 0 1 2 3 4
+      * lon      (lon) int64 0 1 2 3 4 5 6 7 8 9
+    """
+    # ===== RETURN IF ALREADY DATAARRAY =====
+    # Return val directly if it is already an xarray.DataArray
     if isinstance(val, xr.DataArray):
         return val
 
+    # ===== CHECK SCALAR =====
+    # Only allow scalar values to be broadcasted
     if not np.isscalar(val):
         raise ValueError(f"Expected scalar or DataArray, got {type(val)}")
 
+    # ===== SELECT REFERENCE SLICE =====
+    # If 'time' dim exists, use first time slice as shape template
     if 'time' in reference_da.dims:
         ref = reference_da.isel(time=0)
     else:
         ref = reference_da
 
+    # ===== BROADCAST SCALAR TO DATAARRAY =====
+    # Create DataArray full of val with shape of ref
     return xr.full_like(ref, val)
