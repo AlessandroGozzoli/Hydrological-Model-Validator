@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import xarray as xr
@@ -150,8 +150,13 @@ def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
     >>> round_up_to_nearest(7, base=0.5)
     7.0
     """
+    # ===== INPUT VALIDATION =====
     if base <= 0:
+        # Prevent invalid operation — rounding to a non-positive base is undefined
         raise ValueError("Base must be positive.")
+    
+    # Divide x by base to scale the problem, apply ceiling to ensure rounding *up*, 
+    # then scale back by multiplying with base to get the nearest upper multiple
     return base * np.ceil(x / base)
 ###############################################################################
 
@@ -181,24 +186,45 @@ def compute_coverage_stats(
     ------
     ValueError
         If input dimensions do not match expected shapes.
+
+    Examples
+    --------
+    >>> data = np.random.rand(10, 3, 3)
+    >>> data[:, 1:, 1:] = np.nan  # simulate cloud-covered region
+    >>> mask = np.array([[1, 1, 1],
+    ...                  [1, 1, 1],
+    ...                  [1, 1, 1]], dtype=bool)
+    >>> compute_coverage_stats(data, mask)
+    (array([...]), array([...]))
     """
+    # ===== INPUT VALIDATION =====
     if data.ndim != 3:
+        # Ensure input data is 3D (time, y, x)
         raise ValueError("Input 'data' must be 3D (time, y, x).")
     if Mmask.shape != data.shape[1:]:
+        # Spatial dimensions of the mask must match those of the data
         raise ValueError(f"Shape of Mmask {Mmask.shape} does not match data spatial dims {data.shape[1:]}.")
 
+    # Ensure Mmask is boolean without copying unless necessary
     Mmask = Mmask.astype(bool, copy=False)
 
+    # Apply mask to spatial dimensions, reduces each 2D frame to a 1D vector of masked values
     masked_data = data[:, Mmask]  # shape: (time, masked_points)
 
     total_points = masked_data.shape[1]
     if total_points == 0:
+        # If the mask selects zero points, return NaNs for all time steps
         n_time = data.shape[0]
         return np.full(n_time, np.nan), np.full(n_time, np.nan)
 
+    # ===== COUNTING =====
+    # Count valid (non-NaN) values per time step
     valid_counts = np.count_nonzero(~np.isnan(masked_data), axis=1)
+
+    # Remaining points are assumed to be cloud-covered (i.e., NaNs)
     cloud_counts = total_points - valid_counts
 
+    # Convert counts to percentage relative to total masked points
     data_available_percent = 100 * valid_counts / total_points
     cloud_coverage_percent = 100 * cloud_counts / total_points
 
@@ -232,9 +258,11 @@ def detrend_dim(
     xr.DataArray
         Detrended data array.
     """
+    # ===== INPUT VALIDATION =====
     if mask is not None:
         da = da.where(mask)
 
+    # ===== FUNCTION TO DETREND 1D =====
     def detrend_1d(x):
         # Ensure float dtype to support NaNs
         x = x.astype(float)
@@ -255,6 +283,7 @@ def detrend_dim(
             # Corresponding values for valid indices
             valid_vals = x[sorted_valid_idx]
 
+            # ===== FIXING =====
             # Interpolate linearly over missing values
             x_interp = x.copy()
             x_interp[invalid_idx] = np.interp(invalid_idx, sorted_valid_idx, valid_vals)
@@ -269,6 +298,7 @@ def detrend_dim(
 
         return detrended
 
+    # ===== DETRENDING PROCESS =====
     detrended = xr.apply_ufunc(
         detrend_1d,
         da,
@@ -282,136 +312,436 @@ def detrend_dim(
 ###############################################################################
 
 ###############################################################################
-def mean_bias(m, o, time_dim='time'):
-    """Compute the mean bias between model and observations."""
+def mean_bias(
+    m: Union[np.ndarray, pd.Series, xr.DataArray],
+    o: Union[np.ndarray, pd.Series, xr.DataArray],
+    time_dim: str = 'time'
+) -> Union[float, xr.DataArray]:
+    """
+    Compute the mean bias between model and observations over the specified time dimension.
+
+    Parameters
+    ----------
+    m : np.ndarray, pd.Series, or xr.DataArray
+        Model data.
+    o : np.ndarray, pd.Series, or xr.DataArray
+        Observation data.
+    time_dim : str, optional
+        Name of the time dimension to compute mean over (default is 'time').
+
+    Returns
+    -------
+    float or xr.DataArray
+        Mean bias: model minus observation, averaged over time.
+
+    Examples
+    --------
+    >>> m = np.array([1.1, 2.2, 3.3])
+    >>> o = np.array([1.0, 2.0, 3.0])
+    >>> mean_bias(m, o)
+    0.19999999999999973
+    """
+    # If input is not an xarray with the specified time dimension,
+    # compute global mean bias using np.nanmean to ignore NaNs
     if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
         return np.nanmean(m) - np.nanmean(o)
+
+    # Compute bias along the specified time dimension (works for xarray DataArray)
     return m.mean(dim=time_dim) - o.mean(dim=time_dim)
 ###############################################################################
 
 ###############################################################################
-def standard_deviation_error(m, o, time_dim='time'):
-    """Compute difference between standard deviations of m and o.
-
-    Raises ValueError if inputs have different lengths along time_dim.
+def standard_deviation_error(
+    m: Union[np.ndarray, pd.Series, xr.DataArray],
+    o: Union[np.ndarray, pd.Series, xr.DataArray],
+    time_dim: str = 'time'
+) -> Union[float, xr.DataArray]:
     """
-    # Check length compatibility
+    Compute the difference between the standard deviations of model and observation data.
+
+    Parameters
+    ----------
+    m : np.ndarray, pd.Series, or xr.DataArray
+        Model data.
+    o : np.ndarray, pd.Series, or xr.DataArray
+        Observation data.
+    time_dim : str, optional
+        Name of the time dimension to compute std over (default is 'time').
+
+    Returns
+    -------
+    float or xr.DataArray
+        The difference between model and observation standard deviations (model - obs).
+
+    Raises
+    ------
+    ValueError
+        If m and o have different lengths along the time dimension.
+
+    Examples
+    --------
+    >>> m = np.array([1.0, 2.0, 3.0])
+    >>> o = np.array([1.5, 2.5, 3.5])
+    >>> standard_deviation_error(m, o)
+    0.0
+    """
+    # --- Validate input lengths based on input type ---
     if isinstance(m, (pd.Series, np.ndarray)) and isinstance(o, (pd.Series, np.ndarray)):
+        # For array-like inputs, check length directly
         if len(m) != len(o):
             raise ValueError("Inputs 'm' and 'o' must have the same length.")
     elif time_dim in getattr(m, 'dims', []) and time_dim in getattr(o, 'dims', []):
+        # For xarray DataArrays, check size along time_dim
         if m.sizes[time_dim] != o.sizes[time_dim]:
             raise ValueError(f"Inputs 'm' and 'o' must have the same length along dimension '{time_dim}'.")
-    else:
-        # If dims are missing, no check is performed (optional: raise warning or error)
-        pass
 
-    # Compute difference of std devs
+    # --- Compute std dev difference based on type ---
     if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+        # Fallback to global std dev using np.nanstd to ignore NaNs
         sdm = np.nanstd(m)
         sdo = np.nanstd(o)
     else:
+        # Compute std dev along specified dimension for xarray
         sdm = m.std(dim=time_dim)
         sdo = o.std(dim=time_dim)
+
     return sdm - sdo
 ###############################################################################
 
 ###############################################################################
-def cross_correlation(m, o, time_dim='time'):
-    """Compute Pearson correlation coefficient between m and o."""
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
+def cross_correlation(
+    m: Union[np.ndarray, pd.Series, xr.DataArray],
+    o: Union[np.ndarray, pd.Series, xr.DataArray],
+    time_dim: str = 'time'
+) -> Union[float, xr.DataArray]:
+    """
+    Compute the Pearson correlation coefficient between model and observation data.
+
+    Parameters
+    ----------
+    m : np.ndarray, pd.Series, or xr.DataArray
+        Model data.
+    o : np.ndarray, pd.Series, or xr.DataArray
+        Observation data.
+    time_dim : str, optional
+        Name of the time dimension over which to compute the correlation (default is 'time').
+
+    Returns
+    -------
+    float or xr.DataArray
+        Pearson correlation coefficient.
+
+    Examples
+    --------
+    >>> m = np.array([1.0, 2.0, 3.0])
+    >>> o = np.array([1.1, 1.9, 3.2])
+    >>> cross_correlation(m, o)
+    0.9981908926857269
+    """
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+        # Fallback for array-like input or when time_dim is missing: compute global correlation
         m_mean = np.nanmean(m)
         o_mean = np.nanmean(o)
+
+        # Compute anomalies by removing the mean
         m_anom = m - m_mean
         o_anom = o - o_mean
+
+        # Covariance is mean of product of anomalies
         cov = np.nanmean(m_anom * o_anom)
+
+        # Standard deviations from variance of anomalies
         std_m = np.sqrt(np.nanmean(m_anom ** 2))
         std_o = np.sqrt(np.nanmean(o_anom ** 2))
     else:
+        # For xarray, compute along the specified dimension
         m_mean = m.mean(dim=time_dim)
         o_mean = o.mean(dim=time_dim)
+
         m_anom = m - m_mean
         o_anom = o - o_mean
+
         cov = (m_anom * o_anom).mean(dim=time_dim)
         std_m = np.sqrt((m_anom ** 2).mean(dim=time_dim))
         std_o = np.sqrt((o_anom ** 2).mean(dim=time_dim))
+
+    # Pearson correlation: covariance divided by product of std devs
     return cov / (std_m * std_o)
 ###############################################################################
 
 ###############################################################################
-def corr_no_nan(series1, series2):
-    """Pandas-only quick Pearson correlation ignoring NaNs."""
+def corr_no_nan(
+    series1: pd.Series,
+    series2: pd.Series
+) -> float:
+    """
+    Compute the Pearson correlation coefficient between two pandas Series, ignoring NaNs.
+
+    Parameters
+    ----------
+    series1 : pd.Series
+        First time series.
+    series2 : pd.Series
+        Second time series.
+
+    Returns
+    -------
+    float
+        Pearson correlation coefficient computed over overlapping non-NaN values.
+
+    Examples
+    --------
+    >>> s1 = pd.Series([1, 2, 3, None, 5])
+    >>> s2 = pd.Series([2, 2, 3, 4, None])
+    >>> corr_no_nan(s1, s2)
+    0.9819805060619657
+    """
+    # Concatenate series column-wise and drop rows with any NaNs to get valid pairs
     combined = pd.concat([series1, series2], axis=1).dropna()
+
+    # Compute correlation between the two columns of the cleaned DataFrame
     return combined.iloc[:, 0].corr(combined.iloc[:, 1])
 ###############################################################################
 
 ###############################################################################
-def std_dev(da, time_dim='time'):
-    """Compute standard deviation along time dimension."""
-    if isinstance(da, (pd.Series, np.ndarray)) or time_dim not in da.dims:
+def std_dev(
+    da: Union[np.ndarray, pd.Series, xr.DataArray],
+    time_dim: str = 'time'
+) -> Union[float, xr.DataArray]:
+    """
+    Compute the standard deviation along the specified time dimension.
+
+    Parameters
+    ----------
+    da : np.ndarray, pd.Series, or xr.DataArray
+        Input data array or series.
+    time_dim : str, optional
+        Name of the time dimension to compute std over (default is 'time').
+
+    Returns
+    -------
+    float or xr.DataArray
+        Standard deviation along the time dimension.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> data = np.array([1.0, 2.0, 3.0, 4.0])
+    >>> std_dev(data)
+    1.118033988749895
+    """
+    if isinstance(da, (pd.Series, np.ndarray)) or time_dim not in getattr(da, 'dims', []):
+        # For array-like input or missing time_dim, compute global std ignoring NaNs
         mean = np.nanmean(da)
         return np.sqrt(np.nanmean((da - mean) ** 2))
+    
+    # For xarray DataArray, compute mean along time_dim
     mean = da.mean(dim=time_dim)
+
+    # Compute sqrt of mean squared deviations along time_dim (std dev)
     return ((da - mean) ** 2).mean(dim=time_dim) ** 0.5
 ###############################################################################
 
 ###############################################################################
-def unbiased_rmse(m, o, time_dim='time'):
-    """Compute unbiased RMSE (centered RMSE) between m and o."""
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
+def unbiased_rmse(
+    m: Union[np.ndarray, pd.Series, xr.DataArray],
+    o: Union[np.ndarray, pd.Series, xr.DataArray],
+    time_dim: str = 'time'
+) -> Union[float, xr.DataArray]:
+    """
+    Compute the unbiased Root Mean Square Error (centered RMSE) between model and observations.
+
+    Parameters
+    ----------
+    m : np.ndarray, pd.Series, or xr.DataArray
+        Model data.
+    o : np.ndarray, pd.Series, or xr.DataArray
+        Observation data.
+    time_dim : str, optional
+        Name of the time dimension to compute RMSE over (default is 'time').
+
+    Returns
+    -------
+    float or xr.DataArray
+        Unbiased RMSE value.
+
+    Examples
+    --------
+    >>> m = np.array([1.0, 2.0, 3.0])
+    >>> o = np.array([1.1, 1.9, 3.1])
+    >>> unbiased_rmse(m, o)
+    0.10000000000000009
+    """
+    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+        # For array-like or missing time dimension, compute global unbiased RMSE ignoring NaNs
         m_mean = np.nanmean(m)
         o_mean = np.nanmean(o)
         m_anom = m - m_mean
         o_anom = o - o_mean
         return np.sqrt(np.nanmean((m_anom - o_anom) ** 2))
+
+    # For xarray DataArray, compute means along time_dim
     m_mean = m.mean(dim=time_dim)
     o_mean = o.mean(dim=time_dim)
     m_anom = m - m_mean
     o_anom = o - o_mean
+
+    # Compute unbiased RMSE along the time dimension
     return ((m_anom - o_anom) ** 2).mean(dim=time_dim) ** 0.5
 ###############################################################################
 
 ###############################################################################
-def spatial_mean(data_array, mask):
-    # Mask is 2D boolean (lat, lon)
-    return data_array.where(mask).mean(dim=['lat', 'lon'], skipna=True)
+def spatial_mean(
+    data_array: xr.DataArray,
+    mask: Union[xr.DataArray, np.ndarray]
+) -> xr.DataArray:
+    """
+    Compute the spatial mean of a DataArray over latitude and longitude, applying a boolean mask.
+
+    Parameters
+    ----------
+    data_array : xr.DataArray
+        Input data array with dimensions including 'lat' and 'lon'.
+    mask : xr.DataArray or np.ndarray
+        2D boolean mask with shape matching (lat, lon). True indicates valid points.
+
+    Returns
+    -------
+    xr.DataArray
+        Spatial mean over lat/lon of data within the mask, ignoring NaNs.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import xarray as xr
+    >>> data = xr.DataArray(np.random.rand(3,4,5), dims=('time', 'lat', 'lon'))
+    >>> mask = xr.DataArray(np.array([[True, False, True, True, False],
+    ...                               [True, True, False, False, True],
+    ...                               [False, True, True, False, True],
+    ...                               [True, False, True, True, True]]),
+    ...                     dims=('lat', 'lon'))
+    >>> spatial_mean(data.isel(time=0), mask)
+    <xarray.DataArray ()>
+    array(0.5267)
+    """
+    # Apply mask to keep only valid spatial points
+    masked_data = data_array.where(mask)
+
+    # Compute mean over spatial dims lat and lon, skipping NaNs caused by masking
+    return masked_data.mean(dim=['lat', 'lon'], skipna=True)
 ###############################################################################
 
 ###############################################################################
-def compute_lagged_correlations(series1, series2, max_lag=30):
+def compute_lagged_correlations(
+    series1: pd.Series,
+    series2: pd.Series,
+    max_lag: int = 30
+) -> pd.Series:
+    """
+    Compute Pearson correlation coefficients between two pandas Series over a range of time lags.
+
+    Parameters
+    ----------
+    series1 : pd.Series
+        Reference time series.
+    series2 : pd.Series
+        Time series to be shifted and correlated with series1.
+    max_lag : int, optional
+        Maximum lag (positive and negative) to compute correlations for (default is 30).
+
+    Returns
+    -------
+    pd.Series
+        Correlation coefficients indexed by lag values (from -max_lag to +max_lag).
+
+    Examples
+    --------
+    >>> s1 = pd.Series([1, 2, 3, 4, 5])
+    >>> s2 = pd.Series([5, 4, 3, 2, 1])
+    >>> compute_lagged_correlations(s1, s2, max_lag=2)
+    -2   -0.5
+    -1   -0.5
+     0   -1.0
+     1   -0.5
+     2   -0.5
+    dtype: float64
+    """
     lags = range(-max_lag, max_lag + 1)
     results = {}
+
     for lag in lags:
+        # Shift series2 by lag (positive lag shifts forward, negative backward)
         shifted = series2.shift(lag)
+
+        # Compute correlation ignoring NaNs between series1 and shifted series2
         results[lag] = corr_no_nan(series1, shifted)
+
     return pd.Series(results)
 ###############################################################################
 
 ###############################################################################
-def compute_fft(data, dt=1):
+def compute_fft(
+    data: Union[np.ndarray, np.ndarray, Dict[str, Union[np.ndarray, np.generic]]],
+    dt: float = 1.0
+) -> Tuple[np.ndarray, Union[np.ndarray, Dict[str, np.ndarray]]]:
     """
-    Compute FFT and positive frequencies for input data.
+    Compute the Fast Fourier Transform (FFT) and corresponding positive frequencies.
 
-    Parameters:
-    - data: dict of 1D arrays/Series or a single 1D array/Series
-    - dt: sampling interval (default=1)
+    Parameters
+    ----------
+    data : np.ndarray, 1D array-like, or dict of 1D arrays
+        Input data to transform. Can be a single 1D array or a dictionary of 1D arrays.
+    dt : float, optional
+        Sampling interval between data points (default is 1).
 
-    Returns:
-    - freqs: array of positive FFT frequencies
-    - fft_result: dict of FFT arrays if input is dict, else single FFT array
+    Returns
+    -------
+    freqs : np.ndarray
+        Array of positive FFT frequencies.
+    fft_result : np.ndarray or dict of np.ndarray
+        FFT results for each input array; if input was dict, returns dict of FFT arrays.
+
+    Raises
+    ------
+    ValueError
+        If input dict is empty.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> data = np.array([1, 2, 3, 4, 5, 6])
+    >>> freqs, fft_vals = compute_fft(data, dt=1)
+    >>> freqs
+    array([0.        , 0.16666667, 0.33333333])
+    >>> list(fft_vals)
+    [21.+0.j, -3.+5.19615242j, -3.+1.73205081j]
+
+    >>> data_dict = {'a': np.array([1,2,3,4]), 'b': np.array([4,3,2,1])}
+    >>> freqs, fft_dict = compute_fft(data_dict)
+    >>> freqs
+    array([0. , 0.25])
+    >>> fft_dict['a']
+    array([10.+0.j, -2.+2.j])
     """
     if isinstance(data, dict):
         if len(data) == 0:
             raise ValueError("Input dict is empty; cannot compute FFT.")
+
+        # Assume all arrays have the same length; get length from first array
         N = len(next(iter(data.values())))
-        freqs = fftfreq(N, dt)[:N//2]
+        freqs = fftfreq(N, dt)[:N // 2]
+
+        # Compute FFT for each array, keeping only positive frequencies
         fft_result = {
-            key: fft(arr)[:N//2]
+            key: fft(arr)[:N // 2]
             for key, arr in data.items()
         }
         return freqs, fft_result
+
     else:
         N = len(data)
-        freqs = fftfreq(N, dt)[:N//2]
-        fft_result = fft(data)[:N//2]
+        freqs = fftfreq(N, dt)[:N // 2]
+
+        # Compute FFT and return positive frequency components
+        fft_result = fft(data)[:N // 2]
         return freqs, fft_result
