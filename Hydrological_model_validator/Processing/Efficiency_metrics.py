@@ -642,6 +642,9 @@ def monthly_index_of_agreement(
     [0.98, 0.95, ..., 0.97]  # 12 values for each month
     """
     from .Efficiency_metrics import index_of_agreement
+    
+    if not isinstance(dictionary, dict):
+        raise TypeError("❌ Input must be a dictionary. ❌")
 
     # Find keys that likely correspond to model and satellite data (case-insensitive)
     model_keys = [k for k in dictionary if 'mod' in k.lower()]
@@ -651,7 +654,7 @@ def monthly_index_of_agreement(
     # Raise error if either model or satellite keys are missing
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary ❌")
-
+        
     # Extract dictionaries of monthly data by year for model and satellite
     mod_monthly = dictionary[model_keys[0]]
     sat_monthly = dictionary[sat_keys[0]]
