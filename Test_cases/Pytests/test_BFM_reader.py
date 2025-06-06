@@ -82,7 +82,64 @@ def test_extract_bottom_layer_basic(dummy_4d_data, dummy_Bmost):
     depth_idx_11 = dummy_Bmost[1, 1] - 1
     assert np.allclose(bottom_layers[0][1, 1], dummy_4d_data[0, depth_idx_11, 1, 1])
 
-    
+# Test for input validation
+def test_extract_bottom_layer_input_validation_with_fixtures(dummy_4d_data, dummy_Bmost):
+    data_valid = dummy_4d_data
+    # Note: dummy_Bmost is zero-based; your function expects 1-based indices,
+    # so add 1 back here for testing:
+    Bmost_valid = dummy_Bmost + 1  
+
+    # Type errors for non-ndarray inputs
+    with pytest.raises(TypeError):
+        extract_bottom_layer(list(data_valid), Bmost_valid)
+    with pytest.raises(TypeError):
+        extract_bottom_layer(data_valid, list(Bmost_valid))
+
+    # Value error for data with wrong dimensions
+    with pytest.raises(ValueError):
+        extract_bottom_layer(np.random.rand(2, 5, 4), Bmost_valid)  # 3D instead of 4D
+
+    # Value error for Bmost with wrong dimensions
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, np.random.randint(1, 6, size=(5, 4, 3)))  # 3D instead of 2D
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, np.random.randint(1, 6, size=(2, 3)))  # shape mismatch
+
+    # Value error for shape mismatch between data spatial dims and Bmost
+    Bmost_wrong_shape = np.array([[1, 2],
+                                  [3, 4],
+                                  [1, 2],
+                                  [5, 6],
+                                  [7, 8]])
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, Bmost_wrong_shape)
+
+    # Value error for Bmost containing non-integer values
+    Bmost_float = Bmost_valid.astype(float)
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, Bmost_float)
+
+    # Value error for negative Bmost indices
+    Bmost_neg = Bmost_valid.copy()
+    Bmost_neg[0, 0] = -1
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, Bmost_neg)
+
+    # Value error for Bmost indices exceeding depth (depth=5)
+    Bmost_exceed = Bmost_valid.copy()
+    Bmost_exceed[0, 0] = data_valid.shape[1] + 1  # 6 when depth is 5
+    with pytest.raises(ValueError):
+        extract_bottom_layer(data_valid, Bmost_exceed)
+
+    # Positive test: valid inputs run without error and output shape check
+    result = extract_bottom_layer(data_valid, Bmost_valid)
+    assert isinstance(result, list)
+    assert len(result) == data_valid.shape[0]
+    for arr in result:
+        assert arr.shape == (data_valid.shape[2], data_valid.shape[3])
+
+
+
 ###############################################################################
 
 ###############################################################################
@@ -99,6 +156,70 @@ def test_extract_and_filter_benthic_data_with_temp_threshold(mock_temp_thresh, d
     # Confirm temp threshold was applied and output dimensions are preserved
     mock_temp_thresh.assert_called_once()
     assert result.shape[0] == dummy_4d_data.shape[0]
+    
+# Test for input validation
+def test_extract_and_filter_benthic_data_input_validation(dummy_4d_data, dummy_Bmost, capsys):
+    data_valid = dummy_4d_data
+    Bmost_valid = dummy_Bmost
+
+    # 1) Type checks
+    with pytest.raises(TypeError):
+        extract_and_filter_benthic_data(list(data_valid), Bmost_valid)
+    with pytest.raises(TypeError):
+        extract_and_filter_benthic_data(data_valid, list(Bmost_valid))
+
+    # 2) Dimension checks
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(np.random.rand(2, 5, 4), Bmost_valid)  # data not 4D
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, np.random.randint(1, 6, size=(5,4,3)))  # Bmost not 2D
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, np.random.randint(1, 6, size=(2, 3)))  # shape mismatch spatial dims
+
+    # 3) Shape mismatch between Bmost and data spatial dims
+    Bmost_wrong_shape = np.array([[1, 2],
+                                  [3, 4],
+                                  [1, 2],
+                                  [5, 6],
+                                  [7, 8]])
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_wrong_shape)
+
+    # 4) Bmost contains non-integer values
+    Bmost_float = Bmost_valid.astype(float)
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_float)
+
+    # 5) Bmost indices out of valid range (negative or >= depth_len)
+    Bmost_neg = Bmost_valid.copy()
+    Bmost_neg[0, 0] = -1
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_neg)
+
+    Bmost_exceed = Bmost_valid.copy()
+    Bmost_exceed[0, 0] = data_valid.shape[1]  # equal to depth_len, invalid since indexing max is depth_len - 1
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_exceed)
+
+    # 6) dz validation
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_valid, dz=-1)
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_valid, dz=0)
+    with pytest.raises(ValueError):
+        extract_and_filter_benthic_data(data_valid, Bmost_valid, dz='string')
+
+    # 7) variable_key warning (capture print safely with capsys)
+    extract_and_filter_benthic_data(data_valid, Bmost_valid, variable_key='unsupported_key')
+    captured = capsys.readouterr()
+    assert "Warning" in captured.out
+
+    # 8) Valid inputs produce output of expected shape and print warnings inside loop (capture too)
+    result = extract_and_filter_benthic_data(data_valid, Bmost_valid, dz=2.0, variable_key='votemper')
+    captured = capsys.readouterr()
+    # Optionally test if warning prints about invalid cells exist or just ensure no crash
+    assert result.shape == (data_valid.shape[0], data_valid.shape[2], data_valid.shape[3])
+
     
 ###############################################################################
 
@@ -178,6 +299,93 @@ def test_process_year_success(
     assert result_year == year
     np.testing.assert_array_equal(result_data, mock_extract_filter.return_value)
 
+#• Test for input validation
+def test_process_year_input_validation(monkeypatch, tmp_path):
+    # Setup: valid minimal inputs for positive test
+    year = 2005
+    IDIR = tmp_path
+    (IDIR / "output2005").mkdir()
+    # Dummy file for file existence check (empty .nc.gz file)
+    dummy_file = IDIR / "output2005" / "model_output.nc.gz"
+    dummy_file.touch()
+
+    mask3d = np.ones((10, 20, 30))
+    Bmost = np.ones((20, 30), dtype=int)
+    filename_fragments = {'ffrag1': 'model', 'ffrag2': 'output', 'ffrag3': 'nc'}
+    variable_key = 'votemper'
+
+    # Patch build_bfm_filename to return the dummy file name used above
+    monkeypatch.setattr("Hydrological_model_validator.Processing.utils.build_bfm_filename", lambda y, f: "model_output.nc")
+
+    # Patch extract_and_filter_benthic_data to return dummy data (to avoid actual processing)
+    monkeypatch.setattr("Hydrological_model_validator.Processing.BFM_data_reader.extract_and_filter_benthic_data", lambda **kwargs: np.ones((1,20,30)))
+
+    # Patch gzip.open and xr.open_dataset to avoid file IO during test
+    import io
+    import gzip
+    import xarray as xr
+
+    class DummyDataset:
+        def __enter__(self):
+            class DS:
+                def __contains__(self, key):
+                    return key == variable_key
+                def __getitem__(self, key):
+                    class Var:
+                        @property
+                        def values(self):
+                            # shape (time=1, depth=10, Y=20, X=30)
+                            return np.ones((1, 10, 20, 30))
+                    return Var()
+            return DS()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(gzip, "open", lambda file, mode: io.BytesIO(b"dummy"))
+    monkeypatch.setattr(xr, "open_dataset", lambda file_like: DummyDataset())
+
+    # Now test input validation errors
+
+    # year not int
+    with pytest.raises(TypeError):
+        process_year("2005", IDIR, mask3d, Bmost, filename_fragments, variable_key)
+
+    # IDIR not a directory
+    with pytest.raises(ValueError):
+        process_year(year, tmp_path / "nonexistent_dir", mask3d, Bmost, filename_fragments, variable_key)
+
+    # mask3d not ndarray
+    with pytest.raises(TypeError):
+        process_year(year, IDIR, "not_array", Bmost, filename_fragments, variable_key)
+
+    # mask3d wrong ndim
+    with pytest.raises(ValueError):
+        process_year(year, IDIR, np.ones((10, 20)), Bmost, filename_fragments, variable_key)
+
+    # Bmost not ndarray
+    with pytest.raises(TypeError):
+        process_year(year, IDIR, mask3d, "not_array", filename_fragments, variable_key)
+
+    # Bmost wrong ndim
+    with pytest.raises(ValueError):
+        process_year(year, IDIR, mask3d, np.ones((20, 30, 2)), filename_fragments, variable_key)
+
+    # filename_fragments not dict
+    with pytest.raises(TypeError):
+        process_year(year, IDIR, mask3d, Bmost, "not_dict", variable_key)
+
+    # filename_fragments missing keys
+    with pytest.raises(KeyError):
+        process_year(year, IDIR, mask3d, Bmost, {'ffrag1': 'model'}, variable_key)
+
+    # variable_key not str
+    with pytest.raises(TypeError):
+        process_year(year, IDIR, mask3d, Bmost, filename_fragments, 123)
+
+    # compressed file missing (remove dummy file)
+    dummy_file.unlink()
+    with pytest.raises(FileNotFoundError):
+        process_year(year, IDIR, mask3d, Bmost, filename_fragments, variable_key)
     
 ###############################################################################
 
@@ -438,6 +646,53 @@ def test_read_bfm_chemical_missing_fragments(dummy_mask3d, dummy_Bmost):
         read_bfm_chemical(Path("/fake/dir"), dummy_mask3d, dummy_Bmost,
                           {"ffrag1": "X", "ffrag3": "Z"},  # Missing ffrag2
                           variable_key="Chl")
+        
+# Test for input validation
+def test_read_bfm_chemical_input_validation(tmp_path):
+    # Create a dummy directory structure
+    base_dir = tmp_path
+    (base_dir / "output2000").mkdir()
+
+    mask3d_valid = np.ones((10, 20, 30))
+    Bmost_valid = np.ones((20, 30))
+    fragments_valid = {'ffrag1': 'chem', 'ffrag2': 'monthly', 'ffrag3': 'nc'}
+    variable_key_valid = "O2"
+
+    # 1. IDIR does not exist
+    with pytest.raises(FileNotFoundError):
+        read_bfm_chemical(base_dir / "nonexistent", mask3d_valid, Bmost_valid, fragments_valid, variable_key_valid)
+
+    # 2. mask3d not ndarray or wrong ndim
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, "not_an_array", Bmost_valid, fragments_valid, variable_key_valid)
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, np.ones((10, 20)), Bmost_valid, fragments_valid, variable_key_valid)
+
+    # 3. Bmost not ndarray or wrong ndim
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, "not_an_array", fragments_valid, variable_key_valid)
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, np.ones((20, 30, 5)), fragments_valid, variable_key_valid)
+
+    # 4. filename_fragments not dict or empty
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, Bmost_valid, None, variable_key_valid)
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, Bmost_valid, {}, variable_key_valid)
+
+    # 5. filename_fragments missing keys or None values
+    for bad_fragments in [
+        {'ffrag1': 'chem', 'ffrag2': 'monthly'},  # missing ffrag3
+        {'ffrag1': 'chem', 'ffrag2': None, 'ffrag3': 'nc'}  # None value
+    ]:
+        with pytest.raises(ValueError):
+            read_bfm_chemical(base_dir, mask3d_valid, Bmost_valid, bad_fragments, variable_key_valid)
+
+    # 6. variable_key not str or empty
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, Bmost_valid, fragments_valid, None)
+    with pytest.raises(ValueError):
+        read_bfm_chemical(base_dir, mask3d_valid, Bmost_valid, fragments_valid, "")
 
 ###############################################################################
 
