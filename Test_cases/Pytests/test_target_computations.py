@@ -329,23 +329,31 @@ def test_target_extent_monthly_valid(monkeypatch):
             labels = ['label1', 'label2']
             return (bias, crmsd, rmsd, labels)
         else:
-            # Other months return no data
             return (np.array([]), np.array([]), np.array([]), [])
-
-    # Patch the internal monthly stats function
+    # Patch internal monthly stats function
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.Target_computations.compute_normalised_target_stats_by_month',
         mock_compute
     )
-
-    # Patch rounding utility to use numpy ceil
+    # Patch rounding utility
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.stats_math_utils.round_up_to_nearest',
         lambda x: np.ceil(x)
     )
-
-    # Expect a valid float as result
-    result = compute_target_extent_monthly({})
+    # Create dummy nested data structure with 12 months of arrays
+    year = 2000
+    monthly_arrays = [np.array([1.0, 2.0])] + [np.array([]) for _ in range(11)]  # Data only in January
+    dummy_data = {
+        'model': {
+            year: monthly_arrays
+        },
+        'satellite': {
+            year: monthly_arrays
+        }
+    }
+    # Call function with valid input
+    result = compute_target_extent_monthly(dummy_data)
+    # Assert result is a float (based on how target extent is calculated)
     assert isinstance(result, float)
 
 # Test compute_target_extent_monthly raises ValueError when no valid monthly RMSD data is available
@@ -355,28 +363,33 @@ def test_target_extent_monthly_no_valid_data(monkeypatch):
         'Hydrological_model_validator.Processing.Target_computations.compute_normalised_target_stats_by_month',
         lambda d, m: (np.array([]), np.array([]), np.array([]), [])
     )
-
-    import pytest
     # Expect function to raise ValueError due to lack of usable RMSD data
     with pytest.raises(ValueError):
         compute_target_extent_monthly({})
 
 # Test that compute_target_extent_monthly correctly applies rounding function on RMSD value
 def test_target_extent_monthly_check_rounding(monkeypatch):
-    # Simulate valid RMSD for one month
+    # Mock the monthly stats computation to return a fixed RMSD for one month
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.Target_computations.compute_normalised_target_stats_by_month',
         lambda d, m: (np.array([]), np.array([]), np.array([0.9]), [])
     )
-
-    # Patch rounding function to always return 1.0 for test
+    # Mock the rounding function to always return 1.0
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.stats_math_utils.round_up_to_nearest',
         lambda x: 1.0
     )
-
-    # Result should match mocked rounding output
-    result = compute_target_extent_monthly({})
+    # Provide valid dummy input with minimal structure
+    dummy_data = {
+        'model': {
+            2000: [np.array([1.0])] + [np.array([]) for _ in range(11)]  # January has data
+        },
+        'satellite': {
+            2000: [np.array([1.0])] + [np.array([]) for _ in range(11)]
+        }
+    }
+    # Call the function and assert the expected result
+    result = compute_target_extent_monthly(dummy_data)
     assert isinstance(result, float)
     assert result == 1.0
 
@@ -391,23 +404,31 @@ def test_target_extent_monthly_combined_data(monkeypatch):
                 np.array([0.5, 0.7]),  # Multiple RMSD entries
                 []
             )
-        return (np.array([]), np.array([]), np.array([]), [])  # Others return no data
-
+        return (np.array([]), np.array([]), np.array([]), [])  # Other months have no data
     # Patch target stat computation
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.Target_computations.compute_normalised_target_stats_by_month',
         mock_compute
     )
-
-    # Patch rounding to apply ceiling for test
+    # Patch rounding function to apply ceiling
     monkeypatch.setattr(
         'Hydrological_model_validator.Processing.stats_math_utils.round_up_to_nearest',
         lambda x: np.ceil(x)
     )
-
-    # Expect a float result representing max RMSD from all valid months
-    result = compute_target_extent_monthly({})
+    # Provide valid dummy data for one year with 12 months
+    dummy_data = {
+        'model': {
+            2000: [np.array([1.0])] * 12
+        },
+        'satellite': {
+            2000: [np.array([1.0])] * 12
+        }
+    }
+    # Run the computation
+    result = compute_target_extent_monthly(dummy_data)
+    # Check result type and correctness
     assert isinstance(result, float)
+    assert result == 1.0  # Ceil of max([0.5, 0.7]) is 1.0
 
 
 ###############################################################################
