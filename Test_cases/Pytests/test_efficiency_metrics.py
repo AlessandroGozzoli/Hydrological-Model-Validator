@@ -122,6 +122,34 @@ def test_r_squared_non_numpy_input():
     obs = [1, 2, 3, 4]
     pred = [1, 2, 3, 4]
     assert r_squared(obs, pred) == pytest.approx(1.0)
+    
+def test_r_squared_input_validation():
+    # Test invalid input types
+    with pytest.raises(TypeError):
+        r_squared("not an array", [1, 2, 3])
+    with pytest.raises(TypeError):
+        r_squared([1, 2, 3], 123)
+    with pytest.raises(TypeError):
+        r_squared(None, [1, 2, 3])
+
+    # Test shape mismatch between obs and pred
+    with pytest.raises(ValueError):
+        r_squared([1, 2, 3], [1, 2])
+
+    # Test multi-dimensional inputs (should be 1D)
+    with pytest.raises(ValueError):
+        r_squared(np.array([[1, 2], [3, 4]]), np.array([[1, 2], [3, 4]]))
+
+    # Test valid inputs do not raise and produce a valid result
+    obs = np.array([1, 2, 3])
+    pred = np.array([1, 2, 3])
+    result = r_squared(obs, pred)
+    assert not np.isnan(result)
+
+    # Test fewer than 2 valid (non-NaN) pairs returns np.nan
+    obs_nan = np.array([np.nan, np.nan])
+    pred_some = np.array([1, 2])
+    assert np.isnan(r_squared(obs_nan, pred_some))
 
 
 ################################################################################
@@ -288,6 +316,28 @@ def test_monthly_weighted_r_squared_variable_years():
     # Weighted R² should be between 0 and 1 even with noise
     assert all(0 <= val <= 1 for val in wr2)
 
+def test_monthly_weighted_r_squared_input_validation():
+    # Test input is not a dict
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared(None)
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared("not a dict")
+
+    # Test missing model or satellite keys
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared({'no_mod_here': {}, 'satellite': {}})
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared({'model': {}, 'no_sat_here': {}})
+
+    # Test model or satellite data not dict keyed by years
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared({'model': [], 'satellite': {}})
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared({'model': {}, 'satellite': []})
+
+    # Test empty years list in model data
+    with pytest.raises(ValueError):
+        monthly_weighted_r_squared({'model': {}, 'satellite': {}})
     
 ################################################################################
 # Tests for nse
