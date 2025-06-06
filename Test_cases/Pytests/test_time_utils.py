@@ -219,7 +219,7 @@ def test_get_common_years_non_dict_value():
 
 # Tests that the mask correctly identifies months in the DJF season.
 def test_get_season_mask_basic():
-    dates = pd.date_range('2023-01-01', periods=12, freq='M')
+    dates = pd.date_range('2023-01-01', periods=12, freq='ME')
     
     # Generate a boolean mask for the 'DJF' season (December, January, February)
     mask = get_season_mask(dates, 'DJF')
@@ -247,7 +247,7 @@ def test_get_season_mask_invalid_dates_type():
 
 # Tests that function works correctly when a pandas Series is provided instead of a DatetimeIndex.
 def test_get_season_mask_series_input():
-    dates = pd.date_range('2023-01-01', periods=12, freq='M')
+    dates = pd.date_range('2023-01-01', periods=12, freq='ME')
     s = pd.Series(range(len(dates)), index=dates)
     
     # Should still work when input is a pandas Series indexed by dates, returning boolean mask array
