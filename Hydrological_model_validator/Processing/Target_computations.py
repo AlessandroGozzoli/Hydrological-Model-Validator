@@ -12,28 +12,61 @@ def compute_single_target_stat(year: str,
                                mod: np.ndarray, 
                                sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
     """
-    Compute normalized bias, CRMSD, and RMSD for a single year of data.
+    Compute normalized bias, centered RMSD (CRMSD), and RMSD for a single year of data.
 
     Parameters
     ----------
     year : str
-        Year label.
+        Year label as a string.
     mod : np.ndarray
-        Model values.
+        Model data values.
     sat : np.ndarray
-        Satellite values.
+        Satellite data values.
 
     Returns
     -------
     Optional[Tuple[float, float, float, str]]
-        Normalized bias, CRMSD, RMSD, and year label. Returns None if reference std is zero.
+        Tuple of normalized bias, CRMSD, RMSD, and the year label.
+        Returns None if the reference standard deviation of satellite data is zero.
+
+    Raises
+    ------
+    ValueError
+        If 'mod' and 'sat' arrays have different shapes.
+        If 'mod' or 'sat' contain non-numeric data.
+        If 'year' is not a string.
+
+    Example
+    -------
+    >>> compute_single_target_stat('2020', np.array([1, 2, 3]), np.array([1, 2, 4]))
+    (normalized_bias, normalized_crmsd, normalized_rmsd, '2020')
     """
+    # =====VALIDATION=====
+    # Check year is a string
+    if not isinstance(year, str):
+        raise ValueError("❌ 'year' must be a string. ❌")
+    # Check inputs are numpy arrays
+    if not isinstance(mod, np.ndarray) or not isinstance(sat, np.ndarray):
+        raise ValueError("❌ 'mod' and 'sat' must be numpy arrays. ❌")
+    # Check arrays have the same shape
+    if mod.shape != sat.shape:
+        raise ValueError("❌ 'mod' and 'sat' must have the same shape. ❌")
+    # Ensure data types are numeric
+    if not (np.issubdtype(mod.dtype, np.number) and np.issubdtype(sat.dtype, np.number)):
+        raise ValueError("❌ 'mod' and 'sat' must contain numeric data. ❌")
+
+    # =====STD CHECK=====
+    # Compute standard deviation of satellite data for normalization
     ref_std = np.std(sat, ddof=1)
+    # If std is zero, return None (no variability to compare against)
     if ref_std == 0:
         print(f"Warning: Zero standard deviation in satellite data for {year}. Skipping.")
         return None
 
+    # =====COMPUTATION=====
+    # Compute statistical metrics using target diagram method
     stats = sm.target_statistics(mod, sat, 'data')
+    # Normalize metrics by satellite std and return with year label
     return (
         stats['bias'] / ref_std,
         stats['crmsd'] / ref_std,
@@ -44,40 +77,78 @@ def compute_single_target_stat(year: str,
 
 ###############################################################################
 def compute_single_month_target_stat(year: int,
-                                     month: int,
-                                     mod: np.ndarray,
-                                     sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
+                                    month: int,
+                                    mod: np.ndarray,
+                                    sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
     """
-    Compute normalized bias, CRMSD, and RMSD for a single year-month.
+    Compute normalized bias, centered RMSD (CRMSD), and RMSD for a single year-month.
 
     Parameters
     ----------
     year : int
-        Year label.
+        Year label as an integer.
     month : int
         Month index (0–11).
     mod : np.ndarray
-        Model values.
+        Model data values.
     sat : np.ndarray
-        Satellite values.
+        Satellite data values.
 
     Returns
     -------
     Optional[Tuple[float, float, float, str]]
-        Normalized bias, CRMSD, RMSD, and label (e.g., "2001"). Returns None if std = 0.
+        Tuple of normalized bias, CRMSD, RMSD, and year label as string.
+        Returns None if the reference standard deviation of satellite data is zero.
+
+    Raises
+    ------
+    ValueError
+        If 'year' is not an integer.
+        If 'month' is not an integer or not in the range 0–11.
+        If 'mod' and 'sat' arrays have different shapes.
+        If 'mod' or 'sat' contain non-numeric data.
+
+    Example
+    -------
+    >>> compute_single_month_target_stat(2021, 5, np.array([1, 2, 3]), np.array([1, 2, 4]))
+    (normalized_bias, normalized_crmsd, normalized_rmsd, '2021')
     """
+    # =====VALIDATION=====
+    # Ensure year is an integer
+    if not isinstance(year, int):
+        raise ValueError("❌ 'year' must be an integer. ❌")
+    # Ensure month is an integer in [0, 11]
+    if not (isinstance(month, int) and 0 <= month <= 11):
+        raise ValueError("❌ 'month' must be an integer between 0 and 11. ❌")
+    # Ensure inputs are numpy arrays
+    if not isinstance(mod, np.ndarray) or not isinstance(sat, np.ndarray):
+        raise ValueError("❌ 'mod' and 'sat' must be numpy arrays. ❌")
+    # Ensure arrays have same shape
+    if mod.shape != sat.shape:
+        raise ValueError("❌ 'mod' and 'sat' must have the same shape. ❌")
+    # Ensure both arrays contain numeric types
+    if not (np.issubdtype(mod.dtype, np.number) and np.issubdtype(sat.dtype, np.number)):
+        raise ValueError("❌ 'mod' and 'sat' must contain numeric data. ❌")
+
+    # =====STD CHECK=====
+    # Calculate standard deviation of satellite data
     ref_std = np.std(sat, ddof=1)
+    # Skip if std is zero (no variability)
     if ref_std == 0:
         print(f"Warning: Zero standard deviation in satellite data for {year}, month {month}. Skipping.")
         return None
 
+    # =====COMPUTATION=====
+    # Compute statistics using target diagram metrics
     stats = sm.target_statistics(mod, sat, 'data')
+    # Return normalized metrics and year as string
     return (
         stats['bias'] / ref_std,
         stats['crmsd'] / ref_std,
         stats['rmsd'] / ref_std,
         str(year)
     )
+###############################################################################
 
 ###############################################################################
 def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
@@ -98,24 +169,45 @@ def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.nda
     Raises
     ------
     ValueError
+        If 'data_dict' is not a dictionary.
         If no overlapping or valid model/satellite data is found.
+
+    Example
+    -------
+    >>> data_dict = {
+    ...     '2000': (np.array([1, 2, 3]), np.array([1, 2, 4])),
+    ...     '2001': (np.array([2, 3, 4]), np.array([2, 3, 5]))
+    ... }
+    >>> bias, crmsd, rmsd, labels = compute_normalised_target_stats(data_dict)
+    >>> labels
+    ['2000', '2001']
     """
+    # =====VALIDATION=====
+    # Ensure input is a dictionary
+    if not isinstance(data_dict, dict):
+        raise ValueError("❌ 'data_dict' must be a dictionary. ❌")
+
+    # =====DATA ALIGNMENT=====
+    # Get list of (year, mod, sat) tuples with aligned data
     yearly_data = get_common_series_by_year(data_dict)
     if not yearly_data:
-        raise ValueError("No overlapping model/satellite data found.")
+        raise ValueError("❌ No overlapping model/satellite data found. ❌")
 
+    # =====STATISTICS COMPUTATION=====
+    # Compute statistics for each valid year, ignoring any that return None
     results = list(filter(None, starmap(compute_single_target_stat, yearly_data)))
-
     if not results:
-        raise ValueError("No valid data available to compute statistics.")
+        raise ValueError("❌ No valid data available to compute statistics. ❌")
 
+    # =====OUTPUT FORMATTING=====
+    # Unpack computed stats and return as arrays
     bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
     return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
 ###############################################################################
 
 ###############################################################################
 def compute_normalised_target_stats_by_month(data_dict: Dict,
-                                             month_index: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
+                                            month_index: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
     """
     Compute normalized target statistics (bias, CRMSD, RMSD) for a specified month
     across all years in the provided data dictionary.
@@ -125,7 +217,7 @@ def compute_normalised_target_stats_by_month(data_dict: Dict,
     data_dict : dict
         Dictionary containing model and satellite data.
     month_index : int
-        Month index (0 = January, 11 = December).
+        Month index (0-based).
 
     Returns
     -------
@@ -135,22 +227,44 @@ def compute_normalised_target_stats_by_month(data_dict: Dict,
     Raises
     ------
     ValueError
+        If 'month_index' is not found in the data.
         If no overlapping or valid data is found for the specified month.
+
+    Example
+    -------
+    >>> data_dict = {
+    ...     '2000': [...],  # data for each month
+    ...     '2001': [...]
+    ... }
+    >>> bias, crmsd, rmsd, labels = compute_normalised_target_stats_by_month(data_dict, 0)
+    >>> labels
+    ['2000', '2001']
     """
-    if not isinstance(month_index, int) or not (0 <= month_index <= 11):
-        raise ValueError("month_index must be an integer between 0 and 11.")
-
+    # =====DATA EXTRACTION=====
+    # Flatten data into (year, month, mod, sat) tuples across all years/months
     monthly_data = get_common_series_by_year_month(data_dict)
+    # Get available month indices from data
+    available_months = set(month for _, month, _, _ in monthly_data)
+
+    # =====MONTH VALIDATION=====
+    # Raise error if requested month is not in the data
+    if month_index not in available_months:
+        raise ValueError(f"❌ 'month_index' {month_index} not found in data. Available months: {sorted(available_months)} ❌")
+
+    # =====FILTER MONTH=====
+    # Keep only data for the specified month
     filtered_data = [(year, month, mod, sat) for (year, month, mod, sat) in monthly_data if month == month_index]
-
     if not filtered_data:
-        raise ValueError(f"No overlapping model/satellite data found for month {month_index}.")
+        raise ValueError(f"❌ No overlapping model/satellite data found for month {month_index}. ❌")
 
+    # =====STATISTICS COMPUTATION=====
+    # Compute stats per (year, month), skip any invalid results
     results = list(filter(None, starmap(compute_single_month_target_stat, filtered_data)))
-
     if not results:
-        raise ValueError("No valid data available to compute statistics.")
+        raise ValueError("❌ No valid data available to compute statistics. ❌")
 
+    # =====OUTPUT FORMATTING=====
+    # Unpack and return normalized stats and corresponding years
     bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
     return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
 ###############################################################################
@@ -174,19 +288,45 @@ def compute_target_extent_monthly(taylor_dict: Dict) -> float:
     ------
     ValueError
         If no valid RMSD data is found across months.
+
+    Example
+    -------
+    >>> taylor_dict = {
+    ...     '2000': [...],  # monthly data
+    ...     '2001': [...]
+    ... }
+    >>> extent = compute_target_extent_monthly(taylor_dict)
+    >>> isinstance(extent, float)
+    True
     """
+    # =====MONTH EXTRACTION=====
+    # Get all unique months present in the data
+    monthly_indices = set()
+    monthly_data = get_common_series_by_year_month(taylor_dict)
+    for _, month, _, _ in monthly_data:
+        monthly_indices.add(month)
+    monthly_indices = sorted(monthly_indices)
+
+    # =====RMSD COLLECTION=====
+    # Compute normalized RMSD values for each month
     monthly_rmsds = (
-        compute_normalised_target_stats_by_month(taylor_dict, month)[2]
-        for month in range(12)
+        compute_normalised_target_stats_by_month(taylor_dict, month)[2]  # index 2 = RMSD
+        for month in monthly_indices
     )
 
+    # =====FLATTEN & FILTER=====
+    # Combine all monthly RMSD arrays into a single flat list
     all_rmsds = list(chain.from_iterable(
-        rmsd for rmsd in monthly_rmsds if rmsd.size > 0
+        rmsd for rmsd in monthly_rmsds if rmsd.size > 0  # skip empty arrays
     ))
 
+    # =====VALIDATION=====
+    # Raise error if no RMSD data was found
     if not all_rmsds:
-        raise ValueError("No valid RMSD data to determine extent.")
+        raise ValueError("❌ No valid RMSD data to determine extent. ❌")
 
+    # =====MAX EXTENT=====
+    # Return maximum RMSD, rounded up
     return round_up_to_nearest(max(all_rmsds))
 ###############################################################################
 
@@ -203,18 +343,40 @@ def compute_target_extent_yearly(data_dict: Dict) -> float:
     Returns
     -------
     float
-        Rounded-up maximum normalized RMSD, or 1.0 if all RMSDs are below that threshold.
+        Rounded-up maximum normalized RMSD across all years.
+        Returns 1.0 if all RMSDs are below or equal to 1.0.
 
     Raises
     ------
     ValueError
         If no valid RMSD data is found.
+
+    Example
+    -------
+    >>> data_dict = {
+    ...     '2000': [...],  # yearly data
+    ...     '2001': [...]
+    ... }
+    >>> extent = compute_target_extent_yearly(data_dict)
+    >>> isinstance(extent, float)
+    True
     """
+    # =====INPUT VALIDATION=====
+    # Ensure input is a dictionary
+    if not isinstance(data_dict, dict):
+        raise ValueError("❌ 'data_dict' must be a dictionary containing model and satellite data. ❌")
+
+    # =====STATISTICS COMPUTATION=====
+    # Get normalized RMSD values for each year (ignore bias and crmsd)
     _, _, rmsd, _ = compute_normalised_target_stats(data_dict)
 
+    # =====VALIDATION=====
+    # Ensure RMSD array contains data
     if rmsd.size == 0:
-        raise ValueError("No valid RMSD data to determine extent.")
+        raise ValueError("❌ No valid RMSD data to determine extent. ❌")
 
+    # =====MAX EXTENT=====
+    # Return rounded-up max RMSD if > 1.0, else default to 1.0
     max_rmsd = np.max(rmsd)
     return round_up_to_nearest(max_rmsd) if max_rmsd > 1.0 else 1.0
 ###############################################################################
