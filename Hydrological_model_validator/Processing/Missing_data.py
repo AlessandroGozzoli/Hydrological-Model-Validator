@@ -38,50 +38,65 @@ def check_missing_days(
         If time series is out of order or length mismatch occurs.
     """
     # === INPUT VALIDATION ===
+    # Ensure T_orig is a NumPy array
     if not isinstance(T_orig, np.ndarray):
-        raise TypeError("T_orig must be a NumPy array.")
+        raise TypeError("❌ T_orig must be a NumPy array. ❌")
+    # Ensure data_orig is a NumPy array
     if not isinstance(data_orig, np.ndarray):
-        raise TypeError("data_orig must be a NumPy array.")
+        raise TypeError("❌ data_orig must be a NumPy array. ❌")
+    # Ensure T_orig is 1-dimensional
     if T_orig.ndim != 1:
-        raise ValueError("T_orig must be 1-dimensional.")
+        raise ValueError("❌ T_orig must be 1-dimensional. ❌")
+    # Ensure data_orig is 3-dimensional (time, lat, lon)
     if data_orig.ndim != 3:
-        raise ValueError("data_orig must be 3-dimensional.")
+        raise ValueError("❌ data_orig must be 3-dimensional. ❌")
+    # Ensure the length of T_orig matches the first dimension of data_orig
     if len(T_orig) != data_orig.shape[0]:
-        raise ValueError("T_orig length must match first dimension of data_orig.")
+        raise ValueError("❌ T_orig length must match first dimension of data_orig. ❌")
 
     print(f"Original time steps: {len(T_orig)}")
     first_date = datetime.utcfromtimestamp(T_orig[0])
     print("First timestamp (original):", T_orig[0], f"({first_date.strftime('%Y-%m-%d')})")
 
     # === SHIFT TIME SERIES TO DESIRED START DATE ===
+    # Calculate offset in seconds to shift the time series start date
     offset_seconds = (desired_start_date - first_date).total_seconds()
     print(f"Offset to add (seconds): {offset_seconds}")
 
+    # Apply offset to all timestamps to align start date to desired_start_date
     T_shifted = T_orig + offset_seconds
     shifted_first_date = datetime.utcfromtimestamp(T_shifted[0])
     print("First timestamp (shifted):", T_shifted[0], f"({shifted_first_date.strftime('%Y-%m-%d')})")
 
     # === DETECT TIME STEP ===
+    # Calculate differences between consecutive timestamps to find sampling interval
     steps = np.diff(T_shifted)
+    # Ensure timestamps strictly increase (no duplicates or out-of-order)
     if not np.all(steps > 0):
-        raise ValueError("Timestamps must be strictly increasing after shifting.")
+        raise ValueError("❌ Timestamps must be strictly increasing after shifting. ❌")
     
+    # Identify the most frequent time step as expected sampling interval
     unique_steps, counts = np.unique(steps, return_counts=True)
     time_step = unique_steps[np.argmax(counts)]
 
+    # Validate that the detected time step is positive
     if time_step <= 0:
-        raise ValueError("Detected non-positive time step.")
+        raise ValueError("❌ Detected non-positive time step. ❌")
 
     print(f"Detected time step: {time_step} seconds ({time_step / 86400:.2f} days)")
 
     # === GENERATE EXPECTED TIME RANGE ===
+    # Define full expected time range based on detected time step
     T_start, T_end = T_shifted[0], T_shifted[-1]
-    Ttrue = np.arange(T_start, T_end + time_step, time_step)
+    Ttrue = np.arange(T_start, T_end + time_step, time_step)  # Include last day by adding time_step
+
+    # Calculate how many timestamps are missing compared to ideal timeline
     missing_count = len(Ttrue) - len(T_shifted)
 
     if missing_count == 0:
         print("\033[92m✅ The time series is complete!\033[0m")
         print('*' * 45)
+        # Return the shifted original data since there are no missing entries
         return T_shifted.copy(), data_orig.copy()
 
     print("\033[91m⚠️ Time series is incomplete!\033[0m")
@@ -90,10 +105,13 @@ def check_missing_days(
     print('-' * 45)
 
     # === FILL DATA INTO COMPLETE TIME SERIES ===
+    # Create a map from timestamp to index for quick lookup
     time_index = {t: i for i, t in enumerate(T_shifted)}
+    # Prepare an output array initialized with NaNs for missing entries
     data_shape = (len(Ttrue), *data_orig.shape[1:])
     data_complete = np.full(data_shape, np.nan, dtype=data_orig.dtype)
 
+    # Fill data where available, leave NaNs where timestamps are missing
     for i, t in enumerate(Ttrue):
         idx = time_index.get(t)
         if idx is not None:
@@ -103,14 +121,14 @@ def check_missing_days(
             print(f"Missing day filled: {dt.strftime('%Y-%m-%d')}")
 
     # === FINAL SANITY CHECK ===
+    # Confirm that output data length matches the complete timeline length
     if data_complete.shape[0] != len(Ttrue):
-        raise AssertionError("Mismatch in expected time series length after filling.")
+        raise AssertionError("❌ Mismatch in expected time series length after filling. ❌")
 
     print("\033[92m✅ Time series gaps filled successfully.\033[0m")
     print('*' * 45)
 
     return Ttrue, data_complete
-
 ###############################################################################
 
 ###############################################################################
@@ -137,18 +155,24 @@ def find_missing_observations(data_complete: np.ndarray) -> Tuple[int, List[int]
     ValueError
         If input array does not have 3 dimensions.
     """
+    # ==== INPUT VALIDATION ====
+    # Ensure input is a NumPy array
     if not isinstance(data_complete, np.ndarray):
-        raise TypeError("data_complete must be a NumPy array.")
+        raise TypeError("❌ data_complete must be a NumPy array. ❌")
+    # Check that input has three dimensions (days, lat, lon)
     if data_complete.ndim != 3:
-        raise ValueError("data_complete must be a 3D array (days, lat, lon).")
+        raise ValueError("❌ data_complete must be a 3D array (days, lat, lon). ❌")
 
     print("Checking for missing satellite observations...")
 
-    # Compute daily sums ignoring NaNs, zero sum means all values are NaN or zero
+    # Sum over spatial dimensions ignoring NaNs to detect days with no data
     daily_sums = np.nansum(data_complete, axis=(1, 2))
+    # Days where sum is zero mean all values are either NaN or zero (no observations)
     mask_missing = daily_sums == 0
 
+    # Count how many days have missing data
     cnan = int(np.sum(mask_missing))
+    # Get list of indices for days with missing observations
     satnan = np.flatnonzero(mask_missing).tolist()
 
     if cnan > 0:
@@ -189,30 +213,38 @@ def eliminate_empty_fields(data_complete: np.ndarray) -> np.ndarray:
     >>> data[7] = np.nan
     >>> result = eliminate_empty_fields(data)
     """
+    # ===== INPUT VALIDATION =====
+    # Validate input is a NumPy array
     if not isinstance(data_complete, np.ndarray):
-        raise TypeError("data_complete must be a NumPy array.")
+        raise TypeError("❌ data_complete must be a NumPy array. ❌")
+    # Validate input is 3D (days, lat, lon)
     if data_complete.ndim != 3:
-        raise ValueError("data_complete should be a 3D array (days, lat, lon).")
+        raise ValueError("❌ data_complete should be a 3D array (days, lat, lon). ❌")
 
     print("Checking and removing empty fields...")
 
-    # Identify empty days: all NaN or all zero (ignoring NaNs for zero check)
+    # Identify days where all values are NaN across spatial dimensions
     all_nan = np.isnan(data_complete).all(axis=(1, 2))
 
-    # Suppress the all-NaN slice warning temporarily
+    # Suppress warnings for empty slices when computing max
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
+        # Get max value per day ignoring NaNs to detect days that might be all zero
         max_vals = np.nanmax(data_complete, axis=(1, 2))
 
+    # Identify days where max value is zero => all values are zero or NaN
     all_zero = (max_vals == 0)
     
+    # Combine masks to find days that are either all NaN or all zero
     empty_mask = all_nan | all_zero
+    # Count how many empty days found
     cempty = np.sum(empty_mask)
 
     if cempty > 0:
-        # Set entire days flagged as empty to NaN
+        # Replace entire daily fields flagged as empty with NaNs
         data_complete[empty_mask] = np.nan
+        # Inform user about which days were corrected (1-based indexing for clarity)
         for day_idx in np.flatnonzero(empty_mask):
             print(f"\033[91m⚠️ Empty field found at day {day_idx + 1} — replaced with NaNs ⚠️\033[0m")
         print(f"\033[93m{cempty} empty fields were found and corrected\033[0m")
