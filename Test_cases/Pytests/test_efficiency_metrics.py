@@ -63,6 +63,12 @@ def generate_test_data_variable_years():
         },
     }
 
+def dict_all_Nans():
+    return{
+        "modData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
+        "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
+        }
+
 ################################################################################
 # Tests for r_squared
 ################################################################################
@@ -135,10 +141,7 @@ def test_monthly_r_squared_missing_keys():
 
 # Test monthly R² returns NaN for all months when input data is all NaNs
 def test_monthly_r_squared_all_nans():
-    data_dict = {
-        "modData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-        "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-    }
+    data_dict = dict_all_Nans()
     r2 = monthly_r_squared(data_dict)
     # All data are NaN, so R² should be NaN for all months
     assert all(np.isnan(val) for val in r2)
@@ -249,10 +252,7 @@ def test_monthly_weighted_r_squared_missing_keys():
 
 # Test monthly weighted R² returns NaNs for all months if all data is NaN
 def test_monthly_weighted_r_squared_all_nans():
-    data_dict = {
-        "modData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-        "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-    }
+    data_dict = dict_all_Nans()
     wr2 = monthly_weighted_r_squared(data_dict)
     assert all(np.isnan(val) for val in wr2)
 
@@ -365,10 +365,7 @@ def test_monthly_nse_missing_keys():
 
 # Test monthly NSE returns all NaN results when all input data are NaNs
 def test_monthly_nse_all_nans():
-    data_dict = {
-        "modData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-        "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},
-    }
+    data_dict = dict_all_Nans()
     results = monthly_nse(data_dict)
     assert all(np.isnan(val) for val in results)
 
@@ -470,10 +467,7 @@ def test_monthly_ioa_missing_keys():
 
 # Test monthly IOA returns NaN values when all inputs are NaN
 def test_monthly_ioa_all_nans():
-    data_dict = {
-        "modData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},  # all NaNs in model data
-        "satData": {2000: [np.full((2, 2), np.nan) for _ in range(12)]},  # all NaNs in satellite data
-    }
+    data_dict = dict_all_Nans()
     # IOA results should be NaN due to no valid data
     results = monthly_index_of_agreement(data_dict)
     assert all(np.isnan(val) for val in results)
