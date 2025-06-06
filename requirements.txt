@@ -1,3 +1,4 @@
+# Your scientific stack
 numpy
 pandas
 xarray
@@ -18,3 +19,12 @@ dask
 # Testing dependencies
 pytest
 pytest-fixture-config
+
+# Documentation dependencies for Sphinx
+sphinx
+myst-parser
+sphinxcontrib-serializinghtml
+alabaster
+babel
+docutils
+Pygments
