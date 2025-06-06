@@ -25,6 +25,32 @@ from Hydrological_model_validator.Processing.Efficiency_metrics import (r_square
                                                                         compute_error_timeseries,
                                                                         compute_stats_single_time)
 
+
+# Common dict to be reused
+def get_test_data_dict_partial_nans():
+    return {
+        "modData": {
+            2000: [np.array([[1, 2], [np.nan, 4]]) for _ in range(12)],
+            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
+        },
+        "satData": {
+            2000: [np.array([[1, 2], [3, np.nan]]) for _ in range(12)],
+            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
+        },
+    }
+
+def get_test_data_dict():
+    return {
+        "modData": {
+            year: [np.arange(4).reshape(2, 2) + i for i in range(12)]
+            for year in [2000, 2001]
+        },
+        "satData": {
+            year: [np.arange(4).reshape(2, 2) + i for i in range(12)]
+            for year in [2000, 2001]
+        },
+    }
+
 ################################################################################
 # Tests for r_squared
 ################################################################################
@@ -72,16 +98,7 @@ def test_r_squared_non_numpy_input():
 
 # Test monthly R² returns perfect correlation when model and satellite data match exactly
 def test_monthly_r_squared_basic():
-    data_dict = {
-        "modData": {
-            year: [np.arange(4).reshape(2, 2) + i for i in range(12)]
-            for year in [2000, 2001]
-        },
-        "satData": {
-            year: [np.arange(4).reshape(2, 2) + i for i in range(12)]
-            for year in [2000, 2001]
-        },
-    }
+    data_dict = get_test_data_dict()
     r2 = monthly_r_squared(data_dict)
     assert len(r2) == 12
     # Expect all months to have R² close to 1 due to identical data
@@ -89,16 +106,7 @@ def test_monthly_r_squared_basic():
 
 # Test monthly R² handles NaNs gracefully and returns valid scores
 def test_monthly_r_squared_partial_nans():
-    data_dict = {
-        "modData": {
-            2000: [np.array([[1, 2], [np.nan, 4]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.array([[1, 2], [3, np.nan]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-    }
+    data_dict = get_test_data_dict_partial_nans()
     r2 = monthly_r_squared(data_dict)
     assert len(r2) == 12
     # R² should be computed ignoring NaNs, no NaN results expected here
@@ -221,16 +229,7 @@ def test_monthly_weighted_r_squared_basic():
 
 # Test monthly weighted R² handles partial NaNs correctly and does not produce NaNs in output
 def test_monthly_weighted_r_squared_partial_nans():
-    data_dict = {
-        "modData": {
-            2000: [np.array([[1, 2], [np.nan, 4]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.array([[1, 2], [3, np.nan]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-    }
+    data_dict = get_test_data_dict_partial_nans()
     wr2 = monthly_weighted_r_squared(data_dict)
     assert len(wr2) == 12
     # NaNs in input should not propagate to output
@@ -346,16 +345,7 @@ def test_monthly_nse_basic():
 
 # Test monthly NSE handles partial NaNs in the data without returning NaN results
 def test_monthly_nse_partial_nans():
-    data_dict = {
-        "modData": {
-            2000: [np.array([[1, 2], [np.nan, 4]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-        "satData": {
-            2000: [np.array([[1, 2], [3, np.nan]]) for _ in range(12)],
-            2001: [np.array([[1, 2], [3, 4]]) for _ in range(12)],
-        },
-    }
+    data_dict = get_test_data_dict_partial_nans()
     results = monthly_nse(data_dict)
     assert len(results) == 12
     # Ensure results are valid numbers, not NaN, despite some NaNs in input
@@ -450,22 +440,7 @@ def test_ioa_zero_denominator():
 
 # Test monthly IOA calculation on synthetic data with slight variation, expecting values between 0 and 1
 def test_monthly_ioa_basic():
-    data_dict = {
-        "modData": {
-            year: [
-                np.ones((2, 2)) * (i + 1e-6) + np.array([[0, 0.1], [0.2, 0.3]])  # add slight variation to model data
-                for i in range(12)
-            ]
-            for year in [2000, 2001]
-        },
-        "satData": {
-            year: [
-                np.ones((2, 2)) * (i + 1e-6) + np.array([[0, 0.05], [0.1, 0.15]])  # add slight variation to satellite data
-                for i in range(12)
-            ]
-            for year in [2000, 2001]
-        },
-    }
+    data_dict = get_test_data_dict_partial_nans()
     # Compute monthly IOA values
     results = monthly_index_of_agreement(data_dict)
     assert len(results) == 12
