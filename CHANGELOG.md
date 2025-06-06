@@ -1,3 +1,20 @@
+# **Version:** 4.8.1  
+**Date:** 06/06/2025  
+
+## Summary
+
+This minor patch finalizes the **in-script documentation** and completes **input validation** integration for all `Processing` submodules that have already undergone testing. These improvements enhance code clarity, safety, and maintainability.
+
+## Hotfixes
+
+Updated the following test scripts to accommodate recent input validation changes:
+- `test_target_computations`  
+- `test_taylor_computations`  
+- `test_time_utils`  
+- `test_utils`  
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.0  
 **Date:** 06/06/2025  
 
