@@ -367,6 +367,70 @@ def test_convert_to_serializable():
     nd = NoDict()
     assert convert_to_serializable(nd) == "fallback"
     
+# Dummy class with __str__ fallback
+class DummyStr:
+    def __str__(self): return "dummy"
+
+# Dummy class with to_dict fallback
+class DummyDict:
+    def to_dict(self): return {"key": "value"}
+
+
+def test_convert_list_tuple_set():
+    assert convert_to_serializable([DummyStr(), DummyStr()]) == ["dummy", "dummy"]
+    assert convert_to_serializable((DummyStr(),)) == ["dummy"]
+    assert set(convert_to_serializable({DummyStr()})) == {"dummy"}
+
+
+def test_convert_dict():
+    d = {"a": DummyStr(), 2: DummyStr()}
+    result = convert_to_serializable(d)
+    assert result == {"a": "dummy", "2": "dummy"}
+
+
+def test_convert_numpy_array():
+    arr = np.array([[1, 2], [3, 4]])
+    assert convert_to_serializable(arr) == [[1, 2], [3, 4]]
+
+
+def test_convert_pandas_objects():
+    df = pd.DataFrame({'x': [1, 2]})
+    assert convert_to_serializable(df) == [{'x': 1}, {'x': 2}]
+    
+    s = pd.Series([1, 2], index=['a', 'b'])
+    assert convert_to_serializable(s) == {'a': 1, 'b': 2}
+
+
+def test_convert_xarray_dataarray():
+    da = xr.DataArray(
+        np.array([[10, 20], [30, 40]]),
+        dims=("lat", "lon"),
+        coords={"lat": [1, 2], "lon": [3, 4]}
+    )
+    result = convert_to_serializable(da)
+    assert result["dims"] == ("lat", "lon")
+    assert result["coords"]["lat"] == [1, 2]
+    assert result["coords"]["lon"] == [3, 4]
+    assert result["data"] == [[10, 20], [30, 40]]
+
+
+def test_convert_xarray_dataset():
+    ds = xr.Dataset({"foo": (("x",), [1, 2, 3])})
+    result = convert_to_serializable(ds)
+    assert isinstance(result, dict)
+    assert "data_vars" in result
+
+
+def test_convert_to_dict_method():
+    obj = DummyDict()
+    assert convert_to_serializable(obj) == {"key": "value"}
+
+
+def test_convert_fallback_str():
+    class Unknown:
+        def __str__(self): return "fallback"
+    assert convert_to_serializable(Unknown()) == "fallback"
+    
     
 ################################################################################
 # Tests for save_variable_to_json
