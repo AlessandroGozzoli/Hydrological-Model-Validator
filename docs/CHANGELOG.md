@@ -1,3 +1,70 @@
+# **Version:** 4.8.2  
+**Date:** 06/06/2025  
+
+## Summary
+
+This minor patch establishes groundwork for connecting the repository to multiple third-party tools aimed at enhancing **documentation**, **code quality**, and **testing infrastructure**. It also includes general hotfixes to both test suites and associated functions.
+
+## Repository Enhancements
+
+Building on the previously implemented **Continuous Integration** with **Codecov**, this update initializes support for several additional tools:
+
+- **Sphinx** and **ReadTheDocs**  
+  These tools have been integrated to generate an HTML-based project documentation site. The initial build includes:
+  - README contents
+  - CHANGELOG
+  - Requirements
+  - Test case descriptions
+
+  > As part of this integration, the `CHANGELOG.md` file has been relocated to the `docs/` folder, along with a copy of the `requirements.txt` and all example images previously used in the `README.md`.  
+  > This causes the current root `README.md` to appear broken. This will be resolved during the final documentation overhaul near project completion.
+
+- **Codacy** and **Codebeat**  
+  These platforms have been linked to provide automated, objective feedback on code quality, including complexity metrics and maintainability suggestions.
+
+The `setup.py` has also been expanded to encompass more general information.
+
+## Test Coverage Update
+
+**Codecov**-reported test coverage has increased to **59.91%**. While the global improvement is modest, several key modules now exceed 90% coverage, including:
+
+- `Efficiency_metrics`
+- `Data_alignment`
+- `Data_saver`
+- `file_io`
+- `BFM_data_reader`
+- `time_utils`
+- `Taylor_computations`
+- `Missing_data`
+- `stats_math_utils`
+- `utils`
+
+These improvements are primarily due to expanded testing targeting input validation and edge cases.
+
+## General Enhancements
+
+All `Processing` modules that are currently tested have been updated with:
+- Enhanced **docstrings** and **inline comments**
+- Stricter **input validation**
+- Clearer **error messages** for robustness
+
+## Hotfixes
+
+- Removed a partial duplication of the `convert_to_serialization` function  
+- Updated relevant test cases to align with the revised logic  
+- In `test_efficiency`, redundant test dictionaries were moved into reusable setup functions to reduce complexity and improve readability
+
+## Future Works
+
+- Patch and finalize all remaining untested or partially tested scripts  
+- Introduce a new feature set for **climate data analysis**, potentially including a new test case focused on the **Indian Monsoons**
+- Complete documentation overhaul and fix the broken `README.md`  
+- Upload the public **test-case dataset** to support reproducibility
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.1  
 **Date:** 06/06/2025  
 
