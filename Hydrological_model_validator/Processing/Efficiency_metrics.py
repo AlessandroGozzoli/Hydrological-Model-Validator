@@ -69,6 +69,7 @@ def r_squared(obs: np.ndarray, pred: np.ndarray) -> float:
     if np.sum(mask) < 2:
         return np.nan
 
+    # ===== COMPUTATIONS =====
     corr = np.corrcoef(obs[mask], pred[mask])[0, 1]
 
     return corr ** 2
@@ -116,6 +117,7 @@ def monthly_r_squared(data_dict: dict) -> list[float]:
     >>> monthly_r_squared(data_dict)
     [0.999..., 0.999..., ..., 0.999...]  # 12 values
     """
+    # ===== INPUT VALIDATION =====
     if not isinstance(data_dict, dict):
         raise TypeError("❌ Input must be a dictionary.")
 
@@ -148,6 +150,7 @@ def monthly_r_squared(data_dict: dict) -> list[float]:
 
     r2_monthly = []  # Initialize list to store R² for each month
 
+    # ===== LOOPING THE COMPUTATIONS =====
     for month in range(n_months):
         # Extract monthly data arrays from all years and flatten to 1D for comparison
         mod_arrays = []
@@ -219,7 +222,7 @@ def weighted_r_squared(obs, pred):
     >>> weighted_r_squared(obs, pred)
     0.98  # example output (actual value depends on data)
     """
-    # Input validation
+    # ===== INPUT VALIDATION =====
     if obs is None or pred is None:
         raise ValueError("❌ Input arrays 'obs' and 'pred' must not be None. ❌")
     obs = np.asarray(obs)
@@ -238,6 +241,7 @@ def weighted_r_squared(obs, pred):
     x = obs[mask]
     y = pred[mask]
 
+    # ===== COMPUTATIONS =====
     # Compute standard R² between observed and predicted for valid data
     r2 = r_squared(x, y)
     
@@ -310,7 +314,7 @@ def monthly_weighted_r_squared(dictionary):
     """
     from .Efficiency_metrics import weighted_r_squared
 
-    # Validate dictionary structure
+    # ===== INPUT VALIDATIONS =====
     if not isinstance(dictionary, dict):
         raise ValueError("❌ Input must be a dictionary. ❌")
 
@@ -336,6 +340,7 @@ def monthly_weighted_r_squared(dictionary):
 
     wr2_monthly = []
 
+    # ===== LOOPING THE COMPUTATIONS =====
     for month in range(n_months):
         try:
             mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
@@ -396,7 +401,7 @@ def nse(obs, pred):
     obs = np.asarray(obs)  # Convert to numpy array for vectorized operations
     pred = np.asarray(pred)
 
-    # Validate that both arrays have the same shape
+    # ==== INPUT VALIDATION =====
     if obs.shape != pred.shape:
         raise ValueError("❌ Input arrays must have the same shape. ❌")
     
@@ -413,6 +418,7 @@ def nse(obs, pred):
     obs_masked = obs[mask]
     pred_masked = pred[mask]
     
+    # ===== COMPUTATIONS =====
     # Calculate the sum of squared residuals (difference between observed and predicted),
     # representing the "noise" or error variance of the model predictions
     numerator = np.sum((obs_masked - pred_masked) ** 2)
@@ -556,7 +562,7 @@ def index_of_agreement(obs, pred):
     >>> index_of_agreement(obs, pred)
     0.97  # example output (actual value depends on data)
     """
-    # Validation: check inputs are array-like and compatible
+    # ===== INPUT VALIDATION =====
     if not (hasattr(obs, "__iter__") and hasattr(pred, "__iter__")):
         raise TypeError("❌ Inputs obs and pred must be array-like sequences. ❌")
     
@@ -574,6 +580,7 @@ def index_of_agreement(obs, pred):
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
+    # ===== COMPUTATIONS =====
     # Numerator: sum of squared differences between observed and predicted values (prediction error)
     numerator = np.sum((obs_masked - pred_masked) ** 2)
     
@@ -636,6 +643,7 @@ def monthly_index_of_agreement(dictionary):
     model_keys = [k for k in dictionary if 'mod' in k.lower()]
     sat_keys = [k for k in dictionary if 'sat' in k.lower()]
 
+    # ===== INPUT VALIDATION =====
     # Raise error if either model or satellite keys are missing
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary ❌")
@@ -665,6 +673,7 @@ def monthly_index_of_agreement(dictionary):
 
     d_monthly = []
 
+    # ===== LOOPING =====
     # Loop over months dynamically
     for month in range(n_months):
         # Concatenate monthly data across all years for model and satellite
@@ -743,7 +752,8 @@ def ln_nse(obs, pred):
     # Require at least two valid data points to compute meaningful NSE
     if np.sum(mask) < 2:
         return np.nan
-
+    
+    # ===== COMPUTATIONS =====
     # Apply natural logarithm transformation to emphasize relative errors
     log_obs = np.log(obs[mask])
     log_pred = np.log(pred[mask])
@@ -807,6 +817,7 @@ def monthly_ln_nse(dictionary):
     model_keys = [k for k in dictionary if 'mod' in k.lower()]
     sat_keys = [k for k in dictionary if 'sat' in k.lower()]
 
+    # ===== INPUT VALIDATIONS =====
     # Raise an error if expected keys are missing
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
@@ -829,6 +840,7 @@ def monthly_ln_nse(dictionary):
 
     ln_nse_monthly = []
 
+    # ===== LOOPING =====
     # Loop through all months dynamically (no hardcoded 12)
     for month in range(n_months):
         # Concatenate monthly data arrays across all years into single 1D arrays
@@ -893,6 +905,7 @@ def nse_j(obs, pred, j=1):
     obs = np.asarray(obs)
     pred = np.asarray(pred)
 
+    # ===== INPUT VALIDATION =====
     # Ensure obs and pred have the same shape
     if obs.shape != pred.shape:
         raise ValueError("❌ Observed and predicted arrays must have the same shape. ❌")
@@ -907,6 +920,7 @@ def nse_j(obs, pred, j=1):
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
+    # ===== COMPUTATTIONS =====
     numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
     denominator = np.sum(np.abs(obs_masked - np.mean(obs_masked)) ** j)
 
@@ -965,6 +979,7 @@ def monthly_nse_j(dictionary, j=1):
     model_keys = [k for k in dictionary if 'mod' in k.lower()]
     sat_keys = [k for k in dictionary if 'sat' in k.lower()]
 
+    # ===== INPUT VALIDATION =====
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
@@ -978,6 +993,7 @@ def monthly_nse_j(dictionary, j=1):
 
     nse_j_monthly = []
 
+    # ===== LOOPING =====
     for month in range(num_months):
         mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
         sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
@@ -1034,6 +1050,7 @@ def index_of_agreement_j(obs, pred, j=1):
     obs = np.asarray(obs)  # Convert inputs to numpy arrays
     pred = np.asarray(pred)
 
+    # ===== INPUT VALIDATION =====
     # Validate shapes are equal to avoid silent errors
     if obs.shape != pred.shape:
         raise ValueError("❌ Observed and predicted arrays must have the same shape. ❌")
@@ -1046,6 +1063,7 @@ def index_of_agreement_j(obs, pred, j=1):
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
+    # ===== COMPUTING =====
     # Sum of powered absolute errors between observed and predicted
     numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
 
@@ -1106,6 +1124,7 @@ def monthly_index_of_agreement_j(dictionary, j=1):
     model_keys = [k for k in dictionary if 'mod' in k.lower()]
     sat_keys = [k for k in dictionary if 'sat' in k.lower()]
 
+    # ===== INPUT VALIDATION =====
     # Check keys exist in input dictionary
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
@@ -1123,6 +1142,7 @@ def monthly_index_of_agreement_j(dictionary, j=1):
 
     d_j_monthly = []
 
+    # ===== LOOPING =====
     for month in range(n_months):
         # Aggregate all model data for the current month across years
         mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
@@ -1191,6 +1211,7 @@ def relative_nse(obs, pred):
     
     obs_mean = np.mean(obs_masked)
     
+    # ===== COMPUTATIONS =====
     # Numerator: sum of squared relative errors
     numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
     # Denominator: sum of squared relative deviations from mean
@@ -1251,6 +1272,7 @@ def monthly_relative_nse(dictionary):
     """
     from .Efficiency_metrics import relative_nse
 
+    # ===== INPUT VALIDATION =====
     # Input validation: dictionary type
     if not isinstance(dictionary, dict):
         raise TypeError("❌ Input must be a dictionary ❌")
@@ -1297,6 +1319,7 @@ def monthly_relative_nse(dictionary):
 
     e_rel_monthly = []
 
+    # ===== LOOPING =====
     for month in range(n_months):
         try:
             # Aggregate monthly data across all years
@@ -1355,7 +1378,7 @@ def relative_index_of_agreement(obs, pred):
     0.92  # example output
     """
 
-    # Input validation
+    # ===== INPUT VALIDATION =====
     if obs is None or pred is None:
         raise ValueError("❌ Observed and predicted inputs must not be None ❌")
 
@@ -1380,6 +1403,7 @@ def relative_index_of_agreement(obs, pred):
     if np.allclose(obs_masked, obs_mean):
         return np.nan
 
+    # ===== COMPUTATIONS =====
     numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
 
     denominator = np.sum(
@@ -1447,6 +1471,7 @@ def monthly_relative_index_of_agreement(dictionary):
     model_key = next((k for k in dictionary if 'mod' in k.lower()), None)
     sat_key = next((k for k in dictionary if 'sat' in k.lower()), None)
 
+    # ===== INPUT VALIDATION =====
     # Raise error if model or satellite keys are missing
     if model_key is None or sat_key is None:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
@@ -1466,6 +1491,7 @@ def monthly_relative_index_of_agreement(dictionary):
 
     d_rel_monthly = []
 
+    # ===== LOOPING =====
     for month in range(num_months):
         # Concatenate monthly data for all years into single arrays
         mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
@@ -1532,7 +1558,7 @@ def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
     >>> mb, sde, cc, rm, ro, urmse = compute_spatial_efficiency(model_da, sat_da, time_group="month")
     >>> mb.sel(month=1).plot()  # Plot Mean Bias for January
     """
-    # Validate inputs
+    # ===== INPUT VALIDATION =====
     if not isinstance(model_da, xr.DataArray):
         raise TypeError("❌ 'model_da' must be an xarray.DataArray ❌")
     if not isinstance(sat_da, xr.DataArray):
@@ -1546,6 +1572,7 @@ def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
     if time_group not in {"month", "year"}:
         raise ValueError(f"❌ Invalid time_group '{time_group}', must be 'month' or 'year' ❌")
 
+    # ===== TIME CLASSIFICATION =====
     # Determine grouping based on selected time group
     if time_group == "month":
         groups = range(1, 13)  # Months 1 to 12
@@ -1554,6 +1581,7 @@ def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
         groups = sorted(np.unique(model_da['time.year'].values))  # Unique years in the data
         time_sel = 'year'
 
+    # ==== INNER FUNCTION TO COMPUTE GROUP =====
     # Define function to compute all metrics for a single time group
     def compute_metrics_for_group(group):
         # Select model and satellite data for the given group
@@ -1570,6 +1598,7 @@ def compute_spatial_efficiency(model_da, sat_da, time_group="month"):
             unbiased_rmse(m_sel, o_sel),
         )
 
+    # ===== MAKE OUTPUT ======
     # Apply the metrics computation for each time group
     results = list(map(compute_metrics_for_group, groups))
 
@@ -1639,7 +1668,7 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
     2000-01-02             -0.15    0.51   0.85
     ...
     """
-    # Validate inputs are xarray.DataArray and have necessary dims and coords
+    # ===== INPUT VALIDATION =====
     for da, name in zip([model_sst_data, sat_sst_data, basin_mask], ["model_sst_data", "sat_sst_data", "basin_mask"]):
         if not isinstance(da, xr.DataArray):
             raise TypeError(f"❌ {name} must be an xarray.DataArray ❌")
@@ -1667,13 +1696,15 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
     model_masked = model_sst_data.where(basin_mask)
     sat_masked = sat_sst_data.where(basin_mask)
 
+    # ===== TIME SETUP =====
     # Number of time steps
     n_time = model_masked.sizes['time']
 
     stats_list = []
     dates = model_sst_data['time'].values
 
-    # Loop over time steps (can enable tqdm for progress)
+    # ===== LOOP THOUGH TIMESTEPS =====
+    # Loop over time steps 
     for t in range(n_time):
         m = model_masked.isel(time=t).values.flatten()
         o = sat_masked.isel(time=t).values.flatten()
@@ -1739,7 +1770,7 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
     >>> compute_stats_single_time(m, o)
     {'mean_bias': 0.0X, 'unbiased_rmse': 0.0Y, 'std_error': 0.0Z, 'correlation': 0.99}
     """
-    # Input validation
+    # ===== INPUT VALIDATION =====
     if not (isinstance(model_slice, np.ndarray) and isinstance(sat_slice, np.ndarray)):
         raise TypeError("Both model_slice and sat_slice must be numpy arrays.")
     if model_slice.ndim != 1 or sat_slice.ndim != 1:
@@ -1750,6 +1781,7 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
     # Create a boolean mask where both model and satellite values are not NaN
     valid = ~np.isnan(model_slice) & ~np.isnan(sat_slice)
 
+    # ===== CORNER CASE HANDLING =====
     # If there are no valid paired values, return NaN for all statistics
     if valid.sum() == 0:
         return dict(
