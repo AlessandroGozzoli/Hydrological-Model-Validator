@@ -25,6 +25,7 @@ jobs:
           pip install setuptools wheel
           pip install -r requirements.txt || echo "No requirements.txt found"
           pip install pytest pytest-cov codecov
+          pip install pytest-mock
           pip install .
 
       - name: Run tests with coverage
