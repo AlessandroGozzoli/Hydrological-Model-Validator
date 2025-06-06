@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-import skill_metrics as sm
 from Hydrological_model_validator.Processing.Taylor_computations import (
     compute_taylor_stat_tuple,
     compute_std_reference,
@@ -86,6 +85,36 @@ def test_taylor_stat_nan_values():
     # The statistics returned should be floats indicating NaNs handled internally
     assert all(isinstance(x, float) for x in result[1:])
 
+# Test for input validation
+def test_compute_taylor_stat_tuple_input_validation():
+    valid_mod = np.array([1.0, 2.0, 3.0])
+    valid_sat = np.array([1.0, 2.0, 3.0])
+    label = "test"
+
+    # 1. Inputs not numpy arrays
+    with pytest.raises(ValueError, match="must be NumPy arrays"):
+        compute_taylor_stat_tuple([1, 2, 3], valid_sat, label)
+    with pytest.raises(ValueError, match="must be NumPy arrays"):
+        compute_taylor_stat_tuple(valid_mod, [1, 2, 3], label)
+
+    # 2. Empty input arrays
+    with pytest.raises(ValueError, match="must not be empty"):
+        compute_taylor_stat_tuple(np.array([]), valid_sat, label)
+    with pytest.raises(ValueError, match="must not be empty"):
+        compute_taylor_stat_tuple(valid_mod, np.array([]), label)
+
+    # 3. No finite data pairs (all NaN or inf)
+    mod_nan = np.array([np.nan, np.inf])
+    sat_nan = np.array([np.nan, np.inf])
+    with pytest.raises(ValueError, match="No valid finite data pairs"):
+        compute_taylor_stat_tuple(mod_nan, sat_nan, label)
+
+    # 4. Some finite data but no overlap of finite pairs
+    mod_some = np.array([1.0, np.nan])
+    sat_some = np.array([np.nan, 2.0])
+    with pytest.raises(ValueError, match="No valid finite data pairs"):
+        compute_taylor_stat_tuple(mod_some, sat_some, label)
+
 
 ###############################################################################
 # --- Tests for compute_std_reference ---
@@ -148,6 +177,38 @@ def test_std_reference_single_year_single_month():
     std = compute_std_reference(data, years, 0)
     assert std == 0.0
 
+# Test for input validation
+def test_compute_std_reference_input_validation():
+    # Setup some valid satellite data
+    sat_data = {
+        2000: [np.array([1, 2, 3]), np.array([4, 5, 6])],
+        2001: [np.array([7, 8, 9]), np.array([10, 11, 12])]
+    }
+    valid_years = [2000, 2001]
+
+    # 1. month_index not int or negative
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        compute_std_reference(sat_data, valid_years, -1)
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        compute_std_reference(sat_data, valid_years, 2.5)
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        compute_std_reference(sat_data, valid_years, "0")
+
+    # 2. month_index out of range for all years (no valid data)
+    with pytest.raises(ValueError, match="No valid satellite data found"):
+        compute_std_reference(sat_data, valid_years, 5)  # month index 5 does not exist in either year
+
+    # 3. empty monthly array for a year at month_index
+    sat_data_empty = {
+        2000: [np.array([]), np.array([1, 2, 3])],
+        2001: [np.array([4, 5, 6]), np.array([7, 8, 9])]
+    }
+    with pytest.raises(ValueError, match="Empty data array for year 2000"):
+        compute_std_reference(sat_data_empty, valid_years, 0)
+
+    # 4. valid call returns float
+    std_result = compute_std_reference(sat_data, valid_years, 0)
+    assert isinstance(std_result, float)
     
 ###############################################################################
 # --- Tests for compute_norm_taylor_stats ---
@@ -299,6 +360,53 @@ def test_build_all_points_nan_std_ref(monkeypatch):
     df, years = build_all_points(data)
     assert df.empty
 
+# Test for input validation
+def test_build_all_points_input_validation(monkeypatch):
+    # Setup dummy compute_std_reference to avoid real calculation and focus on input validation
+    def dummy_compute_std_reference(sat_data_by_year, years, month_index):
+        return 1.0  # Always return valid std
+
+    # Setup dummy compute_norm_taylor_stats to avoid complexity
+    def dummy_compute_norm_taylor_stats(mod_vals, sat_vals, std_ref):
+        return {"sdev": 0.9, "crmsd": 0.1, "ccoef": 0.95}
+
+    # Patch these functions inside build_all_points context
+    monkeypatch.setattr("Hydrological_model_validator.Processing.Taylor_computations.compute_std_reference", dummy_compute_std_reference)
+    monkeypatch.setattr("Hydrological_model_validator.Processing.Taylor_computations.compute_norm_taylor_stats", dummy_compute_norm_taylor_stats)
+    monkeypatch.setattr("Hydrological_model_validator.Processing.data_alignment.extract_mod_sat_keys", lambda d: ('model', 'satellite'))
+
+    # 1. Test missing model or satellite keys -> should raise ValueError
+    with pytest.raises(ValueError):
+        build_all_points({})
+
+    with pytest.raises(ValueError):
+        build_all_points({'model': {}})  # Missing satellite key
+
+    with pytest.raises(ValueError):
+        build_all_points({'satellite': {}})  # Missing model key
+
+    # 2. Test with minimal valid input (no exception, returns dataframe and years list)
+    data_dict = {
+        'model': {
+            2000: [np.array([1, 2]), np.array([3, 4])]
+        },
+        'satellite': {
+            2000: [np.array([1, 2]), np.array([3, 4])]
+        }
+    }
+
+    df, years = build_all_points(data_dict)
+    assert isinstance(df, pd.DataFrame)
+    assert isinstance(years, list)
+    assert 2000 in years
+
+    # Check columns exist
+    expected_cols = {'sdev', 'crmsd', 'ccoef', 'month', 'year'}
+    assert expected_cols.issubset(df.columns)
+
+    # Check reference row exists
+    ref_rows = df[df['year'] == 'Ref']
+    assert not ref_rows.empty
 
 ###############################################################################
 # --- Tests for compute_yearly_taylor_stats ---
