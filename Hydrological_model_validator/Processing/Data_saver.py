@@ -350,28 +350,6 @@ def convert_to_serializable(obj):
 
     # Fallback: return string representation
     return str(obj)
-    if isinstance(obj, (str, int, float, bool, type(None))):
-        return obj
-    elif isinstance(obj, (list, tuple, set)):
-        return [convert_to_serializable(i) for i in obj]
-    elif isinstance(obj, dict):
-        return {str(k): convert_to_serializable(v) for k, v in obj.items()}
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, (pd.Series, pd.DataFrame)):
-        return obj.to_dict(orient="records") if isinstance(obj, pd.DataFrame) else obj.to_dict()
-    elif isinstance(obj, xr.DataArray):
-        return {
-            "dims": obj.dims,
-            "coords": {k: v.values.tolist() for k, v in obj.coords.items()},
-            "data": obj.values.tolist()
-        }
-    elif isinstance(obj, xr.Dataset):
-        return obj.to_dict(data=True)
-    elif hasattr(obj, "to_dict"):
-        return obj.to_dict()
-    else:
-        return str(obj)
 ###############################################################################
 
 ############################################################################### 
