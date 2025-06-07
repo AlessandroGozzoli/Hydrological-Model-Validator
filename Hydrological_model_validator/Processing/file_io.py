@@ -368,8 +368,8 @@ def call_interpolator(
     # ===== INPUT VALIDATION =====
     if not isinstance(varname, str):
         raise TypeError("❌ varname must be a string ❌")
-    if not isinstance(data_level, int):
-        raise TypeError("❌ data_level must be an integer ❌")
+    if not isinstance(data_level, str):
+        raise TypeError("❌ data_level must be a string ❌")
     if not isinstance(input_dir, (str, os.PathLike)):
         raise TypeError("❌ input_dir must be a string or os.PathLike object ❌")
     if not isinstance(output_dir, (str, os.PathLike)):
