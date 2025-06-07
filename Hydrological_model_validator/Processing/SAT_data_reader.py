@@ -112,7 +112,7 @@ def sat_data_loader(
 
                 # Create 2D grid by tiling 1D arrays to match expected shape (lat x lon)
                 lon = np.tile(lon_1d, (len(lat_1d), 1))
-                lat = np.tile(lat_1d[:, None], (1, len(lon_1d)))
+                lat = np.tile(lat_1d, (len(lon_1d), 1))
 
             # ===== TIME EXTRACTION BLOCK =====
             # Extract time variable for the current file
