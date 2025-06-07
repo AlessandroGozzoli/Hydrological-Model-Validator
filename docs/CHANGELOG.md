@@ -1,3 +1,30 @@
+# **Version:** 4.8.4
+**Date:** 07/06/2025  
+
+## Summary
+
+Extended coverage of testing script to `Taylor` and `Target` plotting functions.
+
+## Testing expansion
+
+New testing units have been created to test `Taylor` and `Target` plotting functions making progress into full project coverage.
+
+Current coverage for these testing suits is greater than 90%.
+
+Current overall testing coverage is 
+
+## Future Work
+
+- Finalize tests for all remaining **plotting scripts** (general plotting functions and bfm specific plots)
+- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Complete a full documentation overhaul and repair the broken `README.md`
+- Upload the full **test-case dataset** to support reproducibility and public testing
+- Begin adding **logging** and **timing utilities** to evaluate and profile performance
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.3  
 **Date:** 07/06/2025  
 
