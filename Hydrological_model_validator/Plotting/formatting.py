@@ -44,7 +44,6 @@ def format_unit(unit: str) -> str:
     # ===== INPUT VALIDATION =====
     # Validate that input is a non-empty string to avoid processing invalid types
     if not isinstance(unit, str) or not unit.strip():
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ Input 'unit' must be a non-empty string. ❌")
 
     # ===== HELPER FUNCTIONS =====
@@ -179,7 +178,6 @@ def fill_annular_region(ax: Axes,
     # ===== INPUT VALIDATION =====
     # Validate that ax is an instance of matplotlib Axes for correct drawing context
     if not isinstance(ax, Axes):
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ Input 'ax' must be a matplotlib.axes.Axes instance. ❌")
 
     # Validate r_in is non-negative numeric value to define valid inner radius
@@ -270,7 +268,6 @@ def get_min_max_for_identity_line(
 
     # Raise error if no finite values remain to avoid invalid axis limits
     if combined.size == 0:
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ Both inputs contain no finite values. ❌")
 
     # ===== COMPUTE MIN AND MAX =====
@@ -315,7 +312,6 @@ def style_axes_spines(ax: Axes,
     # ===== INPUT VALIDATION =====
     # Ensure ax is a matplotlib Axes instance for spine styling
     if not isinstance(ax, Axes):
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ Input 'ax' must be a matplotlib.axes.Axes instance. ❌")
 
     # Ensure linewidth is a positive number for visible spine lines
@@ -389,7 +385,6 @@ def plot_line(key: str,
     # ===== INPUT VALIDATION =====
     # Check that key is string to access label lookup correctly
     if not isinstance(key, str):
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ Input 'key' must be a string. ❌")
 
     # Ensure ax is a matplotlib Axes instance to plot on
@@ -493,7 +488,6 @@ def compute_geolocalized_coords(
     # ===== INPUT VALIDATION =====
     # Check grid_shape is tuple of length 2 representing (rows, columns)
     if not (isinstance(grid_shape, tuple) and len(grid_shape) == 2):
-        # ❌ Add red x emoji for input validation error messages ❌
         raise ValueError("❌ grid_shape must be a tuple of two integers (Yrow, Xcol). ❌")
     
     # Ensure each dimension is a positive integer
