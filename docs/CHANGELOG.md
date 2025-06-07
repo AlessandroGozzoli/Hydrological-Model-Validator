@@ -1,3 +1,39 @@
+# **Version:** 4.8.3  
+**Date:** 07/06/2025  
+
+## Summary
+
+This minor patch expands test coverage, removes legacy files, and introduces a new utility for numeric data validation.
+
+## Test Coverage
+
+All scripts in the `Processing` submodule have now reached **>90%** test coverage.
+
+Contrary to earlier statements, new test modules have also been added for both **model** and **satellite data reading** functions. While these are still tailored to specific test-case datasets, their inclusion improves confidence and completeness in the test suite.
+
+## Deprecation of Legacy Files
+
+As part of a general repository cleanup, the `Costants.py` file has been removed. All constants previously defined in this module are now obsolete and unused by the current version of the codebase.
+
+## New Utility: Numeric Data Checker
+
+A new utility function, `check_numeric_data`, has been added to the `utils.py` submodule.  
+This function checks whether inputs are valid numeric types (e.g., integers, floats, NumPy arrays), which is essential for computational routines that assume numeric-only input.
+
+Users are encouraged to validate their data with this function when unsure before using processing functions that rely on numeric inputs.
+
+## Future Work
+
+- Finalize tests for all remaining **plotting scripts**
+- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Complete a full documentation overhaul and repair the broken `README.md`
+- Upload the full **test-case dataset** to support reproducibility and public testing
+- Begin adding **logging** and **timing utilities** to evaluate and profile performance
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.2  
 **Date:** 06/06/2025  
 
