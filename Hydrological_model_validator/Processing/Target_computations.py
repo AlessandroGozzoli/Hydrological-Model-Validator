@@ -6,6 +6,7 @@ import skill_metrics as sm
 from ..Processing.data_alignment import (get_common_series_by_year, 
                                          get_common_series_by_year_month)
 from ..Processing.stats_math_utils import round_up_to_nearest 
+from .utils import check_numeric_data
 
 ###############################################################################
 def compute_single_target_stat(year: str, 
@@ -112,7 +113,7 @@ def compute_single_month_target_stat(year: int,
     -------
     >>> compute_single_month_target_stat(2021, 5, np.array([1, 2, 3]), np.array([1, 2, 4]))
     (normalized_bias, normalized_crmsd, normalized_rmsd, '2021')
-    """
+    """    
     # =====VALIDATION=====
     # Ensure year is an integer
     if not isinstance(year, int):
@@ -181,7 +182,7 @@ def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.nda
     >>> bias, crmsd, rmsd, labels = compute_normalised_target_stats(data_dict)
     >>> labels
     ['2000', '2001']
-    """
+    """    
     # =====VALIDATION=====
     # Ensure input is a dictionary
     if not isinstance(data_dict, dict):
@@ -229,44 +230,43 @@ def compute_normalised_target_stats_by_month(data_dict: Dict,
     ValueError
         If 'month_index' is not found in the data.
         If no overlapping or valid data is found for the specified month.
+        If any monthly data contains non-numeric entries.
 
     Example
     -------
     >>> data_dict = {
-    ...     '2000': [...],  # data for each month
-    ...     '2001': [...]
+    ...     'model': {2000: [np.array([1.0]), ...]},
+    ...     'satellite': {2000: [np.array([1.1]), ...]}
     ... }
     >>> bias, crmsd, rmsd, labels = compute_normalised_target_stats_by_month(data_dict, 0)
     >>> labels
-    ['2000', '2001']
+    ['2000']
     """
-    # =====DATA EXTRACTION=====
-    # Flatten data into (year, month, mod, sat) tuples across all years/months
+    # ===== DATA TYPE VALIDATION =====
+    check_numeric_data(data_dict)
+
+    # ===== DATA EXTRACTION =====
     monthly_data = get_common_series_by_year_month(data_dict)
-    # Get available month indices from data
     available_months = set(month for _, month, _, _ in monthly_data)
 
-    # =====MONTH VALIDATION=====
-    # Raise error if requested month is not in the data
+    # ===== MONTH VALIDATION =====
     if month_index not in available_months:
         raise ValueError(f"❌ 'month_index' {month_index} not found in data. Available months: {sorted(available_months)} ❌")
 
-    # =====FILTER MONTH=====
-    # Keep only data for the specified month
+    # ===== FILTER MONTH =====
     filtered_data = [(year, month, mod, sat) for (year, month, mod, sat) in monthly_data if month == month_index]
     if not filtered_data:
         raise ValueError(f"❌ No overlapping model/satellite data found for month {month_index}. ❌")
 
-    # =====STATISTICS COMPUTATION=====
-    # Compute stats per (year, month), skip any invalid results
+    # ===== STATISTICS COMPUTATION =====
     results = list(filter(None, starmap(compute_single_month_target_stat, filtered_data)))
     if not results:
         raise ValueError("❌ No valid data available to compute statistics. ❌")
 
-    # =====OUTPUT FORMATTING=====
-    # Unpack and return normalized stats and corresponding years
+    # ===== OUTPUT FORMATTING =====
     bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
     return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
+
 ###############################################################################
 
 ###############################################################################
