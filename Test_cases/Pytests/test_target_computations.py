@@ -64,6 +64,36 @@ def test_single_target_stat_input_types():
     
     # Ensure output is a tuple as expected
     assert isinstance(result, tuple)
+    
+# Test for input validation
+def test_compute_single_target_stat_input_validation():
+    valid_year = "2020"
+    valid_mod = np.array([1.0, 2.0, 3.0])
+    valid_sat = np.array([1.0, 2.0, 3.0])
+
+    # Year is not a string
+    with pytest.raises(ValueError, match="year.*string"):
+        compute_single_target_stat(2020, valid_mod, valid_sat)
+
+    # mod is not a numpy array
+    with pytest.raises(ValueError, match="mod.*numpy arrays"):
+        compute_single_target_stat(valid_year, [1, 2, 3], valid_sat)
+
+    # sat is not a numpy array
+    with pytest.raises(ValueError, match="mod.*numpy arrays"):
+        compute_single_target_stat(valid_year, valid_mod, [1, 2, 3])
+
+    # Shape mismatch
+    with pytest.raises(ValueError, match="same shape"):
+        compute_single_target_stat(valid_year, np.array([1.0, 2.0]), np.array([1.0, 2.0, 3.0]))
+
+    # Non-numeric mod
+    with pytest.raises(ValueError, match="contain numeric data"):
+        compute_single_target_stat(valid_year, np.array(['a', 'b', 'c']), valid_sat)
+
+    # Non-numeric sat
+    with pytest.raises(ValueError, match="contain numeric data"):
+        compute_single_target_stat(valid_year, valid_mod, np.array(['x', 'y', 'z']))
 
 
 ###############################################################################
@@ -120,7 +150,46 @@ def test_single_month_target_stat_output_values():
     # The first element of the tuple should be a float, representing one computed statistic
     assert isinstance(res[0], float)
 
+# Test for input validation 
+def test_compute_single_month_target_stat_input_validation():
+    valid_mod = np.array([1.0, 2.0, 3.0])
+    valid_sat = np.array([1.0, 2.0, 3.0])
 
+    # year is not int
+    with pytest.raises(ValueError, match="year.*integer"):
+        compute_single_month_target_stat("2020", 5, valid_mod, valid_sat)
+
+    # month is not int
+    with pytest.raises(ValueError, match="month.*between 0 and 11"):
+        compute_single_month_target_stat(2020, "5", valid_mod, valid_sat)
+
+    # month out of range
+    with pytest.raises(ValueError, match="month.*between 0 and 11"):
+        compute_single_month_target_stat(2020, 12, valid_mod, valid_sat)
+
+    # mod is not ndarray
+    with pytest.raises(ValueError, match="mod.*numpy arrays"):
+        compute_single_month_target_stat(2020, 5, [1, 2, 3], valid_sat)
+
+    # sat is not ndarray
+    with pytest.raises(ValueError, match="mod.*numpy arrays"):
+        compute_single_month_target_stat(2020, 5, valid_mod, [1, 2, 3])
+
+    # shape mismatch
+    with pytest.raises(ValueError, match="same shape"):
+        compute_single_month_target_stat(2020, 5, np.array([1, 2]), np.array([1, 2, 3]))
+
+    # non-numeric mod (same shape)
+    non_numeric_mod = np.array(["a", "b", "c"])
+    with pytest.raises(ValueError, match="contain numeric data"):
+        compute_single_month_target_stat(2020, 5, non_numeric_mod, valid_sat)
+
+    # non-numeric sat (same shape)
+    non_numeric_sat = np.array(["x", "y", "z"])
+    with pytest.raises(ValueError, match="contain numeric data"):
+        compute_single_month_target_stat(2020, 5, valid_mod, non_numeric_sat)
+        
+        
 ###############################################################################
 # Tests for compute_normalised_target_stats
 ###############################################################################
@@ -233,6 +302,31 @@ def test_normalised_target_stats_output_shapes(monkeypatch):
     assert crmsd.shape == (2,)
     assert rmsd.shape == (2,)
 
+# Test for input validation 
+def test_compute_normalised_target_stats_input_validation():
+    # Not a dictionary
+    with pytest.raises(ValueError, match="must be a dictionary"):
+        compute_normalised_target_stats(["not", "a", "dict"])
+
+    # Empty dictionary (no valid model/satellite keys)
+    with pytest.raises(ValueError, match="No suitable model key"):
+        compute_normalised_target_stats({})
+
+    # Now test valid structure but no usable data (e.g., all std == 0)
+    data_dict = {
+        "model": {
+            2000: pd.Series([1.0, 1.0, 1.0]),
+            2001: pd.Series([1.0, 1.0, 1.0])
+        },
+        "satellite": {
+            2000: pd.Series([2.0, 2.0, 2.0]),
+            2001: pd.Series([3.0, 3.0, 3.0])
+        }
+    }
+
+    with pytest.raises(ValueError, match="No valid data available to compute statistics"):
+        compute_normalised_target_stats(data_dict)
+        
 
 ###############################################################################
 # Tests for compute_normalised_target_stats_by_month
@@ -312,6 +406,66 @@ def test_normalised_target_stats_by_month_all_none(monkeypatch):
     with pytest.raises(ValueError):
         compute_normalised_target_stats_by_month({}, 0)
 
+# Test for input validation 
+def test_compute_normalised_target_stats_by_month_input_validation():
+    # Not a dictionary
+    with pytest.raises(Exception):  # This might raise a TypeError internally in your `get_common_series_by_year_month`
+        compute_normalised_target_stats_by_month("not a dict", 0)
+
+def test_compute_normalised_target_stats_by_month_input_validation_pt2():
+    # Valid structure, but requested month is missing
+    data_dict = {
+        "model": {
+            2000: pd.Series([1.0, 2.0], index=pd.date_range("2000-01-01", periods=2, freq='D')),
+        },
+        "satellite": {
+            2000: pd.Series([1.1, 2.1], index=pd.date_range("2000-01-01", periods=2, freq='D')),
+        }
+    }
+
+    # Should work for month 0 (January)
+    data_dict = {
+        "model": {
+            2000: [np.array([1.0, 2.0])] + [np.array([])] * 11
+        },
+        "satellite": {
+            2000: [np.array([1.1, 2.1])] + [np.array([])] * 11
+        }
+    }
+    
+    # This should not raise an error
+    compute_normalised_target_stats_by_month(data_dict, 0)
+
+    # Request month index not present (e.g., month 5 with empty arrays)
+    with pytest.raises(ValueError, match=r"❌ 'month_index' 5 not found in data\. Available months: \[0\] ❌"):
+        compute_normalised_target_stats_by_month(data_dict, 5)
+
+def test_compute_normalised_target_stats_by_month_input_validation_pt():
+    # Valid structure, but all data has zero std dev (mod is constant)
+    constant_data_dict = {
+        "model": {
+            2000: [np.array([1.0, 1.0, 1.0])] + [np.array([])] * 11
+        },
+        "satellite": {
+            2000: [np.array([2.0, 2.0, 2.0])] + [np.array([])] * 11
+        }
+    }
+
+    with pytest.raises(ValueError, match="No valid data available to compute statistics"):
+        compute_normalised_target_stats_by_month(constant_data_dict, 0)
+
+    # Mismatched or non-numeric data
+    invalid_data_dict = {
+        "model": {
+            2000: [np.array(["a", "b", "c"])] + [np.array([])] * 11
+        },
+        "satellite": {
+            2000: [np.array([1.0, 2.0, 3.0])] + [np.array([])] * 11
+        }
+    }
+
+    with pytest.raises(ValueError, match="contain numeric data"):
+        compute_normalised_target_stats_by_month(invalid_data_dict, 0)
 
 ###############################################################################
 # Tests for compute_target_extent_monthly
