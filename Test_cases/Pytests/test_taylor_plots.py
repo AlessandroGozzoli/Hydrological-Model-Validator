@@ -68,7 +68,7 @@ def test_missing_variable_and_unit():
     with pytest.raises(ValueError, match="If 'variable_name' is not provided"):
         comprehensive_taylor_diagram(dummy_data_dict, output_path='tmp')
 
-# Run successfully using variable_name and full plotting options
+# Run successfully using variable_name with full plotting options
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Chlorophyll", "mg/m³"))
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
@@ -93,9 +93,10 @@ def test_successful_plot_with_variable_name(mock_sm, mock_stats_func, mock_label
         markercolor='b',
         markersize=8
     )
+    # Ensure Taylor diagram function is called multiple times
     assert mock_sm.call_count >= 3
     
-# Run with direct variable/unit instead of variable_name
+# Run successfully using direct variable and unit instead of variable_name
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.sm.taylor_diagram")
@@ -106,9 +107,10 @@ def test_variable_unit_direct(mock_sm, mock_stats_func, mock_show, tmp_path):
         variable="Chlorophyll",
         unit="mg/m³"
     )
+    # Verify multiple calls to Taylor diagram plotting function
     assert mock_sm.call_count >= 3
     
-# Trigger fallback marker shape logic when not enough provided
+# Trigger fallback logic for marker_shapes when not enough are provided
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Chlorophyll", "mg/m³"))
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
@@ -120,9 +122,10 @@ def test_marker_shape_autofill(mock_sm, mock_stats_func, mock_label_func, mock_s
         variable_name="chl",
         marker_shapes=['o']  # Only one provided, two needed
     )
+    # Check the plotting function was called appropriately
     assert mock_sm.call_count >= 3
     
-# Verify the output directory and file are created
+# Verify output directory and summary file are created
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.sm.taylor_diagram")
@@ -134,10 +137,11 @@ def test_output_directory_created(mock_sm, mock_stats_func, mock_show, tmp_path)
         variable="Chlorophyll",
         unit="mg/m³"
     )
+    # Check output directory and image file existence
     assert out_dir.exists()
     assert (out_dir / "Taylor_diagram_summary.png").exists()
 
-# Ensure RMSD label is rendered when titleRMS is off
+# Ensure RMSD label is displayed when titleRMS is set to 'off'
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Chlorophyll", "mg/m³"))
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
@@ -150,9 +154,10 @@ def test_rmsd_label_displayed(mock_sm, mock_stats_func, mock_label_func, mock_sh
         tickrms=[0.5],
         titleRMS='off'
     )
+    # Confirm multiple calls to Taylor diagram plotting
     assert mock_sm.call_count >= 3
 
-# Confirm that reference marker options are processed correctly
+# Confirm that reference marker options are applied correctly
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Chlorophyll", "mg/m³"))
 @patch("Hydrological_model_validator.Processing.Taylor_computations.compute_yearly_taylor_stats", return_value=(mock_stats, mock_std_ref))
@@ -166,13 +171,15 @@ def test_reference_marker_options(mock_sm, mock_stats_func, mock_label_func, moc
         Ref_markercolor='green',
         Ref_markersize=10
     )
+    # Verify Taylor diagram plotting was invoked multiple times
     assert mock_sm.call_count >= 3
+
     
 ###############################################################################
 # Tests for monthly plots
 ###############################################################################
 
-# Ensures plotting and saving works with full input setup
+# Ensures plotting and saving works with full input setup using variable_name
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.default_month_colors", mock_month_colors)
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.build_all_points", return_value=(mock_df, ["2000"]))
@@ -188,10 +195,11 @@ def test_successful_monthly_plot_with_variable_name(mock_plot, mock_label_func, 
         title_fontsize=14,
         title_fontweight="bold"
     )
+    # Check if output image file is created
     save_path = tmp_path / "Unified_Taylor_Diagram.png"
     assert save_path.exists()
 
-# Ensures fallback to manual variable/unit works
+# Ensures fallback to manual variable and unit input works correctly
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.default_month_colors", mock_month_colors)
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.build_all_points", return_value=(mock_df, ["2000"]))
@@ -204,22 +212,23 @@ def test_successful_monthly_plot_with_variable_and_unit(mock_plot, mock_build_fu
         unit="mg/m³",
         title="Alt Monthly Taylor"
     )
+    # Verify output file existence
     assert (tmp_path / "Unified_Taylor_Diagram.png").exists()
 
-# Validates missing mandatory `output_path` argument
+# Validates missing mandatory output_path argument raises an error
 def test_missing_output_path_raises_error():
     with pytest.raises(ValueError, match="output_path must be specified"):
         monthly_taylor_diagram(dummy_data_dict)
 
-# Checks enforcement of variable metadata
+# Checks enforcement of variable and unit metadata raises error if missing
 def test_missing_variable_and_unit_raises_error(tmp_path):
     with pytest.raises(ValueError, match="both 'variable' and 'unit' must be specified"):
         monthly_taylor_diagram(dummy_data_dict, output_path=tmp_path)
 
-# Ensures failure if 'Ref' row is absent from build_all_points result
+# Ensures failure if 'Ref' row is missing in build_all_points result triggers IndexError
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.build_all_points", return_value=(
-    pd.DataFrame({  # No "Ref" row
+    pd.DataFrame({  # DataFrame without "Ref" row
         "sdev": [1.0], "crmsd": [0.0], "ccoef": [1.0], "year": ["2000"], "month": ["Jan"]
     }),
     ["2000"]
@@ -230,6 +239,7 @@ def test_missing_ref_raises_index_error(mock_plot, mock_label_func, mock_build_f
     with pytest.raises(IndexError):
         monthly_taylor_diagram(dummy_data_dict, output_path=tmp_path, variable_name="chl")
 
+# Confirms that the Taylor diagram plotting function is called expected number of times
 @patch("matplotlib.pyplot.show")
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.default_month_colors", mock_month_colors)
 @patch("Hydrological_model_validator.Plotting.Taylor_diagrams.build_all_points", return_value=(mock_df, ["2000"]))
@@ -241,8 +251,6 @@ def test_plot_function_calls(mock_plot, mock_label_func, mock_build_func, mock_s
         output_path=tmp_path,
         variable_name="chl"
     )
-    # Expected calls:
-    # 1 for base diagram
-    # 1 for reference marker overlay
-    # 2 for monthly points Jan, Feb
+    # Expected call count:
+    # 1 base diagram + 1 ref marker overlay + 2 monthly point diagrams (Jan, Feb)
     assert mock_plot.call_count == 4
