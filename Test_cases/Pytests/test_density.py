@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from pathlib import Path
+from datetime import datetime
 
 from Hydrological_model_validator.Processing.Density import (
     compute_density_bottom,
@@ -736,3 +738,87 @@ def test_compute_dense_water_volume_input_validation_pt3():
     # dens_threshold must be a number
     with pytest.raises(TypeError, match="dens_threshold must be a number"):
         compute_dense_water_volume(valid_dir, valid_mask, valid_fragments, valid_method, dens_threshold="high")
+
+# Mock values
+def make_synthetic_temp_sal(shape):
+    # Simple constant arrays with shape (time, depth, Y, X)
+    temp = np.full(shape, 10.0)  # degrees C
+    sal = np.full(shape, 35.0)   # PSU
+    return temp, sal
+
+# Test for the main loop
+def test_compute_dense_water_volume_core_logic():
+
+    # Setup parameters
+    IDIR = Path("/fake/dir")
+    mask3d = np.zeros((5, 4, 4), dtype=bool)  # No masked cells
+    filename_fragments = {'ffrag1': 'a', 'ffrag2': 'b', 'ffrag3': 'c'}
+    density_method = "EOS80"
+    dz, dx, dy = 2.0, 800.0, 800.0
+    dens_threshold = 1029.2
+
+    # Synthetic data shape (12 months, 5 depths, 4, 4)
+    shape = (12, 5, 4, 4)
+    synthetic_temp, synthetic_sal = make_synthetic_temp_sal(shape)
+
+    # Patch everything used inside compute_dense_water_volume
+    with patch('Hydrological_model_validator.Processing.Density.read_nc_variable_from_gz_in_memory') as mock_read_nc, \
+         patch('Hydrological_model_validator.Processing.utils.temp_threshold') as mock_temp_threshold, \
+         patch('Hydrological_model_validator.Processing.utils.hal_threshold') as mock_hal_threshold, \
+         patch('Hydrological_model_validator.Processing.Density.calc_density') as mock_calc_density, \
+         patch('Hydrological_model_validator.Processing.utils.infer_years_from_path') as mock_infer_years, \
+         patch('Hydrological_model_validator.Processing.utils.build_bfm_filename') as mock_build_filename, \
+         patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.exists', autospec=True) as mock_exists, \
+         patch('Hydrological_model_validator.Processing.BFM_data_reader.Path.is_dir', autospec=True) as mock_is_dir, \
+         patch('pathlib.Path.iterdir') as mock_iterdir:
+
+        # Mock file existence check logic
+        def exists_side_effect(self, *args, **kwargs):
+            fake_output_dir = IDIR / "output2000"
+            return str(self).startswith(str(fake_output_dir)) or self == IDIR
+        mock_exists.side_effect = exists_side_effect
+
+        def is_dir_side_effect(self, *args, **kwargs):
+            return self == Path("/fake/dir")
+        mock_is_dir.side_effect = is_dir_side_effect
+
+        # Mock one output directory
+        mock_output_dir = MagicMock()
+        mock_output_dir.name = "output2000"
+        mock_output_dir.is_dir.return_value = True
+        mock_iterdir.return_value = [mock_output_dir]
+
+        # Mock filename construction
+        mock_build_filename.return_value = "nonexistent_file.nc"
+
+        # Mock years
+        mock_infer_years.return_value = (2000, 2000, [2000])
+
+        # Mock read_nc returning synthetic temp/sal
+        mock_read_nc.side_effect = [synthetic_temp, synthetic_sal]
+
+        # Mock threshold masks (no invalid data)
+        mock_temp_threshold.return_value = np.zeros(shape, dtype=bool)
+        mock_hal_threshold.return_value = np.zeros(shape, dtype=bool)
+
+        # Mock density: top-left quarter is dense
+        density = np.full(shape, dens_threshold - 0.5)
+        density[:, :, :2, :2] = dens_threshold + 1.0
+        mock_calc_density.return_value = density
+
+        # Run the function
+        results = compute_dense_water_volume(
+            IDIR, mask3d, filename_fragments, density_method,
+            dz=dz, dx=dx, dy=dy, dens_threshold=dens_threshold
+        )
+
+        # Assert result length
+        assert len(results) == 12
+
+        # Check correct dates and volumes
+        cell_volume = dx * dy * dz
+        expected_volume = 20 * cell_volume  # 5 depths * 4 cells (2x2)
+
+        for i, record in enumerate(results):
+            assert record['date'] == datetime(2000, i + 1, 1)
+            assert abs(record['volume_m3'] - expected_volume) < 1e-6
