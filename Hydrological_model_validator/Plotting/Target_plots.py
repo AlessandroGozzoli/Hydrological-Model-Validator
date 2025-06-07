@@ -75,9 +75,10 @@ def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
     """
 
     # ----- VALIDATE AND PREPARE INPUT OPTIONS -----
-    output_path = Path(kwargs.pop("output_path", None))
-    if output_path is None:
+    output_path_value = kwargs.pop("output_path", None)
+    if output_path_value is None:
         raise ValueError("output_path must be specified either in kwargs or default options.")
+    output_path = Path(output_path_value)
 
     variable_name = kwargs.pop("variable_name", None)
     variable = kwargs.pop("variable", None)
@@ -205,9 +206,10 @@ def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
     """
 
     # ---- VALIDATE AND PREPARE INPUT OPTIONS ----
-    output_path = Path(kwargs.pop("output_path", None))
+    output_path = kwargs.pop("output_path", None)
     if output_path is None:
         raise ValueError("output_path must be specified in kwargs.")
+    output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
     variable_name = kwargs.pop("variable_name", None)
