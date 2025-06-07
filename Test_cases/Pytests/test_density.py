@@ -171,6 +171,87 @@ def test_compute_density_bottom_invalid_method(simple_temp_sal_2d, simple_mask3d
     with pytest.raises(ValueError):
         compute_density_bottom({2020: [temp]}, {2020: [sal]}, Bmost, method="INVALID")
 
+def get_input_test_var():
+    # Setup minimal valid inputs to modify
+    year = 2000
+    valid_temp = {year: [np.zeros((5, 5)) for _ in range(12)]}
+    valid_sal = {year: [np.zeros((5, 5)) for _ in range(12)]}
+    Bmost = np.ones((5, 5), dtype=int)
+    return year, valid_temp, valid_sal, Bmost
+
+# Tests for input validation
+def test_compute_density_bottom_input_validation():
+    year, valid_temp, valid_sal, Bmost = get_input_test_var()
+    
+    # 1. temperature_data not dict
+    with pytest.raises(TypeError, match="temperature_data must be a dictionary"):
+        compute_density_bottom("not a dict", valid_sal, Bmost, "EOS")
+
+    # 2. salinity_data not dict
+    with pytest.raises(TypeError, match="salinity_data must be a dictionary"):
+        compute_density_bottom(valid_temp, "not a dict", Bmost, "EOS")
+
+    # 3. Bmost not ndarray
+    with pytest.raises(TypeError, match="Bmost must be a numpy.ndarray"):
+        compute_density_bottom(valid_temp, valid_sal, "not an array", "EOS")
+
+def test_compute_density_bottom_input_validation_pt2():
+    year, valid_temp, valid_sal, Bmost = get_input_test_var()
+    
+    # 4. Bmost not 2D
+    with pytest.raises(ValueError, match="Bmost must be a 2D array"):
+        compute_density_bottom(valid_temp, valid_sal, np.ones((5, 5, 5)), "EOS")
+
+    # 5. Bmost values less than 1
+    Bmost_invalid = np.zeros((5, 5))
+    with pytest.raises(ValueError, match="All values in Bmost must be >= 1"):
+        compute_density_bottom(valid_temp, valid_sal, Bmost_invalid, "EOS")
+
+    # 6. dz not positive
+    with pytest.raises(ValueError, match="dz must be a positive float"):
+        compute_density_bottom(valid_temp, valid_sal, Bmost, "EOS", dz=-1.0)
+
+    # 7. temperature_data and salinity_data keys mismatch
+    sal_wrong_keys = {1999: [np.zeros((5, 5)) for _ in range(12)]}
+    with pytest.raises(ValueError, match="must have the same years as keys"):
+        compute_density_bottom(valid_temp, sal_wrong_keys, Bmost, "EOS")
+
+def test_compute_density_bottom_input_validation_pt3():
+    year, valid_temp, valid_sal, Bmost = get_input_test_var()
+    # 8. temperature or salinity data not list for a year
+    temp_not_list = {year: "not a list"}
+    with pytest.raises(TypeError, match="must be lists of arrays"):
+        compute_density_bottom(temp_not_list, valid_sal, Bmost, "EOS")
+
+    # 9. temperature and salinity lists length mismatch
+    sal_wrong_length = {year: [np.zeros((5, 5)) for _ in range(11)]}
+    with pytest.raises(ValueError, match="must have the same number of monthly arrays"):
+        compute_density_bottom(valid_temp, sal_wrong_length, Bmost, "EOS")
+
+    # 10. temperature or salinity monthly data not ndarray
+    temp_not_array = {year: [np.zeros((5, 5)) for _ in range(11)] + ["not an array"]}
+    sal_valid = {year: [np.zeros((5, 5)) for _ in range(12)]}
+    with pytest.raises(TypeError, match="temperature and salinity must be numpy arrays"):
+        compute_density_bottom(temp_not_array, sal_valid, Bmost, "EOS")
+
+def test_compute_density_bottom_input_validation_pt4():
+    year, valid_temp, valid_sal, Bmost = get_input_test_var()
+    # 11. temperature and salinity monthly arrays shape mismatch
+    temp_shape = {year: [np.zeros((5, 5)) for _ in range(11)] + [np.zeros((5, 4))]}
+    sal_shape = {year: [np.zeros((5, 5)) for _ in range(12)]}
+    with pytest.raises(ValueError, match="temperature and salinity arrays must have the same shape"):
+        compute_density_bottom(temp_shape, sal_shape, Bmost, "EOS")
+
+    # 12. temperature shape does not match Bmost shape
+    temp_wrong_spatial = {year: [np.zeros((4, 4)) for _ in range(12)]}
+    sal_wrong_spatial = {year: [np.zeros((4, 4)) for _ in range(12)]}  # must match temp shape to get past earlier check
+    with pytest.raises(ValueError, match="temperature/salinity shape .* does not match Bmost shape"):
+        compute_density_bottom(temp_wrong_spatial, sal_wrong_spatial, Bmost, "EOS")
+
+    # 13. Unsupported method
+    with pytest.raises(ValueError, match="Unsupported method"):
+        compute_density_bottom(valid_temp, valid_sal, Bmost, "INVALID_METHOD")
+
 
 ################################################################################
 # ---------- Tests for compute_Bmost ----------
@@ -215,6 +296,46 @@ def test_compute_Bmost_nonbinary_values():
     result = compute_Bmost(mask)
     expected = np.sum(mask, axis=0)
     np.testing.assert_array_equal(result, expected)
+
+# Tests for validation input
+def test_compute_Bmost_input_validation():
+
+    # 1. mask3d not a numpy array (e.g., list)
+    with pytest.raises(TypeError, match="mask3d must be a numpy.ndarray"):
+        compute_Bmost([[[1, 0], [0, 1]], [[0, 1], [1, 0]]])  # list, not ndarray
+
+    # 2. mask3d is numpy array but not 3D (e.g., 2D)
+    mask_2d = np.ones((10, 10))
+    with pytest.raises(ValueError, match="mask3d must be a 3D array"):
+        compute_Bmost(mask_2d)
+
+    # 3. mask3d is numpy array but 1D
+    mask_1d = np.array([1, 0, 1])
+    with pytest.raises(ValueError, match="mask3d must be a 3D array"):
+        compute_Bmost(mask_1d)
+
+def test_compute_Bmost_input_validation_pt2():
+    # Valid input for comparison
+    valid_mask3d = np.ones((5, 10, 15), dtype=int)
+    
+    # 4. mask3d is numpy array but 4D
+    mask_4d = np.ones((2, 3, 4, 5))
+    with pytest.raises(ValueError, match="mask3d must be a 3D array"):
+        compute_Bmost(mask_4d)
+
+    # 5. Valid input returns correct shape and sum
+    result = compute_Bmost(valid_mask3d)
+    assert isinstance(result, np.ndarray)
+    assert result.shape == valid_mask3d.shape[1:]  # (rows, cols)
+    assert np.all(result == 5)  # sum of all ones along depth axis is depth size
+
+    # 6. Test with a binary mask with mixed 0 and 1
+    mask3d_mixed = np.array([[[1, 0], [0, 1]],
+                             [[0, 1], [1, 0]],
+                             [[1, 1], [0, 0]]])
+    expected = np.array([[2, 2],
+                         [1, 1]])
+    np.testing.assert_array_equal(compute_Bmost(mask3d_mixed), expected)
 
 
 ################################################################################
@@ -261,6 +382,42 @@ def test_compute_Bleast_nonbinary_values():
     expected = mask[0, :, :]
     np.testing.assert_array_equal(result, expected)
 
+# Tests for validation input
+def test_compute_Bleast_input_validation():
+
+    # 1. mask3d not a numpy array (e.g., list)
+    with pytest.raises(TypeError, match="mask3d must be a numpy.ndarray"):
+        compute_Bleast([[[1, 0], [0, 1]], [[0, 1], [1, 0]]])  # list instead of ndarray
+
+    # 2. mask3d not 3D (2D array)
+    mask_2d = np.ones((4, 5))
+    with pytest.raises(ValueError, match="mask3d must be a 3D array"):
+        compute_Bleast(mask_2d)
+
+    # 3. mask3d empty in depth (depth=0)
+    mask_empty_depth = np.ones((0, 4, 5))
+    with pytest.raises(ValueError, match="mask3d must have at least one depth layer"):
+        compute_Bleast(mask_empty_depth)
+
+def test_compute_Bleast_input_validation_pt2():
+    # Valid mask for comparison
+    valid_mask3d = np.ones((3, 4, 5), dtype=int)
+    
+    # 4. Valid input returns first layer as 2D array with correct shape and values
+    result = compute_Bleast(valid_mask3d)
+    assert isinstance(result, np.ndarray)
+    assert result.shape == (valid_mask3d.shape[1], valid_mask3d.shape[2])
+    assert np.all(result == 1)
+
+    # 5. Test with a known 3D array for exact output
+    mask3d = np.array([[[1, 0],
+                        [0, 1]],
+                       [[0, 1],
+                        [1, 0]]])
+    expected = np.array([[1, 0],
+                         [0, 1]])
+    np.testing.assert_array_equal(compute_Bleast(mask3d), expected)
+    
 
 ################################################################################
 # ---------- Tests for filter_dense_water_masses ----------
@@ -315,6 +472,59 @@ def test_filter_dense_water_masses_empty_dict():
     filtered = filter_dense_water_masses({})
     assert filtered == {}
 
+# Tests for input validations
+def test_filter_dense_water_masses():
+
+    # 1. Input type validation: density_data must be dict
+    with pytest.raises(TypeError, match="density_data must be a dictionary"):
+        filter_dense_water_masses("not a dict")
+
+    # 2. Year keys must be int
+    bad_keys = {"2000": [np.ones((2, 2)) for _ in range(12)]}
+    with pytest.raises(TypeError, match="Year keys must be integers"):
+        filter_dense_water_masses(bad_keys)
+
+    # 3. Monthly arrays must be list
+    bad_monthly = {2000: "not a list"}
+    with pytest.raises(TypeError, match="density data must be a list"):
+        filter_dense_water_masses(bad_monthly)
+
+def test_filter_dense_water_masses_pt2():
+    # Valid input density data
+    density_data = {
+        2000: [np.array([[1029.3, 1028.9], [1029.5, 1027.0]]) for _ in range(12)],
+        2001: [np.array([[1029.1, 1029.0], [1028.0, 1030.0]]) for _ in range(12)]
+    }
+    
+    # 4. Each monthly array must be numpy.ndarray
+    bad_array = {2000: [np.ones((2, 2)), "not an array"] + [np.ones((2, 2))]*10}
+    with pytest.raises(TypeError, match="density data must be a numpy.ndarray"):
+        filter_dense_water_masses(bad_array)
+
+    # 5. Each array must be 2D
+    bad_ndim = {2000: [np.ones((2, 2)), np.ones((2, 2, 2))] + [np.ones((2, 2))]*10}
+    with pytest.raises(ValueError, match="density array must be 2D"):
+        filter_dense_water_masses(bad_ndim)
+
+    # 6. threshold must be numeric
+    with pytest.raises(TypeError, match="threshold must be a numeric value"):
+        filter_dense_water_masses(density_data, threshold="not a number")
+
+    # 7. Correct filtering behavior: values >= threshold kept, others nan
+    threshold = 1029.2
+    filtered = filter_dense_water_masses(density_data, threshold=threshold)
+    for year, monthly_arrays in filtered.items():
+        for arr in monthly_arrays:
+            assert arr.shape == (2, 2)
+            assert np.all(np.isnan(arr[arr < threshold]))
+            assert np.all(arr[arr >= threshold] >= threshold)
+
+    # 8. Test example data output matches expected
+    expected_2000 = np.array([[1029.3, np.nan], [1029.5, np.nan]])
+    expected_2001 = np.array([[np.nan, np.nan], [np.nan, 1030.0]])
+    np.testing.assert_array_equal(filtered[2000][0], expected_2000)
+    np.testing.assert_array_equal(filtered[2001][0], expected_2001)
+    
 
 ################################################################################
 # ---------- Tests for calc_density ----------
@@ -363,6 +573,39 @@ def test_calc_density_invalid_method(simple_temp_sal_3d):
     # Invalid method input should raise an error to prevent silent failures or incorrect computations
     with pytest.raises(ValueError):
         calc_density(temp, sal, depths, valid_mask, density_method="BADMETHOD")
+
+# Test for input validations
+def test_calc_density_input_validation():
+    # Setup dummy valid arrays for normal use
+    temp = np.ones((3, 2, 2))
+    sal = np.ones((3, 2, 2))
+    depths = np.array([0, 10, 20])
+
+    # 1. temp_3d must be np.ndarray
+    with pytest.raises(TypeError, match="temp_3d must be a numpy.ndarray"):
+        calc_density("not an array", sal, depths, None, "EOS")
+
+    # 2. sal_3d must be np.ndarray
+    with pytest.raises(TypeError, match="sal_3d must be a numpy.ndarray"):
+        calc_density(temp, "not an array", depths, None, "EOS")
+
+    # 3. depths must be np.ndarray
+    with pytest.raises(TypeError, match="depths must be a numpy.ndarray"):
+        calc_density(temp, sal, "not an array", None, "EOS")
+
+    # 4. temp_3d and sal_3d must have same shape
+    sal_diff_shape = np.ones((2, 2, 2))
+    with pytest.raises(ValueError, match="temp_3d and sal_3d must have the same shape"):
+        calc_density(temp, sal_diff_shape, depths, None, "EOS")
+
+    # 5. depths length must match temp_3d first dimension
+    bad_depths = np.array([0, 10])
+    with pytest.raises(ValueError, match="depths length must match the first dimension"):
+        calc_density(temp, sal, bad_depths, None, "EOS")
+
+    # 6. density_method must be one of allowed strings
+    with pytest.raises(ValueError, match="Unsupported density method"):
+        calc_density(temp, sal, depths, None, "invalid_method")
 
 
 ################################################################################
@@ -414,3 +657,82 @@ def test_missing_gz_file_skips_year(patch_all_dependencies):
     # The function should skip processing and return an empty list as no data could be read
     assert volume_series == []
 
+# Tests for input validation
+def get_input_test_var_dense():
+    # Create minimal valid dicts for temperature and salinity
+    # For one year '2000' with 12 monthly arrays, each array shape (Y, X)
+    year = 2000
+    shape = (5, 5)
+    monthly_temps = [np.full(shape, 10.0) for _ in range(12)]
+    monthly_sals = [np.full(shape, 35.0) for _ in range(12)]
+
+    temperature_data = {year: monthly_temps}
+    salinity_data = {year: monthly_sals}
+    
+    valid_dir = "/valid/path"  # or Path("/valid/path")
+    valid_mask = np.zeros((10, 5, 5), dtype=bool)  # 3D boolean mask
+    valid_fragments = {'ffrag1': 'a', 'ffrag2': 'b', 'ffrag3': 'c'}
+    valid_method = "EOS80"
+
+    # Bmost: 2D array of bottom layer indices, here just ones
+    Bmost = np.ones(shape, dtype=int)
+
+    return year, temperature_data, salinity_data, Bmost, valid_dir, valid_fragments, valid_mask, valid_method
+
+def test_compute_dense_water_volume_input_validation():
+    year, temperature_data, salinity_data, Bmost, valid_dir, valid_fragments, valid_mask, valid_method = get_input_test_var_dense()
+
+    # IDIR must be str or Path
+    with pytest.raises(TypeError, match="IDIR must be a string or Path object"):
+        compute_dense_water_volume(123, valid_mask, valid_fragments, valid_method)
+
+    # mask3d must be ndarray
+    with pytest.raises(TypeError, match="mask3d must be a numpy ndarray"):
+        compute_dense_water_volume(valid_dir, "not an ndarray", valid_fragments, valid_method)
+
+    # mask3d must be boolean dtype
+    bad_mask = np.zeros((10, 5, 5), dtype=int)
+    with pytest.raises(ValueError, match="mask3d must be a boolean numpy array"):
+        compute_dense_water_volume(valid_dir, bad_mask, valid_fragments, valid_method)
+
+def test_compute_dense_water_volume_input_validation_pt2():
+    year, temperature_data, salinity_data, Bmost, valid_dir, valid_fragments, valid_mask, valid_method = get_input_test_var_dense()
+    
+    # mask3d must be 3D
+    bad_mask_2d = np.zeros((5, 5), dtype=bool)
+    with pytest.raises(ValueError, match="mask3d must be a 3D numpy array"):
+        compute_dense_water_volume(valid_dir, bad_mask_2d, valid_fragments, valid_method)
+
+    # filename_fragments must be dict
+    with pytest.raises(TypeError, match="filename_fragments must be a dict"):
+        compute_dense_water_volume(valid_dir, valid_mask, "not a dict", valid_method)
+
+    # filename_fragments must have required keys
+    missing_keys = {'ffrag1': 'a', 'ffrag3': 'c'}
+    with pytest.raises(ValueError, match="filename_fragments is missing required keys"):
+        compute_dense_water_volume(valid_dir, valid_mask, missing_keys, valid_method)
+
+    # density_method must be one of allowed
+    with pytest.raises(ValueError, match="density_method must be one of"):
+        compute_dense_water_volume(valid_dir, valid_mask, valid_fragments, "INVALID")
+        
+def test_compute_dense_water_volume_input_validation_pt3():
+    year, temperature_data, salinity_data, Bmost, valid_dir, valid_fragments, valid_mask, valid_method = get_input_test_var_dense()
+    
+    # dz, dx, dy must be positive numbers (except dens_threshold can be any number)
+    for param, bad_val in [('dz', -1), ('dx', 0), ('dy', -0.1)]:
+        kwargs = dict(IDIR=valid_dir, mask3d=valid_mask, filename_fragments=valid_fragments, density_method=valid_method)
+        kwargs[param] = bad_val
+        with pytest.raises(ValueError, match=f"{param} must be positive"):
+            compute_dense_water_volume(**kwargs)
+
+    # dz, dx, dy must be numeric types
+    for param, bad_val in [('dz', "nope"), ('dx', None), ('dy', [1,2])]:
+        kwargs = dict(IDIR=valid_dir, mask3d=valid_mask, filename_fragments=valid_fragments, density_method=valid_method)
+        kwargs[param] = bad_val
+        with pytest.raises(TypeError, match=f"{param} must be a number"):
+            compute_dense_water_volume(**kwargs)
+
+    # dens_threshold must be a number
+    with pytest.raises(TypeError, match="dens_threshold must be a number"):
+        compute_dense_water_volume(valid_dir, valid_mask, valid_fragments, valid_method, dens_threshold="high")
