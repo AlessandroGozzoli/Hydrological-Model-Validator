@@ -398,3 +398,48 @@ def _to_dataarray(
     # ===== BROADCAST SCALAR TO DATAARRAY =====
     # Create DataArray full of val with shape of ref
     return xr.full_like(ref, val)
+###############################################################################
+
+###############################################################################
+def check_numeric_data(data_dict: Dict[str, Dict[int, List[np.ndarray]]]) -> None:
+    """
+    Validate that all monthly data arrays in the input dictionary contain numeric data
+    and follow the expected structure (12 numpy arrays per year per key).
+
+    This function checks that the data dictionary for 'model' and 'satellite' contains,
+    for each year, exactly 12 monthly numpy arrays. It raises errors if any array is
+    non-numeric or if the structure is invalid.
+
+    Parameters
+    ----------
+    data_dict : dict
+        Dictionary with keys such as 'model' and 'satellite', each mapping to a dictionary
+        where keys are years (int) and values are lists of 12 numpy arrays (one per month).
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If data for any year and key is not a list or tuple of length 12.
+        If any monthly numpy array contains non-numeric data.
+
+    Example
+    -------
+    >>> data = {
+    ...     'model': {2000: [np.array([1.0, 2.0])] + [np.array([])] * 11},
+    ...     'satellite': {2000: [np.array([1.1, 2.1])] + [np.array([])] * 11}
+    ... }
+    >>> check_numeric_data(data)  # passes silently if valid
+    """
+    for key in ['model', 'satellite']:
+        if key not in data_dict:
+            continue
+        for year, monthly_arrays in data_dict[key].items():
+            if not isinstance(monthly_arrays, (list, tuple)) or len(monthly_arrays) != 12:
+                raise ValueError(f"Data for year {year} under '{key}' must be a list or tuple of 12 numpy arrays")
+            for month_idx, arr in enumerate(monthly_arrays):
+                if arr.size > 0 and not np.issubdtype(arr.dtype, np.number):
+                    raise ValueError(f"Data for year {year}, month {month_idx} under '{key}' must contain numeric data")
