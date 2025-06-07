@@ -5,6 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.colors import BoundaryNorm, ListedColormap
+import cmocean
+from cmocean import cm
+from matplotlib.cm import get_cmap
 
 from Hydrological_model_validator.Plotting.formatting import (
     plot_line,
@@ -111,6 +114,36 @@ def test_invalid_alpha_range():
     # Transparency (alpha) must be between 0 and 1 inclusive
     with pytest.raises(ValueError):
         fill_annular_region(ax, 0.5, 1.5, "red", alpha=1.5)
+        
+# Tests for input validation
+@pytest.mark.parametrize("ax", [None, "not_an_axes", 123])
+def test_invalid_ax(ax):
+    with pytest.raises(ValueError, match=".*Input 'ax' must be a matplotlib.axes.Axes.*"):
+        fill_annular_region(ax, r_in=1, r_out=2, color="blue")
+
+@pytest.mark.parametrize("r_in", [-1, "zero", None])
+def test_invalid_r_in(r_in):
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    with pytest.raises(ValueError, match=".*Input 'r_in' must be a non-negative number.*"):
+        fill_annular_region(ax, r_in=r_in, r_out=2, color="blue")
+
+@pytest.mark.parametrize("r_out, r_in", [(0.5, 1.0), ("2", 1.0), (None, 0.0)])
+def test_invalid_r_out(r_out, r_in):
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    with pytest.raises(ValueError, match=".*Input 'r_out' must be a number greater than or equal to 'r_in'.*"):
+        fill_annular_region(ax, r_in=r_in, r_out=r_out, color="blue")
+
+@pytest.mark.parametrize("alpha", [-0.1, 1.5, "opaque", None])
+def test_invalid_alpha(alpha):
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    with pytest.raises(ValueError, match=".*Input 'alpha' must be a number between 0 and 1.*"):
+        fill_annular_region(ax, r_in=1.0, r_out=2.0, color="blue", alpha=alpha)
+
+@pytest.mark.parametrize("color", [None, 123, ['red']])
+def test_invalid_color(color):
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    with pytest.raises(ValueError, match=".*Input 'color' must be a string.*"):
+        fill_annular_region(ax, r_in=1.0, r_out=2.0, color=color)
 
 
 ###############################################################################
@@ -168,6 +201,26 @@ def test_invalid_edgecolor_type():
     # Edgecolor must be a color specifier string or tuple, not a number, to avoid type errors
     with pytest.raises(ValueError):
         style_axes_spines(ax, edgecolor=123)
+        
+# Test for input validation
+@pytest.mark.parametrize("ax", [None, "not_an_axes", 42])
+def test_invalid_ax_spine(ax):
+    with pytest.raises(ValueError, match=".*Input 'ax' must be a matplotlib.axes.Axes instance.*"):
+        style_axes_spines(ax=ax)
+
+
+@pytest.mark.parametrize("linewidth", [0, -1, "thick", None])
+def test_invalid_linewidth_spine(linewidth):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'linewidth' must be a positive number.*"):
+        style_axes_spines(ax=ax, linewidth=linewidth)
+
+
+@pytest.mark.parametrize("edgecolor", [None, 123, ['black']])
+def test_invalid_edgecolor(edgecolor):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'edgecolor' must be a string.*"):
+        style_axes_spines(ax=ax, edgecolor=edgecolor)
 
 
 ###############################################################################
@@ -199,6 +252,75 @@ def test_invalid_color_palette():
     with pytest.raises(ValueError):
         plot_line("k", [1, 2], ax, {"k": "Label"}, "not_iterable", 1)
 
+# Tests for input validation
+@pytest.mark.parametrize("key", [123, None, ['model']])
+def test_invalid_key(key):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'key' must be a string.*"):
+        plot_line(
+            key=key,
+            daily_mean=[1, 2, 3],
+            ax=ax,
+            label_lookup={'model': 'Model Output'},
+            color_palette=cycle(['blue']),
+            line_width=2
+        )
+
+
+@pytest.mark.parametrize("ax", [None, "not an ax", 42])
+def test_invalid_ax_line(ax):
+    with pytest.raises(ValueError, match=".*Input 'ax' must be a matplotlib.axes.Axes instance.*"):
+        plot_line(
+            key='model',
+            daily_mean=[1, 2, 3],
+            ax=ax,
+            label_lookup={'model': 'Model Output'},
+            color_palette=cycle(['blue']),
+            line_width=2
+        )
+
+
+@pytest.mark.parametrize("label_lookup", [None, "not a dict", [("model", "label")]])
+def test_invalid_label_lookup(label_lookup):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'label_lookup' must be a dictionary.*"):
+        plot_line(
+            key='model',
+            daily_mean=[1, 2, 3],
+            ax=ax,
+            label_lookup=label_lookup,
+            color_palette=cycle(['blue']),
+            line_width=2
+        )
+
+
+@pytest.mark.parametrize("color_palette", [None, ["red", "blue"], "not an iterator"])
+def test_invalid_color_palette_line(color_palette):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'color_palette' must be an iterator.*"):
+        plot_line(
+            key='model',
+            daily_mean=[1, 2, 3],
+            ax=ax,
+            label_lookup={'model': 'Model Output'},
+            color_palette=color_palette,
+            line_width=2
+        )
+
+
+@pytest.mark.parametrize("line_width", [0, -1, "wide", None])
+def test_invalid_line_width(line_width):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=".*Input 'line_width' must be a positive number.*"):
+        plot_line(
+            key='model',
+            daily_mean=[1, 2, 3],
+            ax=ax,
+            label_lookup={'model': 'Model Output'},
+            color_palette=cycle(['blue']),
+            line_width=line_width
+        )
+        
         
 ###############################################################################
 # test geolocalized_coords
@@ -274,6 +396,46 @@ def test_swifs_colormap_default_bins():
     # Using a variable not recognized by the function with default bins should raise a ValueError with clear message
     with pytest.raises(ValueError, match="Unknown variable 'Unrecognized'"):
         swifs_colormap(data, "Unrecognized")
+        
+# Branch selection tests
+# Utility: small valid data array
+valid_data = np.array([[0.1, 1.0], [5.0, 10.0]])
+
+
+# Parameterized test for each valid variable and expected cmap
+@pytest.mark.parametrize("variable, expected_cmap_func", [
+    ("Chla", lambda: get_cmap("viridis")),
+    ("N1p", lambda: get_cmap("YlGnBu")),
+    ("N3n", lambda: get_cmap("YlGnBu")),
+    ("N4n", lambda: get_cmap("YlGnBu")),
+    ("P1c", lambda: cmocean.cm.algae),
+    ("P2c", lambda: cmocean.cm.algae),
+    ("P3c", lambda: cmocean.cm.algae),
+    ("P4c", lambda: cmocean.cm.algae),
+    ("Z3c", lambda: cmocean.cm.turbid),
+    ("Z4c", lambda: cmocean.cm.turbid),
+    ("Z5c", lambda: cmocean.cm.turbid),
+    ("Z6c", lambda: cmocean.cm.turbid),
+    ("R6c", lambda: cmocean.cm.matter),
+])
+def test_swifs_colormap_variable_specific_branches(variable, expected_cmap_func):
+    data_clipped, cmap, norm, ticks, labels = swifs_colormap(valid_data, variable)
+
+    # Type checks
+    assert isinstance(data_clipped, np.ndarray)
+    assert isinstance(cmap, ListedColormap)
+    assert isinstance(norm, BoundaryNorm)
+    assert isinstance(ticks, np.ndarray)
+    assert all(isinstance(label, str) for label in labels)
+
+    # Check colormap origin (by name or color similarity)
+    expected_colors = expected_cmap_func()(np.linspace(0, 1, len(ticks) - 1))
+    np.testing.assert_allclose(cmap.colors, expected_colors, atol=1e-6)
+
+def test_swifs_colormap_data_all_nan():
+    nan_data = np.full((2, 2), np.nan)
+    with pytest.raises(ValueError, match="❌ data_in contains only NaNs.*❌"):
+        swifs_colormap(nan_data, "Chla")
 
 
 ###############################################################################
@@ -336,6 +498,84 @@ def test_get_benthic_plot_parameters_missing_data():
     opts = {}
     with pytest.raises(ValueError, match="No data arrays found"):
         get_benthic_plot_parameters("unknown_var", dummy_data, opts)
+        
+# Test salinity case with all required options provided
+def test_salinity_plotting():
+    opts = {
+        "vmin_vosaline": 30.0,
+        "vmax_vosaline": 38.0,
+        "levels_vosaline": 5,
+        "num_ticks_vosaline": 3
+    }
+    result = get_benthic_plot_parameters("vosaline", {}, opts)
+    vmin, vmax, levels, num_ticks, cmap, use_custom_cmap, hypo, hyper = result
+
+    assert vmin == 30.0
+    assert vmax == 38.0
+    assert len(levels) == 5
+    assert num_ticks == 3
+    assert cmap == cm.haline
+    assert not use_custom_cmap
+    assert hypo is None and hyper is None
+
+# Test density case with correct options
+def test_density_plotting():
+    opts = {
+        "vmin_density": 1015.0,
+        "vmax_density": 1028.0,
+        "levels_density": 7,
+        "num_ticks_density": 4
+    }
+    result = get_benthic_plot_parameters("dense_water", {}, opts)
+    vmin, vmax, levels, num_ticks, cmap, use_custom_cmap, hypo, hyper = result
+
+    assert vmin == 1015.0
+    assert vmax == 1028.0
+    assert len(levels) == 7
+    assert num_ticks == 4
+    assert cmap == cm.dense
+    assert not use_custom_cmap
+    assert hypo is None and hyper is None
+
+# Test fallback case where an unknown variable is passed but data is valid
+def test_default_fallback_plotting():
+    dummy_data = np.array([[1.0, 2.0], [3.0, np.nan]])
+    var_dataframe = {
+        2000: [dummy_data],
+        2001: [np.full((2, 2), 4.0)]
+    }
+    result = get_benthic_plot_parameters("unknown_var", var_dataframe, {})
+    vmin, vmax, levels, num_ticks, cmap, use_custom_cmap, hypo, hyper = result
+
+    assert vmin == 1.0
+    assert vmax == 4.0
+    assert len(levels) == 20
+    assert num_ticks == 5
+    assert cmap == "jet"
+    assert not use_custom_cmap
+    assert hypo is None and hyper is None
+
+# Test salinity case with missing vmin/vmax in options (should raise ValueError)
+def test_salinity_missing_opts_raises():
+    with pytest.raises(ValueError, match="vmin_vosaline and vmax_vosaline must be specified"):
+        get_benthic_plot_parameters("vosaline", {}, {})
+
+# Test density case with missing vmin/vmax in options (should raise ValueError)
+def test_density_missing_opts_raises():
+    with pytest.raises(ValueError, match="vmin_density and vmax_density must be specified"):
+        get_benthic_plot_parameters("density", {}, {})
+
+# Test fallback case when var_dataframe contains no valid arrays (should raise ValueError)
+def test_fallback_empty_var_dataframe_raises():
+    var_dataframe = {2000: [None], 2001: []}
+    with pytest.raises(ValueError, match="No data arrays found"):
+        get_benthic_plot_parameters("some_unknown", var_dataframe, {})
+
+# Test fallback case when data arrays contain only NaNs (should raise ValueError)
+def test_fallback_only_nans_raises():
+    var_dataframe = {2000: [np.full((2, 2), np.nan)]}
+    with pytest.raises(ValueError, match="No valid data found"):
+        get_benthic_plot_parameters("some_unknown", var_dataframe, {})
 
 ###############################################################################
 
