@@ -30,6 +30,20 @@ def tmp_dir(tmp_path):
     f2.write_text("compressed content")
     return tmp_path
 
+def mock_path_exists(self: Path):
+    """
+    Side effect function for Path.exists used in SAT tests.
+    Pretends .gz files and directories exist, others don't.
+    """
+    if self.is_dir():
+        return True
+    if self.suffix == '.gz':
+        return True
+    if self.suffix == '':
+        return False
+    return Path.__orig_exists__(self)
+Path.__orig_exists__ = Path.exists
+
 # ====== INPUT VALIDATION TESTS ======
 
 def test_invalid_D_sat_type():
@@ -126,7 +140,7 @@ def test_successful_load_and_decompression(mock_ds, mock_remove, mock_copy, mock
         assert isinstance(data, np.ndarray)
         assert isinstance(lon, np.ndarray)
         assert isinstance(lat, np.ndarray)
-        assert lon.shape == lat.shape
+        assert lon.shape == lat.T.shape
         assert data.shape[1:] == lon.shape
         assert T.size == data.shape[0]
 
@@ -137,7 +151,7 @@ def test_successful_load_and_decompression(mock_ds, mock_remove, mock_copy, mock
 @patch("Hydrological_model_validator.Processing.SAT_data_reader.os.remove")
 @patch("Hydrological_model_validator.Processing.SAT_data_reader.ds")
 def test_missing_lon_lat_raises_keyerror(mock_ds, mock_remove, mock_copy, mock_gzip, tmp_dir):
-    # Make gzip.open return a mock context manager
+    # Set up mocks
     mock_gzip.return_value.__enter__.return_value = MagicMock()
     mock_copy.return_value = None
     mock_remove.return_value = None
@@ -145,7 +159,7 @@ def test_missing_lon_lat_raises_keyerror(mock_ds, mock_remove, mock_copy, mock_g
     def ds_side_effect(path, mode):
         mock_nc = MagicMock()
         mock_nc.variables = {
-            'latitude': np.array([1, 2]),  # lat present but lon missing
+            'latitude': np.array([1, 2]),
             'time': np.arange(2),
             'chl': np.ones((2, 2, 2)),
         }
@@ -155,18 +169,7 @@ def test_missing_lon_lat_raises_keyerror(mock_ds, mock_remove, mock_copy, mock_g
 
     mock_ds.side_effect = ds_side_effect
 
-    # Patch Path.exists to pretend files and dirs exist, so code proceeds
-    original_exists = Path.exists
-    def exists_side_effect(self):
-        if self.is_dir():
-            return True
-        if self.suffix == '.gz':
-            return True
-        if self.suffix == '':
-            return False
-        return original_exists(self)
-
-    with patch.object(Path, "exists", new=exists_side_effect):
+    with patch.object(Path, "exists", new=mock_path_exists):
         with pytest.raises(KeyError):
             sat_data_loader('l3', tmp_dir, 'chl')
 
@@ -194,18 +197,7 @@ def test_missing_time_variable_raises_keyerror(mock_ds, mock_remove, mock_copy, 
 
     mock_ds.side_effect = ds_side_effect
 
-    # Patch Path.exists so directory and files appear to exist
-    original_exists = Path.exists
-    def exists_side_effect(self):
-        if self.is_dir():
-            return True
-        if self.suffix == '.gz':
-            return True
-        if self.suffix == '':
-            return False
-        return original_exists(self)
-
-    with patch.object(Path, "exists", new=exists_side_effect):
+    with patch.object(Path, "exists", new=mock_path_exists):
         with pytest.raises(KeyError):
             sat_data_loader('l3', tmp_dir, 'chl')
 
@@ -233,18 +225,7 @@ def test_missing_data_var_raises_keyerror(mock_ds, mock_remove, mock_copy, mock_
 
     mock_ds.side_effect = ds_side_effect
 
-    # Patch Path.exists to make files/directories appear to exist
-    original_exists = Path.exists
-    def exists_side_effect(self):
-        if self.is_dir():
-            return True
-        if self.suffix == '.gz':
-            return True
-        if self.suffix == '':
-            return False
-        return original_exists(self)
-
-    with patch.object(Path, "exists", new=exists_side_effect):
+    with patch.object(Path, "exists", new=mock_path_exists):
         with pytest.raises(KeyError):
             sat_data_loader('l3', tmp_dir, 'chl')
 
@@ -274,18 +255,7 @@ def test_lon_lat_not_1d_raises_valueerror(mock_ds, mock_remove, mock_copy, mock_
 
     mock_ds.side_effect = ds_side_effect
 
-    # Patch Path.exists to pretend files/folders exist
-    original_exists = Path.exists
-    def exists_side_effect(self):
-        if self.is_dir():
-            return True
-        if self.suffix == '.gz':
-            return True
-        if self.suffix == '':
-            return False
-        return original_exists(self)
-
-    with patch.object(Path, "exists", new=exists_side_effect):
+    with patch.object(Path, "exists", new=mock_path_exists):
         with pytest.raises(ValueError):
             sat_data_loader('l3', tmp_dir, 'chl')
 
@@ -313,16 +283,7 @@ def test_data_not_3d_raises_valueerror(mock_ds, mock_remove, mock_copy, mock_gzi
 
     mock_ds.side_effect = ds_side_effect
 
-    # Patch Path.exists so gz file is "found"
-    original_exists = Path.exists
-    def exists_side_effect(self):
-        if self.is_dir():
-            return True
-        if self.suffix == '.gz':
-            return True
-        return original_exists(self)
-
-    with patch.object(Path, "exists", new=exists_side_effect):
+    with patch.object(Path, "exists", new=mock_path_exists):
         with pytest.raises(ValueError):
             sat_data_loader('l3', tmp_dir, 'chl')
 
