@@ -374,7 +374,7 @@ def test_call_interpolator_starts_and_quits(monkeypatch):
 
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
-    call_interpolator("var", 1, "input", "output", "maskfile")
+    call_interpolator("var", 'l3', "input", "output", "maskfile")
 
 
 def test_call_interpolator_start_fail(monkeypatch):
@@ -384,7 +384,7 @@ def test_call_interpolator_start_fail(monkeypatch):
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
     with pytest.raises(RuntimeError, match="Failed to start MATLAB engine"):
-        call_interpolator("var", 1, "input", "output", "maskfile")
+        call_interpolator("var", 'l3', "input", "output", "maskfile")
 
 
 def test_call_interpolator_function_fail(monkeypatch):
@@ -399,29 +399,29 @@ def test_call_interpolator_function_fail(monkeypatch):
     monkeypatch.setattr("matlab.engine.start_matlab", fake_start_matlab)
 
     with pytest.raises(RuntimeError, match="MATLAB interpolation failed"):
-        call_interpolator("var", 1, "input", "output", "maskfile")
+        call_interpolator("var", 'l3', "input", "output", "maskfile")
         
 def test_call_interpolator_input_validation():
     valid_str = "varname"
-    valid_int = 1
+    valid_lev = 'l3'
     valid_path_str = "/valid/path"
 
     # varname not string
     with pytest.raises(TypeError):
-        call_interpolator(123, valid_int, valid_path_str, valid_path_str, valid_path_str)
+        call_interpolator(123, "0", valid_path_str, valid_path_str, valid_path_str)
 
-    # data_level not int
+    # data_level not string
     with pytest.raises(TypeError):
-        call_interpolator(valid_str, "not_int", valid_path_str, valid_path_str, valid_path_str)
+        call_interpolator(valid_str, 999, valid_path_str, valid_path_str, valid_path_str)
 
     # input_dir invalid type
     with pytest.raises(TypeError):
-        call_interpolator(valid_str, valid_int, 123, valid_path_str, valid_path_str)
+        call_interpolator(valid_str, valid_lev, 123, valid_path_str, valid_path_str)
 
     # output_dir invalid type
     with pytest.raises(TypeError):
-        call_interpolator(valid_str, valid_int, valid_path_str, 123, valid_path_str)
+        call_interpolator(valid_str, valid_lev, valid_path_str, 123, valid_path_str)
 
     # mask_file invalid type
     with pytest.raises(TypeError):
-        call_interpolator(valid_str, valid_int, valid_path_str, valid_path_str, 123)
+        call_interpolator(valid_str, valid_lev, valid_path_str, valid_path_str, 123)
