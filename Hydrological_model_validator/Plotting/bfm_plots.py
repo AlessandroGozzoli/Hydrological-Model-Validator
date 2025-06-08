@@ -618,15 +618,38 @@ def dense_water_timeseries(
     legend_loc: str = "best",
     date_format: str = "%Y-%m"
 ):
+    """
+    Plots a time series of dense water volumes for multiple data series.
+
+    Args:
+        data_lists (dict): Dictionary with keys as series labels and values as
+                           lists of dicts with 'date' and 'volume_m3'.
+        title (str): Plot title.
+        xlabel (str): X-axis label (date).
+        ylabel (str): Y-axis label (km³).
+        figsize (tuple): Figure size.
+        legend_loc (str): Location of legend.
+        date_format (str): Date format for x-axis labels.
+    """
+
+    # Exit early if no data is provided
+    if not data_lists:
+        print("No data provided. Skipping plot.")
+        return
+
     sns.set(style="whitegrid", context='notebook')
     sns.set_style("ticks")
-    
+
     plt.figure(figsize=figsize)
 
     combined_df = pd.DataFrame()
+
+    # Build combined DataFrame
     for label, data_list in data_lists.items():
+        if not data_list:
+            continue
         dates = [entry['date'] for entry in data_list]
-        volumes_km3 = [entry['volume_m3'] / 1e9 for entry in data_list]  # km³
+        volumes_km3 = [entry['volume_m3'] / 1e9 for entry in data_list]
         df = pd.DataFrame({
             'date': pd.to_datetime(dates),
             'volume_km3': volumes_km3,
@@ -634,58 +657,51 @@ def dense_water_timeseries(
         })
         combined_df = pd.concat([combined_df, df], ignore_index=True)
 
+    if combined_df.empty:
+        print("No valid data in data_lists. Skipping plot.")
+        return
+
     ax1 = plt.gca()
     sns.lineplot(data=combined_df, x='date', y='volume_km3', hue='series', marker='o', ax=ax1)
 
-    # Fill area between December and June for each year and each series
+    # Fill region between December and June for each year and each series
     for label in combined_df['series'].unique():
         df_series = combined_df[combined_df['series'] == label].copy()
         df_series['year'] = df_series['date'].dt.year
-        df_series['month'] = df_series['date'].dt.month
 
-        # For each year, find Dec (prev year) to June (current year)
-        years = df_series['year'].unique()
-        for year in years:
-            # Define start and end dates for fill region
-            start_date = pd.Timestamp(year=year-1, month=12, day=1)
-            end_date = pd.Timestamp(year=year, month=6, day=30)
+        for year in df_series['year'].unique():
+            start = pd.Timestamp(year=year - 1, month=12, day=1)
+            end = pd.Timestamp(year=year, month=6, day=30)
 
-            # Select data in this range
-            mask_fill = (df_series['date'] >= start_date) & (df_series['date'] <= end_date)
-            df_fill = df_series.loc[mask_fill]
+            mask = (df_series['date'] >= start) & (df_series['date'] <= end)
+            df_fill = df_series.loc[mask]
 
-            if len(df_fill) < 2:
-                # Not enough points to fill
-                continue
+            if len(df_fill) >= 2:
+                ax1.fill_between(df_fill['date'], df_fill['volume_km3'], color='purple', alpha=0.15)
 
-            # Fill between with alpha for transparency, red color
-            ax1.fill_between(df_fill['date'], df_fill['volume_km3'], color='purple', alpha=0.15)
-
-    ax1.set_xlabel('')
+    ax1.set_xlabel(xlabel)
     ax1.set_ylabel(ylabel)
     ax1.grid(True)
-    
     ax1.set_title(title, fontsize=18, fontweight='bold')
 
-    # Second y-axis for Sverdrup
+    # Add second y-axis in Sverdrup
     ax2 = ax1.twinx()
+
+    def km3_to_sv(km3):
+        seconds_per_month = 30 * 24 * 3600
+        return (km3 * 1e9) / seconds_per_month / 1e6
+
+    y1_min, y1_max = ax1.get_ylim()
+    ax2.set_ylim(km3_to_sv(y1_min), km3_to_sv(y1_max))
+    ax2.set_ylabel("Dense Water Volume (Sverdrup)", color='black')
     ax2.tick_params(axis='y', colors='black')
     ax2.spines['right'].set_color('black')
     ax2.grid(True, axis='y', linestyle='--', color='gray', alpha=0.7)
 
-    seconds_per_month = 30 * 24 * 3600
-    def km3_to_sv(x):
-        return (x * 1e9) / seconds_per_month / 1e6
-
-    y1_lim = ax1.get_ylim()
-    y2_lim = (km3_to_sv(y1_lim[0]), km3_to_sv(y1_lim[1]))
-    ax2.set_ylim(y2_lim)
-    ax2.set_ylabel("Dense Water Volume (Sverdrup)")
-
     ax1.legend(loc=legend_loc)
     ax1.xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+
     plt.gcf().autofmt_xdate()
     plt.tight_layout()
     plt.show()
-    
 ###############################################################################
