@@ -72,32 +72,56 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
       1. The upper subplot displays daily mean values of each dataset (typically model and satellite data).
       2. The lower subplot shows the BIAS (model - satellite) as a time series.
 
-    If BIAS is None, the second panel is skipped.
+    The figure is saved to a specified output directory as a PNG file and displayed using matplotlib.
 
     Parameters
     ----------
     data_dict : Dict[str, Union[pd.Series, list]]
-        Dictionary containing daily mean values for different sources.
-    BIAS : Union[pd.Series, list, None]
-        Series (or list) representing the BIAS time series, or None to skip bias plot.
+        Dictionary containing daily mean values for different sources (e.g., model and satellite).
+        Keys are strings identifying the data source.
+        Values should be `pandas.Series` with datetime indices or lists that can be converted to Series.
 
-    Additional kwargs:
-        - output_path (str or Path)
-        - variable_name (str)
-        - variable (str)
-        - unit (str)
-        - BA (bool)
-        - figsize (tuple of float)
-        - dpi (int)
-        - color_palette (iterator)
-        - line_width (float)
-        - title_fontsize (int)
-        - bias_title_fontsize (int)
-        - label_fontsize (int)
-        - legend_fontsize (int)
-        - savefig_kwargs (dict)
+    BIAS : Union[pd.Series, list]
+        Series (or list) representing the BIAS time series (typically model - satellite).
+        Should be time-aligned with the values in `data_dict`.
+
+    Accepted kwargs include:
+    -------------------------
+    Keyword arguments overriding default plotting options. Include:
+        - output_path (str or Path)       : Required. Path where the figure should be saved.
+        - variable_name (str)             : Required. Variable code name (used to infer full name and unit).
+        - variable (str)                  : Full variable name (e.g., "Chlorophyll"). Used in titles and axis.
+        - unit (str)                     : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
+        - BA (bool)                     : If True, appends " (Basin Average)" to the title.
+        - figsize (tuple of float)        : Size of figure in inches (default typically (12, 8)).
+        - dpi (int)                     : Resolution of the figure (default 100).
+        - color_palette (iterator)        : Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
+        - line_width (float)             : Width of plotted lines (default 2.0).
+        - title_fontsize (int)          : Font size of the main title.
+        - bias_title_fontsize (int)     : Font size of the BIAS subplot title.
+        - label_fontsize (int)          : Font size of axis labels.
+        - legend_fontsize (int)         : Font size of the legend.
+        - savefig_kwargs (dict)           : Additional args for `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
+        
+    Example
+    -------
+    >>> timeseries(
+    ...     data_dict={'model': model_series, 'satellite': sat_series},
+    ...     BIAS=model_series - sat_series,
+    ...     variable_name='Chl',
+    ...     output_path='figures/',
+    ...     BA=True
+    ... )
+
+    Notes
+    -----
+    - If `variable` or `unit` is not provided, the function attempts to resolve them using
+      `get_variable_label_unit(variable_name)`.
+
+    - The data series are auto-converted to `pandas.Series` if passed as lists.
+    
+    - The order and coloring of plotted datasets depend on the order in `data_dict` and `color_palette`.
     """
-
     # ----- RETRIEVE DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_plot_options_ts, **kwargs})
 
@@ -175,6 +199,7 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
     plt.savefig(save_path, **options.savefig_kwargs)
     plt.show(block=False)
     plt.draw()
+    plt.pause(3)
     plt.close()
 ###############################################################################
     
@@ -210,7 +235,6 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
         - tick_labelsize (int)          : Size of tick labels.
         - line_width (float)            : Width of lines (identity, fits, axes).
         - legend_fontsize (int)         : Size of legend text.
-        - pause_time (float)            : Time to pause for each plot (for interactive viewing).
         - variable (str)                : Long name of variable (used in title).
         - unit (str)                    : Unit of variable (used in labels).
 
@@ -309,7 +333,7 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
     plt.savefig(save_path)
     plt.show(block=False)
     plt.draw()
-    plt.pause(options.pause_time)
+    plt.pause(3)
     plt.close()
 ###############################################################################
 
@@ -347,7 +371,6 @@ def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Serie
         - line_width (int)              : Width of lines (identity, fits, axes).
         - tick_labelsize (int)          : Size of tick labels.
         - legend_fontsize (int)         : Size of legend text.
-        - pause_time (float)            : Time to pause for each plot (for interactive viewing).
         - variable (str)                : Long name of variable (used in title).
         - unit (str)                    : Unit of variable (used in labels).
 
@@ -598,7 +621,6 @@ def whiskerbox(data_dict, **kwargs):
         - grid_alpha (float)              : Transparency for grid lines.
         - xtick_rotation (int or float)   : Rotation angle for x-axis tick labels.
         - tick_width (float)              : Width of axis ticks.
-        - pause_time (float)              : Time (seconds) to pause the plot after showing it.
 
     Example
     -------
@@ -721,7 +743,6 @@ def violinplot(data_dict, **kwargs):
     - tick_width (float)              : Width of axis ticks.
     - spine_linewidth (float)         : Line width for axis spines.
     - grid_alpha (float)              : Transparency of grid lines.
-    - pause_time (float)              : Time in seconds to pause after plotting.
 
     Example
     -------
@@ -829,7 +850,6 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     - spine_width (float)              : Width of axis spines.
     - legend_loc (str)                 : Location of the legend.
     - grid_style (str)                 : Style of grid lines (e.g., "--", ":").
-    - pause_time (float)               : Time in seconds to pause after plotting.
     - zero_line (dict)                 : Zero reference line options:
                                          {
                                              "show": bool,
@@ -994,7 +1014,6 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     - land_color (str)                : Color for landmasses.
     - show (bool)                     : Display the plot interactively.
     - block (bool)                    : Block execution on plt.show().
-    - pause_duration (float)          : Time (sec) to pause after plotting.
     - dpi (int)                       : Resolution of the output figure.
     
     Raises
