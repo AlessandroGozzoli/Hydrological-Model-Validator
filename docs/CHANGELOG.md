@@ -8,7 +8,8 @@ This minor patch continues test coverage expansion with two new suites focused o
 ## Test Coverage
 
 Two new test suites have been added for the `Plots.py` and `bfm_plots.py` submodules, further enhancing overall test coverage.  
-With these additions, the project’s coverage has now reached **[insert % here]**.
+With these additions, the project’s coverage has now reached **[95.23]**.
+  > Note: due to the structure of the plotting functions and the extensione of test data used, the new testing suits take a while to complete.
 
 ## Hotfixes & Enhancements
 
