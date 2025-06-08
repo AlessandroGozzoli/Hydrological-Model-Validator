@@ -952,7 +952,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     plt.savefig(output_path / f'{options.metric_name}.png')
     plt.show(block=False)
     plt.draw()
-    plt.pause(options.pause_time)
+    plt.pause(3)
     plt.close()
 ###############################################################################   
 
