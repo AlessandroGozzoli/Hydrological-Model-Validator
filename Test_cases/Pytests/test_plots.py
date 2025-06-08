@@ -4,6 +4,8 @@ import numpy as np
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import matplotlib.pyplot as plt
+import xarray as xr
+from scipy.signal import welch
 
 import matplotlib
 matplotlib.use("Agg")  # Use a non-GUI backend for testing (no display)
@@ -13,7 +15,10 @@ from Hydrological_model_validator.Plotting.Plots import (timeseries,
                                                          scatter_plot,
                                                          seasonal_scatter_plot,
                                                          whiskerbox,
-                                                         efficiency_plot) 
+                                                         efficiency_plot,
+                                                         plot_spatial_efficiency,
+                                                         error_components_timeseries,
+                                                         plot_spectral) 
 
 
 # ---- Helpers ----
@@ -604,6 +609,7 @@ def tmp_output(tmp_path):
     return tmp_path
 
 
+# Test that efficiency_plot creates a non-empty output file with valid input
 def test_efficiency_plot_basic(tmp_output):
     total_value = 0.75
     monthly_values = [0.8, 0.6, 0.9, 0.7, 0.5, 0.85, 0.9, 0.95, 0.4, 0.7, 0.6, 0.8]
@@ -617,35 +623,34 @@ def test_efficiency_plot_basic(tmp_output):
         y_label='E_{rel}',
     )
     
-    # Check file is created
     saved_file = tmp_output / 'NSE.png'
     assert saved_file.exists()
-    # Optionally check file size > 0
-    assert saved_file.stat().st_size > 0
+    assert saved_file.stat().st_size > 0  # Optional: ensure file is not empty
 
 
+# Test that missing output_path raises a ValueError
 def test_efficiency_plot_missing_output_path_raises():
     with pytest.raises(ValueError, match="output_path must be specified"):
         efficiency_plot(
             0.5,
-            [0.5]*12,
+            [0.5] * 12,
             metric_name='NSE',
             y_label='E_{rel}'
         )
 
 
+# Test that missing metric_name raises a KeyError (likely due to missing label lookup)
 def test_efficiency_plot_missing_metric_name_creates_file(tmp_output):
     with pytest.raises(KeyError):
         efficiency_plot(
             0.5,
-            [0.5]*12,
+            [0.5] * 12,
             output_path=tmp_output,
         )
 
 
+# Test marker coloring logic with edge-case monthly values (e.g., <0, >1, None, etc.)
 def test_efficiency_plot_marker_colors(tmp_output):
-    # Values below 0 -> red, above 1 -> green, None or invalid -> gray, normal -> colormap
-    
     monthly_values = [0.9, 1.1, -0.1, None, 0.5, 0.0, 0.8, 1.2, -0.5, 0.3, 0.7, 0.6]
     
     efficiency_plot(
@@ -662,9 +667,10 @@ def test_efficiency_plot_marker_colors(tmp_output):
     assert saved_file.stat().st_size > 0
 
 
+# Test that custom title and y-axis label are accepted without error
 def test_efficiency_plot_title_and_labels(tmp_output):
     total_value = 0.6
-    monthly_values = [0.5]*12
+    monthly_values = [0.5] * 12
     title = "My Efficiency Plot"
     y_label = "My Metric"
     
@@ -678,6 +684,7 @@ def test_efficiency_plot_title_and_labels(tmp_output):
     )
 
 
+# Parametrized test to verify robustness against various bad input values
 @pytest.mark.parametrize("bad_values", [
     [None] * 12,
     ['a'] * 12,
@@ -687,7 +694,7 @@ def test_efficiency_plot_title_and_labels(tmp_output):
 def test_efficiency_plot_handles_bad_values(tmp_output, bad_values):
     total_value = 0.5
 
-    # Clean inputs, replace bad values with np.nan
+    # Clean and convert bad inputs to NaN, except one value so plot can render
     cleaned_values = []
     for v in bad_values:
         try:
@@ -696,10 +703,8 @@ def test_efficiency_plot_handles_bad_values(tmp_output, bad_values):
         except Exception:
             cleaned_values.append(np.nan)
 
-    # Ensure at least one valid number so seaborn can plot something
-    cleaned_values[0] = 0.123
+    cleaned_values[0] = 0.123  # Ensure at least one plottable value
 
-    # Call the function with cleaned values
     efficiency_plot(
         total_value,
         cleaned_values,
@@ -708,3 +713,248 @@ def test_efficiency_plot_handles_bad_values(tmp_output, bad_values):
         y_label='E_{rel}',
         title='Test Efficiency Plot'
     )
+    
+    
+###############################################################################
+# spatial_efficiency tests
+###############################################################################
+
+
+@pytest.fixture
+def geo_coords():
+    latp, lonp = np.meshgrid(np.linspace(-10, 10, 10), np.linspace(-20, 20, 10), indexing='ij')
+    return {
+        'latp': latp,
+        'lonp': lonp,
+        'MinLambda': -20,
+        'MaxLambda': 20,
+        'MinPhi': -10,
+        'MaxPhi': 10,
+        'Epsilon': 0.1
+    }
+
+@pytest.fixture
+def temp_output(tmp_path):
+    return tmp_path
+
+# Helper to create xarray DataArray with either 'month', 'year', or invalid time dimension
+def create_data_array(dim_type):
+    data = np.random.rand(3, 10, 10)  # 3 time slices for minimal plots
+    if dim_type == 'month':
+        return xr.DataArray(data, dims=['month', 'lat', 'lon'], coords={'month': [1, 2, 3]})
+    if dim_type == 'year':
+        return xr.DataArray(data, dims=['year', 'lat', 'lon'], coords={'year': [2000, 2001, 2002]})
+    return xr.DataArray(data, dims=['time', 'lat', 'lon'])  # Invalid for the function
+
+
+# Test that monthly data plots successfully with default colormap
+def test_plot_monthly_default_cmap(geo_coords, temp_output):
+    data_array = create_data_array('month')
+    plot_spatial_efficiency(data_array, geo_coords, temp_output, "TestMetric")
+
+
+# Test that yearly data plots correctly with unit label and detrending enabled
+def test_plot_yearly_with_unit_and_detrended(geo_coords, temp_output):
+    data_array = create_data_array('year')
+    plot_spatial_efficiency(
+        data_array, geo_coords, temp_output, "TestMetric",
+        unit="\%", detrended=True
+    )
+
+
+# Test that unsupported time dimension raises a ValueError
+def test_invalid_dim_raises_error(geo_coords, temp_output):
+    data_array = create_data_array('invalid')
+    with pytest.raises(ValueError, match="must have either 'month' or 'year'"):
+        plot_spatial_efficiency(data_array, geo_coords, temp_output, "Bad")
+
+
+# Test that a custom colormap and explicit vmin/vmax range are applied correctly
+def test_custom_colormap_orangegreen(geo_coords, temp_output):
+    data_array = create_data_array('month')
+    plot_spatial_efficiency(
+        data_array, geo_coords, temp_output, "TestMetric",
+        cmap="OrangeGreen", vmin=-1, vmax=1
+    )
+
+
+# Test layout logic for non-square subplots (e.g., 2 panels in a 3-column layout)
+def test_partial_subplot_row(geo_coords, temp_output):
+    data = np.random.rand(2, 10, 10)
+    data_array = xr.DataArray(data, dims=['month', 'lat', 'lon'], coords={'month': [1, 2]})
+    plot_spatial_efficiency(
+        data_array, geo_coords, temp_output, "TestMetric",
+        max_cols=3  # Forces a single incomplete row
+    )
+    
+    
+###############################################################################
+# error_timeseries tests
+###############################################################################
+
+    
+@pytest.fixture
+def stats_df():
+    index = pd.date_range(start='2000-01-01', periods=100, freq='D')
+    data = {
+        'mean_bias': np.random.randn(100),
+        'unbiased_rmse': np.random.rand(100),
+        'std_error': np.random.rand(100),
+        'correlation': np.random.rand(100)
+    }
+    return pd.DataFrame(data, index=index)
+
+@pytest.fixture
+def cloud_cover():
+    index = pd.date_range(start='2000-01-01', periods=100, freq='D')
+    return pd.Series(np.random.rand(100) * 100, index=index)
+
+# Test that the function creates a plot file without cloud cover input
+def test_error_plot_no_cloud(stats_df, temp_output):
+    error_components_timeseries(
+        stats_df=stats_df,
+        output_path=temp_output
+    )
+    files = list(temp_output.glob("*.png"))
+    assert len(files) == 1, "No plot saved without cloud cover"
+
+
+# Test that the function creates a plot file when cloud cover data is provided
+def test_error_plot_with_cloud(stats_df, cloud_cover, temp_output):
+    error_components_timeseries(
+        stats_df=stats_df,
+        output_path=temp_output,
+        cloud_cover=cloud_cover
+    )
+    files = list(temp_output.glob("*.png"))
+    assert len(files) == 1, "No plot saved with cloud cover"
+
+
+# Test that the filename includes the variable name when specified
+def test_error_plot_variable_name(stats_df, cloud_cover, temp_output):
+    error_components_timeseries(
+        stats_df=stats_df,
+        output_path=temp_output,
+        cloud_cover=cloud_cover,
+        variable_name="Temperature"
+    )
+    file = list(temp_output.glob("*.png"))[0]
+    assert "Temperature" in file.name, "Filename does not include variable_name"
+
+
+# Test that a short time series (e.g., 5 days) still results in a valid plot
+def test_error_plot_short_series(temp_output):
+    index = pd.date_range(start='2000-01-01', periods=5, freq='D')
+    df = pd.DataFrame({
+        'mean_bias': np.random.randn(5),
+        'unbiased_rmse': np.random.rand(5),
+        'std_error': np.random.rand(5),
+        'correlation': np.random.rand(5)
+    }, index=index)
+    error_components_timeseries(df, temp_output)
+    files = list(temp_output.glob("*.png"))
+    assert files, "Plot not created for short series"
+
+
+# Test that the function creates the output directory if it doesn't exist and saves the plot there
+def test_error_plot_output_path_created(stats_df, temp_output):
+    new_subdir = temp_output / "nested" / "plots"
+    error_components_timeseries(stats_df, output_path=new_subdir)
+    files = list(new_subdir.glob("*.png"))
+    assert files, "Output file not created in nested directory"
+    
+    
+###############################################################################
+# plot_spectral tests
+###############################################################################
+
+
+@pytest.fixture
+def time_series():
+    return pd.Series(np.sin(np.linspace(0, 20 * np.pi, 512)) + np.random.rand(512) * 0.5)
+
+@pytest.fixture
+def fft_components(time_series):
+    freqs, fft_vals = welch(time_series, fs=1.0)
+    return freqs, {"Model": fft_vals}
+
+@pytest.fixture
+def error_comp():
+    index = pd.date_range(start='2000-01-01', periods=512, freq='D')
+    return pd.DataFrame({
+        'mean_bias': np.sin(np.linspace(0, 10 * np.pi, 512)),
+        'unbiased_rmse': np.cos(np.linspace(0, 10 * np.pi, 512)),
+    }, index=index)
+
+@pytest.fixture
+def cloud_cover_series():
+    return np.random.rand(512)
+
+# Test that PSD plot is created and saved with correct filename
+def test_plot_psd(fft_components, temp_output):
+    freqs, components = fft_components
+    plot_spectral(
+        plot_type='PSD',
+        freqs=freqs,
+        fft_components=components,
+        output_path=temp_output,
+        variable_name="TestVar"
+    )
+    files = list(temp_output.glob("*.png"))
+    assert files, "No PSD plot saved"
+    assert "PSD_TestVar" in files[0].name, "Incorrect PSD filename"
+
+
+# Test that CSD plot is created and saved with correct filename when cloud cover and error components are provided
+def test_plot_csd(error_comp, cloud_cover_series, temp_output):
+    cloud_covers = [(cloud_cover_series, 'Cloud')]
+    plot_spectral(
+        plot_type='CSD',
+        error_comp=error_comp,
+        cloud_covers=cloud_covers,
+        output_path=temp_output,
+        variable_name="TestVar"
+    )
+    files = list(temp_output.glob("*.png"))
+    assert files, "No CSD plot saved"
+    assert "CSD_TestVar" in files[0].name, "Incorrect CSD filename"
+
+
+# Test that PSD plotting raises an error if required inputs are missing
+def test_psd_missing_inputs_raises(temp_output):
+    with pytest.raises(ValueError, match="freqs and fft_components must be provided"):
+        plot_spectral(
+            plot_type='PSD',
+            output_path=temp_output
+        )
+
+
+# Test that CSD plotting raises an error if error_comp is missing
+def test_csd_missing_error_comp_raises(temp_output, cloud_cover_series):
+    cloud_covers = [(cloud_cover_series, 'Cloud')]
+    with pytest.raises(ValueError, match="error_comp must be provided"):
+        plot_spectral(
+            plot_type='CSD',
+            cloud_covers=cloud_covers,
+            output_path=temp_output
+        )
+
+
+# Test that CSD plotting raises an error if cloud_covers list is empty
+def test_csd_missing_cloud_cover_raises(temp_output, error_comp):
+    with pytest.raises(ValueError, match="At least one cloud_cover tuple"):
+        plot_spectral(
+            plot_type='CSD',
+            error_comp=error_comp,
+            cloud_covers=[],
+            output_path=temp_output
+        )
+
+
+# Test that invalid plot_type raises a ValueError
+def test_invalid_plot_type_raises(temp_output):
+    with pytest.raises(ValueError, match="Unknown plot_type"):
+        plot_spectral(
+            plot_type='XYZ',
+            output_path=temp_output
+        )
