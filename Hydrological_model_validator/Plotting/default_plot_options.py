@@ -37,7 +37,6 @@ default_plot_options_scatter = {
     "line_width": 2,
     "tick_labelsize": 13,
     "legend_fontsize": 12,
-    "pause_time": 3,
 }
 ###############################################################################
 
@@ -62,7 +61,6 @@ default_scatter_by_season_options = {
     'legend_fontsize': 12,
     'line_width': 2,
     'tick_labelsize': 13,
-    'pause_time': 2,
 }
 ###############################################################################
 
@@ -82,7 +80,6 @@ default_boxplot_options = {
     'grid_alpha': 0.5,
     'xtick_rotation': 45,
     'tick_width': 2,
-    'pause_time': 3,
 }
 ###############################################################################
 
@@ -90,6 +87,7 @@ default_boxplot_options = {
 default_violinplot_options = {
     'output_path': None,
     "variable": None,
+    "variable_name": None,
     "unit": None,
     'figsize': (16, 6),
     'dpi': 300,
@@ -103,13 +101,12 @@ default_violinplot_options = {
     'grid_alpha': 0.5,
     'tick_width': 2,
     'spine_linewidth': 2,
-    'pause_time': 3,
 }
 ###############################################################################
 
 ###############################################################################
 default_efficiency_plot_options = {
-    'metric_name': '',
+    'metric_name': None,
     'title': '',
     'overall_value': 0.0,
     'y_label': '',
@@ -141,7 +138,6 @@ default_efficiency_plot_options = {
     'legend_loc': 'lower right',
     'grid_style': '--',
     'spine_width': 2,
-    'pause_time': 3,
 }
 ###############################################################################
 
@@ -175,7 +171,6 @@ spatial_efficiency_defaults = {
     "land_color": "lightgray",
     "show": True,
     "block": False,
-    "pause_duration": 3,
     "dpi": 100,
     "unit" : None,
 }
