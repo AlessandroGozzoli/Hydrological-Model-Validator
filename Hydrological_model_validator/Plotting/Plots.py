@@ -611,7 +611,7 @@ def whiskerbox(data_dict, **kwargs):
     ...     showfliers=False
     ... )
     """
-    
+
     # ----- FETCH DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_boxplot_options, **kwargs})
 
@@ -619,20 +619,19 @@ def whiskerbox(data_dict, **kwargs):
     if options.output_path is None:
         raise ValueError("output_path must be specified either in kwargs or default options.")
 
-    if options.variable_name is not None:
-        # Infer full variable name and unit from short name
-        variable, unit = get_variable_label_unit(options.variable_name)
-        options.variable = options.variable or variable
-        options.unit = options.unit or unit
+    variable_name = getattr(options, 'variable_name', None)
+    variable = getattr(options, 'variable', None)
+    unit = getattr(options, 'unit', None)
+
+    if variable_name is not None:
+        var, un = get_variable_label_unit(variable_name)
+        variable = variable or var
+        unit = unit or un
     else:
-        # variable_name not given — require both variable and unit
-        if options.variable is None or options.unit is None:
+        if variable is None or unit is None:
             raise ValueError(
                 "If 'variable_name' is not provided, both 'variable' and 'unit' must be specified in kwargs or defaults."
-                )
-            
-    # ----- OBRAIN VARIABLE LABEL AND UNITS FROM THE VARIABLE NAME -----
-    variable, unit = get_variable_label_unit(options.variable_name)
+            )
 
     # ----- EXTRACT MODEL AND SATELLITE KEYS FROM THE DATASET -----
     model_key, sat_key = extract_mod_sat_keys(data_dict)
@@ -640,10 +639,9 @@ def whiskerbox(data_dict, **kwargs):
     # ----- DEFINE MONTH NAMES -----
     months = [calendar.month_abbr[i] for i in range(1, 13)]
 
-
     # ----- INITIALIZE ARRAY FOR DATA -----
     plot_data = []
-    
+
     # ----- GATHER THE DATA BASED ON MONTHS -----
     plot_data = list(chain.from_iterable(
         chain(
@@ -658,7 +656,7 @@ def whiskerbox(data_dict, **kwargs):
 
     # ----- INITIALIZE FIGURE -----
     plt.figure(figsize=options.figsize, dpi=options.dpi)
-    
+
     # ----- PLOT DATA -----
     ax = sns.boxplot(
         x='Label', y='Value', data=plot_df,
@@ -684,14 +682,14 @@ def whiskerbox(data_dict, **kwargs):
     # ----- CHECK IF FOLDER EXISTS -----
     output_path = Path(options.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
-    
-    # ----- PRINT AND SAVE PLOT ------
+
+    # ----- PRINT AND SAVE PLOT -----
     filename = f'{variable}_boxplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
     plt.show(block=False)
     plt.draw()
-    plt.pause(3)
+    plt.pause(options.pause_time if hasattr(options, 'pause_time') else 3)
     plt.close()
 ###############################################################################
     
@@ -852,21 +850,22 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     # ----- FETCH DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_efficiency_plot_options, **kwargs})
 
-    # ----- RETREIVE NECESSARY OUTPUT PATH -----
+    # --- Required options check ---
     if options.output_path is None:
         raise ValueError("output_path must be specified.")
+    if options.metric_name is None:
+        raise KeyError("metric_name must be specified.")
+    if options.y_label is None:
+        raise KeyError("y_label must be specified.")
 
-    # ----- GET MONTHS -----
+    # --- Prepare data ---
     months = list(calendar.month_name[1:13])
-    
-    # ----- BUILD THE DATAFRAME -----
     df = pd.DataFrame({'Month': months, 'Value': monthly_values})
 
-    # ----- BUILD COLORMAP -----
+    # --- Colormap ---
     cmap = plt.cm.RdYlGn
     norm = mcolors.Normalize(vmin=0, vmax=1)
 
-    # ----- COLORMAP THRESHOLD CASES -----
     marker_colors = [
         'gray' if not isinstance(val, (int, float)) else
         'red' if val < 0 else
@@ -875,48 +874,45 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
         for val in monthly_values
     ]
 
-    # ----- SEABORN SETUP -----
+    # --- Seaborn and figure setup ---
     sns.set(style="whitegrid")
     sns.set_style("ticks")
-    
-    # ----- INITIALIZE FIGURE -----
     plt.figure(figsize=options.figsize, dpi=options.dpi)
 
-    # ----- PLOT PERFORMANCE POINT -----
     ax = sns.lineplot(x='Month', y='Value', data=df,
                       color=options.line_color,
                       lw=options.line_width)
 
-    # ----- LIST OF METRICS USING ZERO THRESHOLD -----
+    # --- Zero line ---
     if options.zero_line.get("show", False) and options.title in {
         "Nash-Sutcliffe Efficiency",
         "Nash-Sutcliffe Efficiency (Logarithmic)",
         "Modified NSE ($E_1$, j=1)",
         "Relative NSE ($E_{rel}$)"
     }:
-        # ----- SET ZERO THRESHOLD LINE -----
         ax.axhline(0,
                    linestyle=options.zero_line["style"],
                    lw=options.zero_line["width"],
                    color=options.zero_line["color"],
                    label=options.zero_line["label"])
 
-    # ----- PLOT OVERALL VALUE -----
+    # --- Overall line ---
     ax.axhline(total_value,
                linestyle=options.overall_line["style"],
                lw=options.overall_line["width"],
                color=options.overall_line["color"],
                label=options.overall_line["label"])
 
-    # ----- PLOT THE MARKER -----
+    # --- Plot markers ---
     for month, value, color in itertools.zip_longest(months, monthly_values, marker_colors):
-        ax.plot(month, value, marker='o',
-                markersize=options.marker_size,
-                color=color,
-                markeredgecolor=options.marker_edge_color,
-                markeredgewidth=options.marker_edge_width)
+        if value is not None:
+            ax.plot(month, value, marker='o',
+                    markersize=options.marker_size,
+                    color=color,
+                    markeredgecolor=options.marker_edge_color,
+                    markeredgewidth=options.marker_edge_width)
 
-    # ----- PLOT FORMATTING -----
+    # --- Formatting ---
     ax.set_title(options.title, fontsize=options.title_fontsize)
     ax.set_xlabel('')
     ax.set_ylabel(f'${options.y_label}$', fontsize=options.ylabel_fontsize)
@@ -926,19 +922,17 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     ax.legend(loc=options.legend_loc)
     ax.grid(True, linestyle=options.grid_style)
 
-    style_axes_spines(ax, linewidth=2, edgecolor='black')
+    style_axes_spines(ax, linewidth=options.spine_width, edgecolor='black')
 
     plt.tight_layout()
-    
-    # ----- CHECK EXISTENCE OF THE SAVE FOLDER -----
+
     output_path = Path(options.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
-    
-    # ----- PRINT AND SAVE -----
+
     plt.savefig(output_path / f'{options.metric_name}.png')
     plt.show(block=False)
     plt.draw()
-    plt.pause(3)
+    plt.pause(options.pause_time)
     plt.close()
 ###############################################################################   
 
