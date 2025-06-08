@@ -16,8 +16,6 @@ default_plot_options_ts = {
     "bias_title_fontsize": 18,
     "line_width": 1,
     "savefig_kwargs": {},
-    "smooth7": False,               # added default
-    "smooth30": False,              # added default
 }
 ###############################################################################
 
