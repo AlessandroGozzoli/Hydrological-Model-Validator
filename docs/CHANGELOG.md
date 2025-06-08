@@ -1,3 +1,40 @@
+# **Version:** 4.8.5 
+**Date:** 08/06/2025  
+
+## Summary
+
+This minor patch continues test coverage expansion with two new suites focused on the plotting modules. Input validation has also been improved, particularly for output-related parameters.
+
+## Test Coverage
+
+Two new test suites have been added for the `Plots.py` and `bfm_plots.py` submodules, further enhancing overall test coverage.  
+With these additions, the project’s coverage has now reached **[insert % here]**.
+
+## Hotfixes & Enhancements
+
+### Input Validation Improvements
+
+- Improved input validation for `output_path`, `variable_label`, and `unit_label` in plotting functions.
+- Replaced direct attribute access with `getattr(options, 'output_path', None)` to safely check for the presence of `output_path` and provide clearer error messages when missing.
+- Similar validation was added for `variable_label` and `unit_label` to avoid `AttributeError` when default values were not properly handled, especially when generating LaTeX-formatted labels.
+- Added clauses to skip empty data in the `dense_water_timeseries` function to avoid unnecessary plotting.
+
+### Plot Behavior Consistency
+
+- Reverted the `interval` used in `plt.pause()` to a **hardcoded value** to ensure consistent behavior during both test execution and interactive use.
+  > This pause allows the user to confirm that plots are correctly generated before they are saved. However, for full plot inspection, users should refer to the saved image files in the specified `output_path`.
+
+## Future Work
+
+- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Complete a full documentation overhaul and repair the broken `README.md`
+- Upload the full **test-case dataset** to support reproducibility and public testing
+- Begin adding **logging** and **timing utilities** to evaluate and profile performance
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.4
 **Date:** 07/06/2025  
 
