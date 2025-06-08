@@ -228,20 +228,26 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
     options = SimpleNamespace(**{**default_plot_options_scatter, **kwargs})
 
     # ----- RETRIEVE NECESSARY OUTPUT PATH AND VARIABLE/UNIT INFO -----
-    if options.output_path is None:
+    if getattr(options, 'output_path', None) is None:
         raise ValueError("output_path must be specified either in kwargs or default options.")
 
-    if options.variable_name is not None:
+    variable_name = getattr(options, 'variable_name', None)
+    variable = getattr(options, 'variable', None)
+    unit = getattr(options, 'unit', None)
+
+    if variable_name is not None:
         # Infer full variable name and unit from short name
-        variable, unit = get_variable_label_unit(options.variable_name)
-        options.variable = options.variable or variable
-        options.unit = options.unit or unit
+        variable_label, unit_label = get_variable_label_unit(variable_name)
+        options.variable = variable or variable_label
+        options.unit = unit or unit_label
     else:
         # variable_name not given — require both variable and unit
-        if options.variable is None or options.unit is None:
+        if variable is None or unit is None:
             raise ValueError(
                 "If 'variable_name' is not provided, both 'variable' and 'unit' must be specified in kwargs or defaults."
-                )
+            )
+        options.variable = variable
+        options.unit = unit
 
     # ----- EXTRACT MODEL AND SATELLITE KEYS FROM DATASET FOR PLOTTING -----
     mod_key, sat_key = extract_mod_sat_keys(data_dict)
@@ -272,7 +278,7 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
 
     # ----- SET THE TITLE AND BA TAG IF NECESSARY -----
     title = f'Scatter Plot of {options.variable} (Model vs. Satellite)'
-    if options.BA:
+    if getattr(options, 'BA', False):
         title += ' (Basin Average)'
 
     # ----- PLOTTING OPTIONS -----
@@ -298,7 +304,7 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
     output_path.mkdir(parents=True, exist_ok=True)
     
     # ----- SAVE AND PRINT PLOT -----
-    filename = f'{options.variable_name}_scatterplot.png'
+    filename = f'{variable_name or options.variable or "scatterplot"}_scatterplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
     plt.show(block=False)
@@ -485,7 +491,7 @@ def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Serie
         plt.savefig(output_path / filename)
         plt.show(block=False)
         plt.draw()
-        plt.pause(options.pause_time)
+        plt.pause(3)
         plt.close()
 
         # ----- APPEND THE DATA TO FINAL PLOT DATAFRAME -----
@@ -557,7 +563,7 @@ def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Serie
         plt.savefig(output_path / filename)
         plt.show(block=False)
         plt.draw()
-        plt.pause(options.pause_time)
+        plt.pause(3)
         plt.close()
 ###############################################################################
         
@@ -685,7 +691,7 @@ def whiskerbox(data_dict, **kwargs):
     plt.savefig(save_path)
     plt.show(block=False)
     plt.draw()
-    plt.pause(options.pause_time)
+    plt.pause(3)
     plt.close()
 ###############################################################################
     
@@ -790,7 +796,7 @@ def violinplot(data_dict, **kwargs):
     plt.savefig(output_path / filename)
     plt.show(block=False)
     plt.draw()
-    plt.pause(options.pause_time)
+    plt.pause(3)
     plt.close()
 ###############################################################################    
 
@@ -932,7 +938,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     plt.savefig(output_path / f'{options.metric_name}.png')
     plt.show(block=False)
     plt.draw()
-    plt.pause(options.pause_time)
+    plt.pause(3)
     plt.close()
 ###############################################################################   
 
@@ -1141,10 +1147,9 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     filename = f"{filename_prefix} {safe_title} ({det_text}) {options['suffix']}.png"
     plt.savefig(output_path / filename)
 
-    if options["show"]:
-        plt.show(block=options["block"])
-        plt.draw()
-        plt.pause(options["pause_duration"])
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(3)
     plt.close()
 ###############################################################################   
 
@@ -1239,6 +1244,8 @@ def plot_spectral(
     fft_components=None,
     error_comp=None,
     cloud_covers=None,
+    output_path=None,
+    variable_name=None,
     fs=1.0,
     nperseg=256,
     **kwargs
@@ -1302,4 +1309,12 @@ def plot_spectral(
     # Use style_axes_spines with options
     style_axes_spines(ax, linewidth=options['spine_linewidth'], edgecolor=options['spine_edgecolor'])
 
-    plt.show()
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = f"Spectral_Plot_{plot_type}_{variable_name}"
+    plt.savefig(output_path / filename)
+    
+    plt.show(block=False)
+    plt.draw()
+    plt.pause(3)
+    plt.close()
