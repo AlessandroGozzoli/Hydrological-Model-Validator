@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='Hydrological_model_validator',
-    version='4.8.4',
+    version='4.8.5',
     description='Tools for the analysis and validation of Bio-Geo-Hydrological simulations and other climatological data',
     long_description=long_description,
     long_description_content_type='text/markdown',
