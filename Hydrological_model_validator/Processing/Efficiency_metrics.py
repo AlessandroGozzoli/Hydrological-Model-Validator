@@ -52,9 +52,9 @@ def r_squared(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, S
     nan
     """
     # ===== INPUT VALIDATION =====
-    if not isinstance(obs, (np.ndarray, list)) or not isinstance(pred, (np.ndarray, list)):
-        raise TypeError("❌ Both 'obs' and 'pred' must be arrays or array-like structures (e.g., lists, np.ndarrays).")
-    
+    if obs is None or pred is None:
+        raise ValueError("❌ Input arrays 'obs' and 'pred' must not be None. ❌")
+        
     obs = np.asarray(obs)
     pred = np.asarray(pred)
 
@@ -226,6 +226,7 @@ def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, lis
     # ===== INPUT VALIDATION =====
     if obs is None or pred is None:
         raise ValueError("❌ Input arrays 'obs' and 'pred' must not be None. ❌")
+        
     obs = np.asarray(obs)
     pred = np.asarray(pred)
 
@@ -1661,7 +1662,7 @@ def compute_spatial_efficiency(
 ###############################################################################
 
 ###############################################################################
-def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.DataArray, basin_mask: xr.DataArray) -> pd.DataFrame:
+def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.DataArray, ocean_mask: xr.DataArray) -> pd.DataFrame:
     """
     Compute daily error statistics between model and satellite SST data within a specified basin mask.
 
@@ -1708,17 +1709,24 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
     ...
     """
     # ===== INPUT VALIDATION =====
-    for da, name in zip([model_sst_data, sat_sst_data, basin_mask], ["model_sst_data", "sat_sst_data", "basin_mask"]):
+    for da, name in zip([model_sst_data, sat_sst_data], ["model_sst_data", "sat_sst_data"]):
         if not isinstance(da, xr.DataArray):
             raise TypeError(f"❌ {name} must be an xarray.DataArray ❌")
+     
+    # Swithing mask to datarray
+    basin_mask = xr.DataArray(
+        ocean_mask,
+        coords={"lat": sat_sst_data["lat"], "lon": sat_sst_data["lon"]},
+        dims=("lat", "lon")
+        )
     
     # Check spatial dimensions presence and alignment
     if not all(dim in model_sst_data.dims for dim in ('lat', 'lon')):
         raise ValueError("❌ model_sst_data must have 'lat' and 'lon' dimensions ❌")
     if not all(dim in sat_sst_data.dims for dim in ('lat', 'lon')):
         raise ValueError("❌ sat_sst_data must have 'lat' and 'lon' dimensions ❌")
-    if not all(dim in basin_mask.dims for dim in ('lat', 'lon')):
-        raise ValueError("❌ basin_mask must have 'lat' and 'lon' dimensions ❌")
+    if not isinstance(basin_mask, xr.DataArray) or basin_mask.shape != (len(sat_sst_data.lat), len(sat_sst_data.lon)):
+        raise ValueError("❌ basin_mask must match the shape of sat_sst_data (lat x lon) ❌")
     
     # Check spatial coordinates align
     if not (np.array_equal(model_sst_data['lat'], basin_mask['lat']) and
