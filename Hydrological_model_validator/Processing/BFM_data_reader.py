@@ -617,7 +617,7 @@ def read_bfm_chemical(
         # Store the extracted bottom layer data indexed by year
         results[year] = bottom_layers
         
-        print(f"\033[92m✅ Bottom layer data extracted for year {year_str}\033[0m")
+        print(f"\033[92m✅ Correct layer data extracted for year {year_str}\033[0m")
         print("-" * 45)
 
     # ===== READS ALL FILES =====
