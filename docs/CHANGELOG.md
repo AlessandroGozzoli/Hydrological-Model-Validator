@@ -1,3 +1,49 @@
+# **Version:** 4.8.6  
+**Date:** 09/06/2025  
+
+## Summary
+
+This minor patch finalizes the in-script documentation, introduces fixes to input validation logic, and updates related test scripts accordingly. These refinements ensure greater robustness and compatibility of the testing infrastructure.
+
+## Documentation Expansion
+
+The in-script documentation for `Plots.py` and `bfm_plot.py` has been completed, marking the conclusion of this phase. All currently implemented modules and functions now include:
+- Descriptive **docstrings**
+- Clear **inline comments**
+- Logical **code block headers**
+
+## Test Case Hotfixes
+
+Test case scripts, particularly those related to the `CHL` and `SST` data analyses, were failing due to stricter input validation introduced in earlier patches. These issues have now been addressed, and test executions pass as expected.
+
+## Input Validation & Logic Hotfixes
+
+The following corrections were made to resolve issues introduced by overly strict or incorrect validation logic:
+
+- **`compute_density_bottom`**
+  - Adjusted threshold for `Bmost` validity from `>=1` to `>=0` to support surface-level datasets.
+  - Corrected input validation: previously assumed input was a list during yearly iteration, now correctly handles input as a nested `Dict[Year][Month]`.
+
+- **`calc_density`**
+  - Removed incorrect check requiring the first dimension of `temperature/salinity` to match that of `depths`. This mismatch is expected in many real-world cases.
+
+- **`compute_dense_water_volume`**
+  - Removed boolean-only check on `mask3d`, as masks may also contain numeric information (e.g., depth).
+
+Associated tests were updated or removed accordingly, resulting in a negligible change to overall test coverage, now reaching **95.19%**.
+
+## Future Work
+
+- **New feature set** for climate data analysis, including potential test cases for the **Indian Monsoons**
+  > While climate-related functions are confirmed, the inclusion of new large-scale test case datasets (e.g., Indian Monsoons) depends on GitHub's file size limitations. Upload tests will be conducted soon for both current and upcoming datasets. Users are advised to ignore these commits if not relevant to their use.
+- **Documentation overhaul** including a repaired and updated `README.md`
+- **Public release of full test-case datasets** to ensure reproducibility
+- **Logging and timing utilities** to be added for performance profiling
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.5 
 **Date:** 08/06/2025  
 
@@ -8,7 +54,7 @@ This minor patch continues test coverage expansion with two new suites focused o
 ## Test Coverage
 
 Two new test suites have been added for the `Plots.py` and `bfm_plots.py` submodules, further enhancing overall test coverage.  
-With these additions, the project’s coverage has now reached **[95.23]**.
+With these additions, the project’s coverage has now reached **95.23%**.
   > Note: due to the structure of the plotting functions and the extensione of test data used, the new testing suits take a while to complete.
 
 ## Hotfixes & Enhancements
