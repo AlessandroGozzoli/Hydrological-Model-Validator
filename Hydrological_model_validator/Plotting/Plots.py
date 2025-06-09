@@ -91,16 +91,16 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
         - output_path (str or Path)       : Required. Path where the figure should be saved.
         - variable_name (str)             : Required. Variable code name (used to infer full name and unit).
         - variable (str)                  : Full variable name (e.g., "Chlorophyll"). Used in titles and axis.
-        - unit (str)                     : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
-        - BA (bool)                     : If True, appends " (Basin Average)" to the title.
+        - unit (str)                      : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
+        - BA (bool)                       : If True, appends " (Basin Average)" to the title.
         - figsize (tuple of float)        : Size of figure in inches (default typically (12, 8)).
-        - dpi (int)                     : Resolution of the figure (default 100).
+        - dpi (int)                       : Resolution of the figure (default 100).
         - color_palette (iterator)        : Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
-        - line_width (float)             : Width of plotted lines (default 2.0).
-        - title_fontsize (int)          : Font size of the main title.
-        - bias_title_fontsize (int)     : Font size of the BIAS subplot title.
-        - label_fontsize (int)          : Font size of axis labels.
-        - legend_fontsize (int)         : Font size of the legend.
+        - line_width (float)              : Width of plotted lines (default 2.0).
+        - title_fontsize (int)            : Font size of the main title.
+        - bias_title_fontsize (int)       : Font size of the BIAS subplot title.
+        - label_fontsize (int)            : Font size of axis labels.
+        - legend_fontsize (int)           : Font size of the legend.
         - savefig_kwargs (dict)           : Additional args for `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
         
     Example
@@ -735,7 +735,7 @@ def violinplot(data_dict, **kwargs):
     - dpi (int)                       : Resolution of the plot.
     - palette (list or dict)          : Colors for the violin plots.
     - cut (float)                     : Defines how far the violin extends past extreme datapoints.
-    - title_fontsize (int)           : Font size of the title.
+    - title_fontsize (int)            : Font size of the title.
     - title_fontweight (str or int)   : Font weight of the title (e.g., 'bold').
     - ylabel_fontsize (int)           : Font size of the y-axis label.
     - xlabel_fontsize (int)           : Font size of the x-axis label.
@@ -846,7 +846,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     - marker_edge_color (str)          : Color of marker edge.
     - marker_edge_width (float)        : Width of marker edge.
     - xtick_rotation (int)             : Degree of x-tick label rotation.
-    - tick_width (float)              : Width of axis ticks.
+    - tick_width (float)               : Width of axis ticks.
     - spine_width (float)              : Width of axis spines.
     - legend_loc (str)                 : Location of the legend.
     - grid_style (str)                 : Style of grid lines (e.g., "--", ":").
@@ -870,7 +870,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     # ----- FETCH DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_efficiency_plot_options, **kwargs})
 
-    # --- Required options check ---
+    # --- OPTIONS VALIDATION ---
     if options.output_path is None:
         raise ValueError("output_path must be specified.")
     if options.metric_name is None:
@@ -878,11 +878,11 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     if options.y_label is None:
         raise KeyError("y_label must be specified.")
 
-    # --- Prepare data ---
+    # --- PREPARE DATA ---
     months = list(calendar.month_name[1:13])
     df = pd.DataFrame({'Month': months, 'Value': monthly_values})
 
-    # --- Colormap ---
+    # --- CMAP ---
     cmap = plt.cm.RdYlGn
     norm = mcolors.Normalize(vmin=0, vmax=1)
 
@@ -894,7 +894,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
         for val in monthly_values
     ]
 
-    # --- Seaborn and figure setup ---
+    # --- SNS/FIGURE SETUP  ---
     sns.set(style="whitegrid")
     sns.set_style("ticks")
     plt.figure(figsize=options.figsize, dpi=options.dpi)
@@ -903,7 +903,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
                       color=options.line_color,
                       lw=options.line_width)
 
-    # --- Zero line ---
+    # --- XERO LINE PLOT ---
     if options.zero_line.get("show", False) and options.title in {
         "Nash-Sutcliffe Efficiency",
         "Nash-Sutcliffe Efficiency (Logarithmic)",
@@ -916,14 +916,14 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
                    color=options.zero_line["color"],
                    label=options.zero_line["label"])
 
-    # --- Overall line ---
+    # --- OVERALL LINE PLOT ---
     ax.axhline(total_value,
                linestyle=options.overall_line["style"],
                lw=options.overall_line["width"],
                color=options.overall_line["color"],
                label=options.overall_line["label"])
 
-    # --- Plot markers ---
+    # --- MARKERS ---
     for month, value, color in itertools.zip_longest(months, monthly_values, marker_colors):
         if value is not None:
             ax.plot(month, value, marker='o',
@@ -932,7 +932,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
                     markeredgecolor=options.marker_edge_color,
                     markeredgewidth=options.marker_edge_width)
 
-    # --- Formatting ---
+    # --- FORMATTING ---
     ax.set_title(options.title, fontsize=options.title_fontsize)
     ax.set_xlabel('')
     ax.set_ylabel(f'${options.y_label}$', fontsize=options.ylabel_fontsize)
@@ -946,6 +946,7 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
 
     plt.tight_layout()
 
+    # ----- PRINT AND SAVE -----
     output_path = Path(options.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -990,31 +991,31 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     - cmap (str or Colormap)           : Colormap to use (e.g., "coolwarm").
     - vmin, vmax (float)               : Min and max values for colorbar.
     - suffix (str)                     : Suffix for plot title and filename.
-    - suptitle_fontsize (int)         : Font size of the super title.
-    - suptitle_fontweight (str)       : Font weight of the super title.
-    - suptitle_y (float)              : Vertical position of the super title.
-    - title_fontsize (int)            : Font size of subplot titles.
-    - title_fontweight (str)          : Font weight of subplot titles.
-    - cbar_labelsize (int)            : Font size of colorbar tick labels.
-    - cbar_labelpad (int)             : Padding between colorbar and label.
-    - cbar_shrink (float)             : Shrink factor for horizontal colorbar.
-    - cbar_ticks (int)                : Number of colorbar ticks.
-    - figsize_per_plot (tuple)        : Size per subplot (width, height).
-    - max_cols (int)                  : Max number of columns in subplot grid.
-    - epsilon (float)                 : Padding fallback if not in geo_coords.
-    - lat_offset_base (float)         : Latitude offset for label placement.
-    - gridline_color (str)            : Color of gridlines.
-    - gridline_style (str)            : Line style of gridlines (e.g., "--").
-    - gridline_alpha (float)          : Gridline transparency.
-    - gridline_dms (bool)             : Format labels in DMS (deg:min:sec).
-    - gridline_labels_top (bool)      : Show labels on top axis.
-    - gridline_labels_right (bool)    : Show labels on right axis.
-    - projection (str)                : Cartopy projection class name.
-    - resolution (str)                : Resolution of coastlines (e.g., "10m").
-    - land_color (str)                : Color for landmasses.
-    - show (bool)                     : Display the plot interactively.
-    - block (bool)                    : Block execution on plt.show().
-    - dpi (int)                       : Resolution of the output figure.
+    - suptitle_fontsize (int)          : Font size of the super title.
+    - suptitle_fontweight (str)        : Font weight of the super title.
+    - suptitle_y (float)               : Vertical position of the super title.
+    - title_fontsize (int)             : Font size of subplot titles.
+    - title_fontweight (str)           : Font weight of subplot titles.
+    - cbar_labelsize (int)             : Font size of colorbar tick labels.
+    - cbar_labelpad (int)              : Padding between colorbar and label.
+    - cbar_shrink (float)              : Shrink factor for horizontal colorbar.
+    - cbar_ticks (int)                 : Number of colorbar ticks.
+    - figsize_per_plot (tuple)         : Size per subplot (width, height).
+    - max_cols (int)                   : Max number of columns in subplot grid.
+    - epsilon (float)                  : Padding fallback if not in geo_coords.
+    - lat_offset_base (float)          : Latitude offset for label placement.
+    - gridline_color (str)             : Color of gridlines.
+    - gridline_style (str)             : Line style of gridlines (e.g., "--").
+    - gridline_alpha (float)           : Gridline transparency.
+    - gridline_dms (bool)              : Format labels in DMS (deg:min:sec).
+    - gridline_labels_top (bool)       : Show labels on top axis.
+    - gridline_labels_right (bool)     : Show labels on right axis.
+    - projection (str)                 : Cartopy projection class name.
+    - resolution (str)                 : Resolution of coastlines (e.g., "10m").
+    - land_color (str)                 : Color for landmasses.
+    - show (bool)                      : Display the plot interactively.
+    - block (bool)                     : Block execution on plt.show().
+    - dpi (int)                        : Resolution of the output figure.
     
     Raises
     ------
@@ -1174,48 +1175,122 @@ def error_components_timeseries(
     variable_name='',
     **kwargs
 ):
-    # Extract options overriding defaults with user kwargs
+    """
+    Plot time series of error components and optional cloud cover.
+
+    This function generates a multi-panel plot showing:
+      - Mean Bias
+      - Unbiased RMSE
+      - Standard Deviation of Error
+      - Correlation
+      - (Optional) Cloud Cover with smoothed version
+
+    Parameters
+    ----------
+    stats_df : pd.DataFrame
+        DataFrame containing time series of statistical error components with columns:
+        ['mean_bias', 'unbiased_rmse', 'std_error', 'correlation'].
+
+    output_path : str or Path
+        Directory path where the resulting figure should be saved.
+
+    cloud_cover : pd.Series, optional
+        Time series of cloud cover data (percentage). If provided, an extra subplot will be shown.
+
+    variable_name : str, optional
+        Name of the variable (e.g., "SST", "Chlorophyll") for labeling purposes.
+
+    kwargs : dict
+        Keyword arguments to override default plotting options.
+
+    Accepted kwargs include:
+    -------------------------
+    Keyword arguments overriding default plotting options. Include:
+        - fig_width (float)                  : Width of the full figure (default varies).
+        - fig_height_per_plot (float)        : Height allocated per subplot row.
+        - sharex (bool)                      : If True, subplots share the same x-axis.
+        - title_fontsize (int)               : Font size of the figure title.
+        - title_fontweight (str)             : Font weight of the figure title.
+        - label_fontsize (int)               : Font size of y-axis labels.
+        - grid_color (str)                   : Color of grid lines.
+        - grid_linestyle (str)               : Linestyle for grid (e.g., '--').
+        - grid_alpha (float)                 : Alpha transparency of the grid lines.
+        - mean_bias_color (str)              : Line color for Mean Bias subplot.
+        - unbiased_rmse_color (str)          : Line color for Unbiased RMSE subplot.
+        - std_error_color (str)              : Line color for Std Error subplot.
+        - correlation_color (str)            : Line color for Correlation subplot.
+        - cloud_cover_color (str)            : Line color for raw Cloud Cover.
+        - cloud_cover_smoothed_color (str)   : Line color for smoothed Cloud Cover.
+        - cloud_cover_rolling_window (int)   : Rolling window size for smoothing cloud cover.
+        - spine_linewidth (float)            : Width of axes spines.
+        - spine_edgecolor (str)              : Color of axes spines.
+        - filename_template (str)            : Template for saved filename (e.g., '{}_errors.png').
+
+    Example
+    -------
+    >>> error_components_timeseries(
+    ...     stats_df=error_df,
+    ...     cloud_cover=cloud_series,
+    ...     output_path="figures/",
+    ...     variable_name="SST"
+    ... )
+
+    Notes
+    -----
+    - Plots are styled with Seaborn and Matplotlib.
+    - Default style and colors are controlled via `default_error_timeseries_options`.
+    """
+    # ----- OPTIONS -----
     options = extract_options(kwargs, default_error_timeseries_options)
-    
+
+    # ----- STYLE -----
     sns.set(style="whitegrid", context='notebook')
     sns.set_style("ticks")
-    
+
+    # ----- SETUP -----
     n_plots = 5 if cloud_cover is not None else 4
     fig, axes = plt.subplots(
         n_plots, 1,
         figsize=(options['fig_width'], options['fig_height_per_plot'] * n_plots),
         sharex=options['sharex']
     )
-    
+
+    # ----- TITLE -----
     title = "Comparison between error components timeseries"
     if cloud_cover is not None:
         title += " and cloud cover"
     if variable_name:
         title += f" ({variable_name})"
     fig.suptitle(title, fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
-    
+
+    # ----- GRID STYLE -----
     grid_style = {
         'color': options['grid_color'],
         'linestyle': options['grid_linestyle'],
         'alpha': options['grid_alpha']
     }
-    
+
+    # ----- MEAN BIAS -----
     stats_df['mean_bias'].plot(ax=axes[0], color=options['mean_bias_color'], legend=False)
     axes[0].set_ylabel('Mean Bias', fontsize=options['label_fontsize'])
     axes[0].grid(**grid_style)
-    
+
+    # ----- UNBIASED RMSE -----
     stats_df['unbiased_rmse'].plot(ax=axes[1], color=options['unbiased_rmse_color'], legend=False)
     axes[1].set_ylabel('Unbiased RMSE', fontsize=options['label_fontsize'])
     axes[1].grid(**grid_style)
-    
+
+    # ----- STD ERROR -----
     stats_df['std_error'].plot(ax=axes[2], color=options['std_error_color'], legend=False)
     axes[2].set_ylabel('Std Error', fontsize=options['label_fontsize'])
     axes[2].grid(**grid_style)
-    
+
+    # ----- CORRELATION -----
     stats_df['correlation'].plot(ax=axes[3], color=options['correlation_color'], legend=False)
     axes[3].set_ylabel('Correlation', fontsize=options['label_fontsize'])
     axes[3].grid(**grid_style)
-    
+
+    # ----- CLOUD COVER -----
     if cloud_cover is not None:
         cloud_cover_30d = cloud_cover.rolling(window=options['cloud_cover_rolling_window'], center=True).mean()
         axes[4].plot(cloud_cover.index, cloud_cover, color=options['cloud_cover_color'], label='Cloud Cover')
@@ -1224,25 +1299,27 @@ def error_components_timeseries(
         axes[4].grid(**grid_style)
         axes[4].legend()
     else:
-        axes[3].set_xlabel('')  # No x-axis label
+        axes[3].set_xlabel('')
         axes[3].grid(**grid_style)
-    
+
+    # ----- STYLE AXES -----
     for ax in axes:
         ax.label_outer()
         style_axes_spines(
             ax,
             linewidth=options['spine_linewidth'],
             edgecolor=options['spine_edgecolor']
-            )   
-    
+        )
+
+    # ----- LAYOUT -----
     plt.tight_layout(rect=[0, 0, 1, 0.96])
-    
-    # Save plot
+
+    # ----- SAVE FIGURE -----
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
     filename = options['filename_template'].format(variable_name=variable_name)
     plt.savefig(output_path / filename)
-    
+
     plt.show(block=False)
     plt.draw()
     plt.pause(3)
@@ -1263,18 +1340,85 @@ def plot_spectral(
     nperseg=256,
     **kwargs
 ):
+    """
+    Plot spectral analysis of time series data using either PSD or CSD.
+
+    Parameters
+    ----------
+    data : pd.Series or dict, optional
+        Optional time series input (not used directly in current implementation).
+
+    plot_type : str
+        Type of spectral plot to generate: 'PSD' (Power Spectral Density) or 'CSD' (Cross Spectral Density).
+
+    freqs : array-like, optional
+        Frequency values used for PSD plotting.
+
+    fft_components : dict of arrays, optional
+        Dictionary mapping labels to FFT-transformed series for PSD plotting.
+
+    error_comp : pd.DataFrame or dict, optional
+        Error component data used in CSD plotting.
+
+    cloud_covers : list of (Series, str), optional
+        List of tuples containing cloud cover time series and their labels (used in CSD).
+
+    output_path : str or Path
+        Path to save the resulting spectral plot.
+
+    variable_name : str
+        Short code name of the variable for use in the output filename.
+
+    fs : float
+        Sampling frequency (default is 1.0).
+
+    nperseg : int
+        Segment length for computing CSD (default is 256).
+
+    kwargs : dict
+        Additional keyword arguments for customization.
+
+    Accepted kwargs include:
+    -------------------------
+    Keyword arguments overriding default plotting options. Include:
+        - figsize (tuple)                    : Figure size (e.g., (12, 6)).
+        - xlabel_fontsize (int)              : Font size of x-axis label.
+        - ylabel_fontsize (int)              : Font size of y-axis label.
+        - title_fontsize (int)               : Font size of plot title.
+        - title_fontweight (str)             : Font weight of plot title (e.g., 'bold').
+        - tick_labelsize (int)               : Font size of tick labels.
+        - grid_color (str)                   : Grid color.
+        - grid_alpha (float)                 : Grid line transparency.
+        - grid_linestyle (str)               : Grid line style (e.g., '--').
+        - freq_xlim (tuple)                  : Limits for frequency axis (e.g., (0.0, 0.5)).
+        - additional_linestyles (list)       : Linestyles for multiple cloud cover series (e.g., ['--', '-.', ':']).
+        - spine_linewidth (float)            : Width of plot spines.
+        - spine_edgecolor (str)              : Color of plot spines.
+
+    Raises
+    ------
+    ValueError
+        If required inputs are missing or an unknown plot type is provided.
+
+    """
+    # ----- OPTIONS -----
     options = extract_options(kwargs, default_spectral)
 
+    # ----- STYLE -----
     sns.set(style="whitegrid", context="notebook")
     sns.set_style("ticks")
 
+    # ----- FIGURE -----
     plt.figure(figsize=options['figsize'])
 
+    # ----- PSD -----
     if plot_type == 'PSD':
         if freqs is None or fft_components is None:
             raise ValueError("freqs and fft_components must be provided for PSD plot")
+
         for col, fft_vals in fft_components.items():
             plt.plot(freqs, np.abs(fft_vals), label=col)
+
         plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
         plt.ylabel('Aplitude', fontsize=options['ylabel_fontsize'])
         plt.title('Power Spectral Density (PSD)', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
@@ -1283,6 +1427,7 @@ def plot_spectral(
         plt.xlim(*options['freq_xlim'])
         plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
 
+    # ----- CSD -----
     elif plot_type == 'CSD':
         if error_comp is None:
             raise ValueError("error_comp must be provided for CSD plot")
@@ -1310,23 +1455,26 @@ def plot_spectral(
         plt.xlim(*options['freq_xlim'])
         plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
 
+    # ----- UNKNOWN TYPE -----
     else:
         raise ValueError(f"Unknown plot_type: {plot_type}")
 
+    # ----- SPINES -----
     ax = plt.gca()
     ax.spines['top'].set_visible(True)
     ax.spines['right'].set_visible(True)
     ax.spines['bottom'].set_visible(True)
     ax.spines['left'].set_visible(True)
 
-    # Use style_axes_spines with options
+    # ----- STYLE SPINES -----
     style_axes_spines(ax, linewidth=options['spine_linewidth'], edgecolor=options['spine_edgecolor'])
 
+    # ----- SAVE FIGURE -----
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
     filename = f"Spectral_Plot_{plot_type}_{variable_name}"
     plt.savefig(output_path / filename)
-    
+
     plt.show(block=False)
     plt.draw()
     plt.pause(3)
