@@ -421,6 +421,7 @@ for metric_key, title in plot_titles.items():
     efficiency_plot(total_value, monthly_values, 
                     title=f'{title}', 
                     y_label=f'{metric_key}', 
+                    metric_name=metric_key,
                     output_path=output_path)
     
     # Remove any parentheses and their contents for the print message
@@ -1092,12 +1093,13 @@ _, fft_cloud = compute_fft(cloud_cover_detrended.values)
 _, fft_cloud_30d = compute_fft(cloud_cover_30d_detrended.values)
 
 # PSD plot
-plot_spectral(plot_type='PSD', freqs=freqs, fft_components=fft_components)
+plot_spectral(plot_type='PSD', freqs=freqs, fft_components=fft_components, output_path=output_path)
 
 # CSD vs cloud_cover
 plot_spectral(
     plot_type='CSD',
     error_comp=error_comp_clean,
+    output_path=output_path,
     cloud_covers=[
         (cloud_cover_clean, 'cloud_cover'),
         (cloud_cover_30d_clean, 'cloud_cover_30d')
