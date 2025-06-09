@@ -125,11 +125,11 @@ def test_r_squared_non_numpy_input():
     
 def test_r_squared_input_validation():
     # Test invalid input types
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         r_squared("not an array", [1, 2, 3])
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         r_squared([1, 2, 3], 123)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         r_squared(None, [1, 2, 3])
 
 def test_r_squared_shape_input():
@@ -1314,7 +1314,7 @@ def test_basic_functionality():
     model = create_dummy_xr(fill_value=2.0)
     sat = create_dummy_xr(fill_value=1.0)
     mask = create_dummy_xr(fill_value=True, time_len=1)  # mask same shape but with bool True
-    mask = mask.astype(bool)
+    mask = create_dummy_xr(fill_value=True).isel(time=0).astype(bool)
 
     df = compute_error_timeseries(model, sat, mask)
     assert isinstance(df, pd.DataFrame)
@@ -1328,7 +1328,7 @@ def test_basic_functionality():
 def test_all_zeros():
     model = create_dummy_xr(fill_value=0.0)
     sat = create_dummy_xr(fill_value=0.0)
-    mask = create_dummy_xr(fill_value=True).astype(bool)
+    mask = create_dummy_xr(fill_value=True).isel(time=0).astype(bool)
     df = compute_error_timeseries(model, sat, mask)
     # mean_bias should be zero because there is no difference between model and satellite data
     assert all(abs(df['mean_bias']) < 1e-10)
@@ -1338,7 +1338,7 @@ def test_all_zeros():
 def test_no_masked_points():
     model = create_dummy_xr(fill_value=1.0)
     sat = create_dummy_xr(fill_value=1.0)
-    mask = create_dummy_xr(fill_value=False).astype(bool)  # mask everything out
+    mask = create_dummy_xr(fill_value=False).isel(time=0).astype(bool)  # mask everything out
     df = compute_error_timeseries(model, sat, mask)
     # All output values should be NaN since no valid data points exist for calculation
     assert df.isna().all().all()
@@ -1348,7 +1348,7 @@ def test_no_masked_points():
 def test_perfect_match():
     model = create_dummy_xr(fill_value=3.5)
     sat = create_dummy_xr(fill_value=3.5)
-    mask = create_dummy_xr(fill_value=True).astype(bool)
+    mask = create_dummy_xr(fill_value=True).isel(time=0).astype(bool)
     df = compute_error_timeseries(model, sat, mask)
     # Perfect agreement implies no systematic bias
     assert all(abs(df['mean_bias']) < 1e-10)
@@ -1360,10 +1360,10 @@ def test_perfect_match():
 def test_partial_mask():
     model = create_dummy_xr(fill_value=2.0)
     sat = create_dummy_xr(fill_value=1.0)
-    mask = create_dummy_xr(fill_value=True).astype(bool)
+    mask = create_dummy_xr(fill_value=True).isel(time=0).astype(bool)
     # Intentionally exclude a few points to test if function can handle partial data
-    mask.values[0, 0, 0] = False
-    mask.values[0, 1, 1] = False
+    mask.values[0, 0] = False
+    mask.values[1, 1] = False
     df = compute_error_timeseries(model, sat, mask)
     # Should still produce valid statistics since some data remain unmasked
     assert not df.isna().all().all()
@@ -1374,7 +1374,7 @@ def test_partial_mask():
 def test_different_time_lengths(time_len):
     model = create_dummy_xr(time_len=time_len, fill_value=2.0)
     sat = create_dummy_xr(time_len=time_len, fill_value=1.0)
-    mask = create_dummy_xr(time_len=time_len, fill_value=True).astype(bool)
+    mask = create_dummy_xr(time_len=1, fill_value=True).isel(time=0).astype(bool)
     df = compute_error_timeseries(model, sat, mask)
     # Ensure function scales with input time dimension length, producing output with correct shape
     assert df.shape[0] == time_len

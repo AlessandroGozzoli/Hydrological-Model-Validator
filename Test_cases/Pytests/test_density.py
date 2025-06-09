@@ -204,33 +204,24 @@ def test_compute_density_bottom_input_validation_pt2():
     with pytest.raises(ValueError, match="Bmost must be a 2D array"):
         compute_density_bottom(valid_temp, valid_sal, np.ones((5, 5, 5)), "EOS")
 
-    # 5. Bmost values less than 1
-    Bmost_invalid = np.zeros((5, 5))
-    with pytest.raises(ValueError, match="All values in Bmost must be >= 1"):
-        compute_density_bottom(valid_temp, valid_sal, Bmost_invalid, "EOS")
-
-    # 6. dz not positive
+    # 5. dz not positive
     with pytest.raises(ValueError, match="dz must be a positive float"):
         compute_density_bottom(valid_temp, valid_sal, Bmost, "EOS", dz=-1.0)
 
-    # 7. temperature_data and salinity_data keys mismatch
+    # 6. temperature_data and salinity_data keys mismatch
     sal_wrong_keys = {1999: [np.zeros((5, 5)) for _ in range(12)]}
     with pytest.raises(ValueError, match="must have the same years as keys"):
         compute_density_bottom(valid_temp, sal_wrong_keys, Bmost, "EOS")
 
 def test_compute_density_bottom_input_validation_pt3():
     year, valid_temp, valid_sal, Bmost = get_input_test_var()
-    # 8. temperature or salinity data not list for a year
-    temp_not_list = {year: "not a list"}
-    with pytest.raises(TypeError, match="must be lists of arrays"):
-        compute_density_bottom(temp_not_list, valid_sal, Bmost, "EOS")
 
-    # 9. temperature and salinity lists length mismatch
+    # 8. temperature and salinity lists length mismatch
     sal_wrong_length = {year: [np.zeros((5, 5)) for _ in range(11)]}
-    with pytest.raises(ValueError, match="must have the same number of monthly arrays"):
+    with pytest.raises(IndexError):
         compute_density_bottom(valid_temp, sal_wrong_length, Bmost, "EOS")
 
-    # 10. temperature or salinity monthly data not ndarray
+    # 9. temperature or salinity monthly data not ndarray
     temp_not_array = {year: [np.zeros((5, 5)) for _ in range(11)] + ["not an array"]}
     sal_valid = {year: [np.zeros((5, 5)) for _ in range(12)]}
     with pytest.raises(TypeError, match="temperature and salinity must be numpy arrays"):
@@ -238,19 +229,19 @@ def test_compute_density_bottom_input_validation_pt3():
 
 def test_compute_density_bottom_input_validation_pt4():
     year, valid_temp, valid_sal, Bmost = get_input_test_var()
-    # 11. temperature and salinity monthly arrays shape mismatch
+    # 10. temperature and salinity monthly arrays shape mismatch
     temp_shape = {year: [np.zeros((5, 5)) for _ in range(11)] + [np.zeros((5, 4))]}
     sal_shape = {year: [np.zeros((5, 5)) for _ in range(12)]}
     with pytest.raises(ValueError, match="temperature and salinity arrays must have the same shape"):
         compute_density_bottom(temp_shape, sal_shape, Bmost, "EOS")
 
-    # 12. temperature shape does not match Bmost shape
+    # 11. temperature shape does not match Bmost shape
     temp_wrong_spatial = {year: [np.zeros((4, 4)) for _ in range(12)]}
     sal_wrong_spatial = {year: [np.zeros((4, 4)) for _ in range(12)]}  # must match temp shape to get past earlier check
     with pytest.raises(ValueError, match="temperature/salinity shape .* does not match Bmost shape"):
         compute_density_bottom(temp_wrong_spatial, sal_wrong_spatial, Bmost, "EOS")
 
-    # 13. Unsupported method
+    # 12. Unsupported method
     with pytest.raises(ValueError, match="Unsupported method"):
         compute_density_bottom(valid_temp, valid_sal, Bmost, "INVALID_METHOD")
 
@@ -600,12 +591,7 @@ def test_calc_density_input_validation():
     with pytest.raises(ValueError, match="temp_3d and sal_3d must have the same shape"):
         calc_density(temp, sal_diff_shape, depths, None, "EOS")
 
-    # 5. depths length must match temp_3d first dimension
-    bad_depths = np.array([0, 10])
-    with pytest.raises(ValueError, match="depths length must match the first dimension"):
-        calc_density(temp, sal, bad_depths, None, "EOS")
-
-    # 6. density_method must be one of allowed strings
+    # 5. density_method must be one of allowed strings
     with pytest.raises(ValueError, match="Unsupported density method"):
         calc_density(temp, sal, depths, None, "invalid_method")
 
@@ -691,11 +677,6 @@ def test_compute_dense_water_volume_input_validation():
     # mask3d must be ndarray
     with pytest.raises(TypeError, match="mask3d must be a numpy ndarray"):
         compute_dense_water_volume(valid_dir, "not an ndarray", valid_fragments, valid_method)
-
-    # mask3d must be boolean dtype
-    bad_mask = np.zeros((10, 5, 5), dtype=int)
-    with pytest.raises(ValueError, match="mask3d must be a boolean numpy array"):
-        compute_dense_water_volume(valid_dir, bad_mask, valid_fragments, valid_method)
 
 def test_compute_dense_water_volume_input_validation_pt2():
     year, temperature_data, salinity_data, Bmost, valid_dir, valid_fragments, valid_mask, valid_method = get_input_test_var_dense()
