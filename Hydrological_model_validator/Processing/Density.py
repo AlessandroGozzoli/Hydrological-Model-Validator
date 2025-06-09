@@ -65,8 +65,8 @@ def compute_density_bottom(temperature_data: dict,
         raise TypeError("❌ Bmost must be a numpy.ndarray. ❌")
     if Bmost.ndim != 2:
         raise ValueError("❌ Bmost must be a 2D array. ❌")
-    if not np.all(Bmost >= 1):
-        raise ValueError("❌ All values in Bmost must be >= 1 (1-based indices). ❌")
+    if np.any(Bmost < 0): # the 0 value is kept due to the 3D renders
+        raise ValueError("❌ Bmost indices must be greater or equal to 0 ❌")
 
     if not isinstance(dz, (int, float)) or dz <= 0:
         raise ValueError("❌ dz must be a positive float. ❌")
@@ -77,12 +77,6 @@ def compute_density_bottom(temperature_data: dict,
     for year in temperature_data:
         temp_list = temperature_data[year]
         sal_list = salinity_data[year]
-
-        if not isinstance(temp_list, list) or not isinstance(sal_list, list):
-            raise TypeError(f"❌ For year {year}, temperature and salinity data must be lists of arrays. ❌")
-
-        if len(temp_list) != len(sal_list):
-            raise ValueError(f"❌ For year {year}, temperature and salinity lists must have the same number of monthly arrays. ❌")
 
         for month_idx in range(len(temp_list)):
             temp_arr = temp_list[month_idx]
@@ -382,8 +376,6 @@ def calc_density(
         raise TypeError("❌ depths must be a numpy.ndarray. ❌")
     if temp_3d.shape != sal_3d.shape:
         raise ValueError(f"❌ temp_3d and sal_3d must have the same shape. Got {temp_3d.shape} and {sal_3d.shape}. ❌")
-    if temp_3d.shape[0] != depths.shape[0]:
-        raise ValueError(f"❌ depths length must match the first dimension of temp_3d and sal_3d. Got {depths.shape[0]} and {temp_3d.shape[0]}. ❌")
     if density_method not in {"EOS", "EOS80", "TEOS10"}:
         raise ValueError("❌ Unsupported density method: {}. Choose from: 'EOS', 'EOS80', 'TEOS10'. ❌".format(density_method))
 
@@ -493,8 +485,6 @@ def compute_dense_water_volume(
         raise TypeError("❌ IDIR must be a string or Path object ❌")
     if not isinstance(mask3d, np.ndarray):
         raise TypeError("❌ mask3d must be a numpy ndarray ❌")
-    if mask3d.dtype != bool:
-        raise ValueError("❌ mask3d must be a boolean numpy array ❌")
     if mask3d.ndim != 3:
         raise ValueError("❌ mask3d must be a 3D numpy array ❌")
     if not isinstance(filename_fragments, dict):
