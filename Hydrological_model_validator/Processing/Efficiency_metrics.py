@@ -3,6 +3,11 @@ import xarray as xr
 import pandas as pd
 from typing import Literal, Tuple, Dict, Union, List, Sequence
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 from .stats_math_utils import (mean_bias, 
                                standard_deviation_error, 
                                std_dev,
@@ -64,16 +69,29 @@ def r_squared(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, S
     if obs.ndim != 1:
         raise ValueError("❌ Inputs must be one-dimensional arrays.")
 
-    # Create a mask to ignore any NaN values in either array
-    mask = ~np.isnan(obs) & ~np.isnan(pred)
+    # ===== COMPUTATIONS AND LOGGING =====
+    with Timer("r_squared function"):
+        with start_action(action_type="r_squared") as action:
+            log_message("Entered r_squared", obs_shape=np.shape(obs), pred_shape=np.shape(pred))
+            logging.info("[Start] r_squared calculation")
 
-    if np.sum(mask) < 2:
-        return np.nan
+            # Create a mask to ignore any NaN values in either array
+            mask = ~np.isnan(obs) & ~np.isnan(pred)
 
-    # ===== COMPUTATIONS =====
-    corr = np.corrcoef(obs[mask], pred[mask])[0, 1]
+            if np.sum(mask) < 2:
+                logging.info("[Info] Not enough valid data points, returning np.nan")
+                log_message("Insufficient valid data for r_squared", valid_points=int(np.sum(mask)))
+                return np.nan
 
-    return corr ** 2
+            # ===== COMPUTATIONS =====
+            corr = np.corrcoef(obs[mask], pred[mask])[0, 1]
+
+            r2 = corr ** 2
+
+            log_message("Computed r_squared", r_squared=r2)
+            logging.info(f"[Done] r_squared computed: {r2}")
+
+            return r2
 ###############################################################################
 
 ###############################################################################
@@ -149,39 +167,50 @@ def monthly_r_squared(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, List
     first_year = years[0]
     n_months = len(mod_monthly[first_year])
 
-    r2_monthly = []  # Initialize list to store R² for each month
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_r_squared function"):
+        with start_action(action_type="monthly_r_squared") as action:
+            log_message("Entered monthly_r_squared", years=years, n_months=n_months)
+            logging.info("[Start] monthly_r_squared computation")
 
-    # ===== LOOPING THE COMPUTATIONS =====
-    for month in range(n_months):
-        # Extract monthly data arrays from all years and flatten to 1D for comparison
-        mod_arrays = []
-        sat_arrays = []
+            r2_monthly = []  # Initialize list to store R² for each month
 
-        for year in years:
-            mod_list = mod_monthly[year]
-            sat_list = sat_monthly[year]
+            # ===== LOOPING THE COMPUTATIONS =====
+            for month in range(n_months):
+                # Extract monthly data arrays from all years and flatten to 1D for comparison
+                mod_arrays = []
+                sat_arrays = []
 
-            mod_arrays.append(np.asarray(mod_list[month]).ravel())
-            sat_arrays.append(np.asarray(sat_list[month]).ravel())
+                for year in years:
+                    mod_list = mod_monthly[year]
+                    sat_list = sat_monthly[year]
 
-        # Concatenate monthly arrays from all years into single long arrays
-        mod_concat = np.concatenate(mod_arrays)
-        sat_concat = np.concatenate(sat_arrays)
+                    mod_arrays.append(np.asarray(mod_list[month]).ravel())
+                    sat_arrays.append(np.asarray(sat_list[month]).ravel())
 
-        # Create mask to ignore NaNs in either dataset
-        valid_mask = ~np.isnan(mod_concat) & ~np.isnan(sat_concat)
+                # Concatenate monthly arrays from all years into single long arrays
+                mod_concat = np.concatenate(mod_arrays)
+                sat_concat = np.concatenate(sat_arrays)
 
-        if np.any(valid_mask):
-            # Compute R² using valid data points
-            r2 = r_squared(mod_concat[valid_mask], sat_concat[valid_mask])
-        else:
-            # If no valid data, assign NaN to indicate missing correlation
-            r2 = np.nan
+                # Create mask to ignore NaNs in either dataset
+                valid_mask = ~np.isnan(mod_concat) & ~np.isnan(sat_concat)
 
-        print(f"Month {month+1}: R² = {r2}")
-        r2_monthly.append(r2)  # Append monthly R² to list
+                if np.any(valid_mask):
+                    # Compute R² using valid data points
+                    r2 = r_squared(mod_concat[valid_mask], sat_concat[valid_mask])
+                else:
+                    # If no valid data, assign NaN to indicate missing correlation
+                    r2 = np.nan
 
-    return r2_monthly
+                log_message("Computed monthly r_squared", month=month + 1, r_squared=r2)
+                logging.info(f"Month {month + 1}: R² = {r2}")
+
+                r2_monthly.append(r2)  # Append monthly R² to list
+
+            logging.info("[Done] monthly_r_squared computation completed")
+            log_message("Completed monthly_r_squared", total_months=len(r2_monthly))
+
+            return r2_monthly
 ###############################################################################
 
 ###############################################################################
@@ -226,7 +255,7 @@ def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, lis
     # ===== INPUT VALIDATION =====
     if obs is None or pred is None:
         raise ValueError("❌ Input arrays 'obs' and 'pred' must not be None. ❌")
-        
+
     obs = np.asarray(obs)
     pred = np.asarray(pred)
 
@@ -235,34 +264,51 @@ def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, lis
 
     # Create mask to ignore NaNs in either obs or pred
     mask = ~np.isnan(obs) & ~np.isnan(pred)
-    
+
     # Return NaN if fewer than 2 valid data points (insufficient for regression)
     if np.sum(mask) < 2:
         return np.nan
-    
+
     x = obs[mask]
     y = pred[mask]
 
-    # ===== COMPUTATIONS =====
-    # Compute standard R² between observed and predicted for valid data
-    r2 = r_squared(x, y)
-    
-    # Fit a linear regression line: pred = slope * obs + intercept
-    slope, intercept = np.polyfit(x, y, 1)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("weighted_r_squared function"):
+        with start_action(action_type="weighted_r_squared") as action:
+            log_message("Entered weighted_r_squared", valid_points=len(x))
+            logging.info("[Start] weighted_r_squared computation")
 
-    # Calculate weight based on how close slope is to 1:
-    # If slope > 1, invert it to keep weight <= 1,
-    # otherwise use slope directly (absolute value)
-    slope_abs = abs(slope)
-    weight = slope_abs if slope_abs <= 1 else 1 / slope_abs
-    # Set minimum weight to 0.1 to avoid zero or near-zero weights
-    weight = max(weight, 0.1)
+            # Compute standard R² between observed and predicted for valid data
+            r2 = r_squared(x, y)
 
-    # Weighted R² is standard R² scaled by this weight,
-    # penalizing strong slope deviations from 1
-    weighted_r2 = weight * r2
+            # Fit a linear regression line: pred = slope * obs + intercept
+            slope, intercept = np.polyfit(x, y, 1)
 
-    return weighted_r2
+            # Calculate weight based on how close slope is to 1:
+            # If slope > 1, invert it to keep weight <= 1,
+            # otherwise use slope directly (absolute value)
+            slope_abs = abs(slope)
+            weight = slope_abs if slope_abs <= 1 else 1 / slope_abs
+            # Set minimum weight to 0.1 to avoid zero or near-zero weights
+            weight = max(weight, 0.1)
+
+            weighted_r2 = weight * r2
+
+            log_message(
+                "Computed weighted_r_squared",
+                slope=slope,
+                weight=weight,
+                r_squared=r2,
+                weighted_r_squared=weighted_r2,
+            )
+            logging.info(
+                f"Weighted R²: {weighted_r2:.4f} (Slope: {slope:.4f}, Weight: {weight:.4f})"
+            )
+
+            logging.info("[Done] weighted_r_squared computation completed")
+            log_message("Completed weighted_r_squared")
+
+            return weighted_r2
 ###############################################################################
 
 ###############################################################################    
@@ -342,24 +388,36 @@ def monthly_weighted_r_squared(dictionary: Dict[str, Dict[int, List[Union[np.nda
 
     wr2_monthly = []
 
-    # ===== LOOPING THE COMPUTATIONS =====
-    for month in range(n_months):
-        try:
-            mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-            sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
-        except IndexError:
-            raise ValueError(f"❌ Month index {month} is out of bounds in one of the datasets. ❌")
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_weighted_r_squared function"):
+        with start_action(action_type="monthly_weighted_r_squared") as action:
+            log_message("Entered monthly_weighted_r_squared", years=years, n_months=n_months)
+            logging.info("[Start] monthly_weighted_r_squared computation")
 
-        valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
+            # ===== LOOPING THE COMPUTATIONS =====
+            for month in range(n_months):
+                try:
+                    mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                    sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+                except IndexError:
+                    raise ValueError(f"❌ Month index {month} is out of bounds in one of the datasets. ❌")
 
-        if np.any(valid_mask):
-            wr2 = weighted_r_squared(sat_all[valid_mask], mod_all[valid_mask])
-        else:
-            wr2 = np.nan
+                valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
 
-        wr2_monthly.append(wr2)
+                if np.any(valid_mask):
+                    wr2 = weighted_r_squared(sat_all[valid_mask], mod_all[valid_mask])
+                else:
+                    wr2 = np.nan
 
-    return wr2_monthly
+                wr2_monthly.append(wr2)
+
+                log_message("Computed monthly weighted_r_squared", month=month + 1, weighted_r_squared=wr2)
+                logging.info(f"Month {month + 1}: Weighted R² = {wr2}")
+
+            logging.info("[Done] monthly_weighted_r_squared computation completed")
+            log_message("Completed monthly_weighted_r_squared", total_months=len(wr2_monthly))
+
+            return wr2_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -406,37 +464,44 @@ def nse(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequenc
     # ==== INPUT VALIDATION =====
     if obs.shape != pred.shape:
         raise ValueError("❌ Input arrays must have the same shape. ❌")
-    
+
     # Create a boolean mask to filter out any pairs where obs or pred is NaN,
     # since these invalid pairs would distort the NSE calculation
     mask = ~np.isnan(obs) & ~np.isnan(pred)
-    
+
     # Require at least two valid pairs to compute a meaningful NSE;
     # otherwise return NaN since statistic can't be computed reliably
     if np.sum(mask) < 2:
         return np.nan
-    
-    # Apply mask to get valid observed and predicted data points only
+
     obs_masked = obs[mask]
     pred_masked = pred[mask]
-    
-    # ===== COMPUTATIONS =====
-    # Calculate the sum of squared residuals (difference between observed and predicted),
-    # representing the "noise" or error variance of the model predictions
-    numerator = np.sum((obs_masked - pred_masked) ** 2)
-    
-    # Calculate the variance of the observed data relative to its mean,
-    # representing the "signal" or natural variance in observations
-    denominator = np.sum((obs_masked - np.mean(obs_masked)) ** 2)
-    
-    # If observed variance is zero, NSE is undefined (avoid division by zero)
-    if denominator == 0:
-        return np.nan
-    
-    # NSE is 1 minus the ratio of residual variance to observed variance;
-    # values close to 1 indicate high predictive skill,
-    # values near or below 0 indicate poor skill
-    return 1 - numerator / denominator
+
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("nse function"):
+        with start_action(action_type="nse") as action:
+            log_message("Entered nse function", valid_data_points=len(obs_masked))
+            logging.info("[Start] NSE computation")
+
+            # Calculate the sum of squared residuals (difference between observed and predicted),
+            # representing the "noise" or error variance of the model predictions
+            numerator = np.sum((obs_masked - pred_masked) ** 2)
+
+            # Calculate the variance of the observed data relative to its mean,
+            # representing the "signal" or natural variance in observations
+            denominator = np.sum((obs_masked - np.mean(obs_masked)) ** 2)
+
+            if denominator == 0:
+                logging.warning("Observed variance is zero; NSE is undefined (NaN returned).")
+                log_message("NSE undefined due to zero variance in observations")
+                return np.nan
+
+            nse_value = 1 - numerator / denominator
+
+            log_message("Computed NSE", nse=nse_value)
+            logging.info(f"[Done] NSE computation: {nse_value}")
+
+            return nse_value
 ###############################################################################
 
 ############################################################################### 
@@ -504,30 +569,45 @@ def monthly_nse(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[floa
 
     # List all years present in the data (assumed same for model and satellite)
     years = list(mod_monthly.keys())
+
+    if not years:
+        raise ValueError("❌ No year data found in the model dataset. ❌")
+
     nse_monthly = []
 
-    # ===== LOOPING =====
-    for month in range(len(mod_monthly[years[0]])):
-        # Concatenate monthly data from all years into one flat array for model
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        # Concatenate monthly data from all years into one flat array for satellite
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_nse function"):
+        with start_action(action_type="monthly_nse") as action:
+            log_message("Entered monthly_nse", years=years, n_months=len(mod_monthly[years[0]]))
+            logging.info("[Start] monthly_nse computation")
 
-        # Create a mask that selects only pairs where both model and satellite data are valid (not NaN)
-        valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
+            for month in range(len(mod_monthly[years[0]])):
+                try:
+                    # Concatenate monthly data from all years into one flat array for model
+                    mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                    sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+                except IndexError:
+                    raise ValueError(f"❌ Month index {month} is out of bounds in one of the datasets. ❌")
 
-        # If any valid pairs exist, compute NSE for that month; else assign NaN
-        if np.any(valid_mask):
-            # Note the order: satellite = observed, model = predicted for NSE calculation
-            nse_val = nse(sat_all[valid_mask], mod_all[valid_mask])
-        else:
-            nse_val = np.nan
+                # Create a mask that selects only pairs where both model and satellite data are valid (not NaN)
+                valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
 
-        # Store the monthly NSE result
-        nse_monthly.append(nse_val)
+                # If any valid pairs exist, compute NSE for that month; else assign NaN
+                if np.any(valid_mask):
+                    nse_val = nse(sat_all[valid_mask], mod_all[valid_mask])
+                else:
+                    nse_val = np.nan
 
-    # Return the list of NSE values for all months
-    return nse_monthly
+                # Store the monthly NSE result
+                nse_monthly.append(nse_val)
+
+                log_message("Computed monthly NSE", month=month + 1, nse=nse_val)
+                logging.info(f"Month {month + 1}: NSE = {nse_val}")
+
+            logging.info("[Done] monthly_nse computation completed")
+            log_message("Completed monthly_nse", total_months=len(nse_monthly))
+
+            return nse_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -568,10 +648,13 @@ def index_of_agreement(obs: Union[np.ndarray, Sequence[float]],
     # ===== INPUT VALIDATION =====
     if not (hasattr(obs, "__iter__") and hasattr(pred, "__iter__")):
         raise TypeError("❌ Inputs obs and pred must be array-like sequences. ❌")
-    
+
     obs = np.asarray(obs)
     pred = np.asarray(pred)
-    
+
+    if obs.shape != pred.shape:
+        raise ValueError(f"❌ Input arrays must have the same shape, got {obs.shape} and {pred.shape}. ❌")
+
     # Create mask to ignore pairs where either value is NaN
     mask = ~np.isnan(obs) & ~np.isnan(pred)
 
@@ -583,20 +666,32 @@ def index_of_agreement(obs: Union[np.ndarray, Sequence[float]],
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
-    # ===== COMPUTATIONS =====
-    # Numerator: sum of squared differences between observed and predicted values (prediction error)
-    numerator = np.sum((obs_masked - pred_masked) ** 2)
-    
-    # Denominator: sum of squared sums of absolute deviations from the observed mean
-    # This measures the total potential error, considering both over- and under-predictions
-    denominator = np.sum((np.abs(pred_masked - np.mean(obs_masked)) + np.abs(obs_masked - np.mean(obs_masked))) ** 2)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("index_of_agreement function"):
+        with start_action(action_type="index_of_agreement") as action:
+            log_message("Entered index_of_agreement function", valid_data_points=len(obs_masked))
+            logging.info("[Start] Index of Agreement computation")
 
-    # If denominator is zero (no variation in observations), index is undefined
-    if denominator == 0:
-        return np.nan
-    
-    # Calculate Index of Agreement as 1 minus the ratio of error to potential error
-    return 1 - numerator / denominator
+            # Numerator: sum of squared differences between observed and predicted values (prediction error)
+            numerator = np.sum((obs_masked - pred_masked) ** 2)
+
+            # Denominator: sum of squared sums of absolute deviations from the observed mean
+            # This measures the total potential error, considering both over- and under-predictions
+            denominator = np.sum((np.abs(pred_masked - np.mean(obs_masked)) + np.abs(obs_masked - np.mean(obs_masked))) ** 2)
+
+            # If denominator is zero (no variation in observations), index is undefined
+            if denominator == 0:
+                logging.warning("Observed variance is zero; Index of Agreement is undefined (NaN returned).")
+                log_message("Index of Agreement undefined due to zero variance in observations")
+                return np.nan
+
+            # Calculate Index of Agreement as 1 minus the ratio of error to potential error
+            index_value = 1 - numerator / denominator
+
+            log_message("Computed Index of Agreement", index_of_agreement=index_value)
+            logging.info(f"[Done] Index of Agreement computation: {index_value}")
+
+            return index_value
 ###############################################################################
 
 ############################################################################### 
@@ -644,6 +739,7 @@ def monthly_index_of_agreement(
     """
     from .Efficiency_metrics import index_of_agreement
     
+    # Input type validation
     if not isinstance(dictionary, dict):
         raise TypeError("❌ Input must be a dictionary. ❌")
 
@@ -655,7 +751,7 @@ def monthly_index_of_agreement(
     # Raise error if either model or satellite keys are missing
     if not model_keys or not sat_keys:
         raise KeyError("❌ Model or satellite key not found in the dictionary ❌")
-        
+
     # Extract dictionaries of monthly data by year for model and satellite
     mod_monthly = dictionary[model_keys[0]]
     sat_monthly = dictionary[sat_keys[0]]
@@ -673,7 +769,7 @@ def monthly_index_of_agreement(
     # Determine number of months dynamically from first available year/model data
     first_year = years[0]
     n_months = len(mod_monthly[first_year])
-    
+
     # Validate structure for all years (same number of months)
     for year in years:
         if len(mod_monthly[year]) != n_months or len(sat_monthly[year]) != n_months:
@@ -681,26 +777,37 @@ def monthly_index_of_agreement(
 
     d_monthly = []
 
-    # ===== LOOPING =====
-    # Loop over months dynamically
-    for month in range(n_months):
-        # Concatenate monthly data across all years for model and satellite
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_index_of_agreement function"):
+        with start_action(action_type="monthly_index_of_agreement") as action:
+            log_message("Entered monthly_index_of_agreement", years=years, n_months=n_months)
+            logging.info("[Start] monthly_index_of_agreement computation")
 
-        # Create a mask to keep only pairs without NaNs in either dataset
-        valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
+            # Loop over months dynamically
+            for month in range(n_months):
+                # Concatenate monthly data across all years for model and satellite
+                mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
 
-        if np.any(valid_mask):
-            # Compute the Index of Agreement on valid paired data
-            d_val = index_of_agreement(sat_all[valid_mask], mod_all[valid_mask])
-        else:
-            # Not enough valid data, assign NaN for this month
-            d_val = np.nan
+                # Create a mask to keep only pairs without NaNs in either dataset
+                valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
 
-        d_monthly.append(d_val)
+                if np.any(valid_mask):
+                    # Compute the Index of Agreement on valid paired data
+                    d_val = index_of_agreement(sat_all[valid_mask], mod_all[valid_mask])
+                else:
+                    # Not enough valid data, assign NaN for this month
+                    d_val = np.nan
 
-    return d_monthly
+                d_monthly.append(d_val)
+
+                log_message("Computed monthly Index of Agreement", month=month + 1, index_of_agreement=d_val)
+                logging.info(f"Month {month + 1}: Index of Agreement = {d_val}")
+
+            logging.info("[Done] monthly_index_of_agreement computation completed")
+            log_message("Completed monthly_index_of_agreement", total_months=len(d_monthly))
+
+            return d_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -763,24 +870,36 @@ def ln_nse(
     # Require at least two valid data points to compute meaningful NSE
     if np.sum(mask) < 2:
         return np.nan
-    
-    # ===== COMPUTATIONS =====
-    # Apply natural logarithm transformation to emphasize relative errors
-    log_obs = np.log(obs[mask])
-    log_pred = np.log(pred[mask])
 
-    # Calculate sum of squared differences (residual variance)
-    numerator = np.sum((log_obs - log_pred) ** 2)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("ln_nse function"):
+        with start_action(action_type="ln_nse") as action:
+            log_message("Entered ln_nse function", valid_data_points=np.sum(mask))
+            logging.info("[Start] Logarithmic NSE computation")
 
-    # Calculate total variance of log-observed values (signal variance)
-    denominator = np.sum((log_obs - np.mean(log_obs)) ** 2)
+            # Apply natural logarithm transformation to emphasize relative errors
+            log_obs = np.log(obs[mask])
+            log_pred = np.log(pred[mask])
 
-    # If denominator is zero, variance is zero and NSE is undefined
-    if denominator == 0:
-        return np.nan
+            # Calculate sum of squared differences (residual variance)
+            numerator = np.sum((log_obs - log_pred) ** 2)
 
-    # NSE formula: 1 minus ratio of residual variance to signal variance
-    return 1 - numerator / denominator
+            # Calculate total variance of log-observed values (signal variance)
+            denominator = np.sum((log_obs - np.mean(log_obs)) ** 2)
+
+            # If denominator is zero, variance is zero and NSE is undefined
+            if denominator == 0:
+                logging.warning("Log-observed variance is zero; ln_NSE is undefined (NaN returned).")
+                log_message("ln_NSE undefined due to zero variance in log-observations")
+                return np.nan
+
+            # NSE formula: 1 minus ratio of residual variance to signal variance
+            ln_nse_value = 1 - numerator / denominator
+
+            log_message("Computed ln_NSE", ln_nse=ln_nse_value)
+            logging.info(f"[Done] Logarithmic NSE computation: {ln_nse_value}")
+
+            return ln_nse_value
 ###############################################################################
 
 ############################################################################### 
@@ -853,28 +972,39 @@ def monthly_ln_nse(
 
     ln_nse_monthly = []
 
-    # ===== LOOPING =====
-    # Loop through all months dynamically (no hardcoded 12)
-    for month in range(n_months):
-        # Concatenate monthly data arrays across all years into single 1D arrays
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_ln_nse function"):
+        with start_action(action_type="monthly_ln_nse") as action:
+            log_message("Entered monthly_ln_nse", years=years, n_months=n_months)
+            logging.info("[Start] monthly_ln_nse computation")
 
-        # Create a mask to select paired values that are not NaN and strictly positive,
-        # because logarithms require positive inputs
-        valid_mask = (~np.isnan(mod_all) & ~np.isnan(sat_all) & (mod_all > 0) & (sat_all > 0))
+            # Loop through all months dynamically (no hardcoded 12)
+            for month in range(n_months):
+                # Concatenate monthly data arrays across all years into single 1D arrays
+                mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
 
-        # Compute ln_nse only if there is at least two valid paired data points
-        if np.sum(valid_mask) >= 2:
-            ln_nse_val = ln_nse(sat_all[valid_mask], mod_all[valid_mask])
-        else:
-            # If no or insufficient valid data, set result as NaN for this month
-            ln_nse_val = np.nan
+                # Create a mask to select paired values that are not NaN and strictly positive,
+                # because logarithms require positive inputs
+                valid_mask = (~np.isnan(mod_all) & ~np.isnan(sat_all) & (mod_all > 0) & (sat_all > 0))
 
-        # Append the monthly ln NSE value to the result list
-        ln_nse_monthly.append(ln_nse_val)
+                # Compute ln_nse only if there is at least two valid paired data points
+                if np.sum(valid_mask) >= 2:
+                    ln_nse_val = ln_nse(sat_all[valid_mask], mod_all[valid_mask])
+                else:
+                    # If no or insufficient valid data, set result as NaN for this month
+                    ln_nse_val = np.nan
 
-    return ln_nse_monthly
+                # Append the monthly ln NSE value to the result list
+                ln_nse_monthly.append(ln_nse_val)
+
+                log_message("Computed monthly ln NSE", month=month + 1, ln_nse=ln_nse_val)
+                logging.info(f"Month {month + 1}: ln NSE = {ln_nse_val}")
+
+            logging.info("[Done] monthly_ln_nse computation completed")
+            log_message("Completed monthly_ln_nse", total_months=len(ln_nse_monthly))
+
+            return ln_nse_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -937,15 +1067,27 @@ def nse_j(
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
-    # ===== COMPUTATTIONS =====
-    numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
-    denominator = np.sum(np.abs(obs_masked - np.mean(obs_masked)) ** j)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("nse_j function"):
+        with start_action(action_type="nse_j") as action:
+            log_message("Entered nse_j function", valid_data_points=len(obs_masked), exponent=j)
+            logging.info("[Start] Modified NSE computation")
 
-    # If denominator is zero, no variability in obs, metric undefined
-    if denominator == 0:
-        return np.nan
+            numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
+            denominator = np.sum(np.abs(obs_masked - np.mean(obs_masked)) ** j)
 
-    return 1 - numerator / denominator
+            # If denominator is zero, no variability in obs, metric undefined
+            if denominator == 0:
+                logging.warning("Observed variance is zero; modified NSE is undefined (NaN returned).")
+                log_message("Modified NSE undefined due to zero variance in observations")
+                return np.nan
+
+            modified_nse = 1 - numerator / denominator
+
+            log_message("Computed modified NSE", modified_nse=modified_nse, exponent=j)
+            logging.info(f"[Done] Modified NSE computation: {modified_nse}")
+
+            return modified_nse
 ###############################################################################
 
 ############################################################################### 
@@ -1013,21 +1155,33 @@ def monthly_nse_j(
 
     nse_j_monthly = []
 
-    # ===== LOOPING =====
-    for month in range(num_months):
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_nse_j function"):
+        with start_action(action_type="monthly_nse_j") as action:
+            log_message("Entered monthly_nse_j", years=years, num_months=num_months, exponent=j)
+            logging.info("[Start] monthly_nse_j computation")
 
-        valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
+            # ===== LOOPING =====
+            for month in range(num_months):
+                mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
 
-        if np.sum(valid_mask) >= 2:
-            val = nse_j(sat_all[valid_mask], mod_all[valid_mask], j=j)
-        else:
-            val = np.nan
+                valid_mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
 
-        nse_j_monthly.append(val)
+                if np.sum(valid_mask) >= 2:
+                    val = nse_j(sat_all[valid_mask], mod_all[valid_mask], j=j)
+                else:
+                    val = np.nan
 
-    return nse_j_monthly
+                nse_j_monthly.append(val)
+
+                log_message("Computed monthly nse_j", month=month + 1, nse_j=val)
+                logging.info(f"Month {month + 1}: nse_j = {val}")
+
+            logging.info("[Done] monthly_nse_j computation completed")
+            log_message("Completed monthly_nse_j", total_months=len(nse_j_monthly))
+
+            return nse_j_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -1087,18 +1241,29 @@ def index_of_agreement_j(
     obs_masked = obs[mask]
     pred_masked = pred[mask]
 
-    # ===== COMPUTING =====
-    # Sum of powered absolute errors between observed and predicted
-    numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("index_of_agreement_j function"):
+        with start_action(action_type="index_of_agreement_j") as action:
+            log_message("Entered index_of_agreement_j function", valid_data_points=len(obs_masked), exponent=j)
+            logging.info("[Start] Modified Index of Agreement computation")
 
-    # Sum of powered combined deviations from mean of observed data
-    denominator = np.sum((np.abs(pred_masked - np.mean(obs_masked)) + np.abs(obs_masked - np.mean(obs_masked))) ** j)
+            # Sum of powered absolute errors between observed and predicted
+            numerator = np.sum(np.abs(obs_masked - pred_masked) ** j)
 
-    if denominator == 0:  # Avoid division by zero if no variability in obs
-        return np.nan
+            # Sum of powered combined deviations from mean of observed data
+            denominator = np.sum((np.abs(pred_masked - np.mean(obs_masked)) + np.abs(obs_masked - np.mean(obs_masked))) ** j)
 
-    return 1 - numerator / denominator  # Compute index (1 means perfect agreement)
+            if denominator == 0:  # Avoid division by zero if no variability in obs
+                logging.warning("Observed variance is zero; modified Index of Agreement is undefined (NaN returned).")
+                log_message("Modified Index of Agreement undefined due to zero variance in observations")
+                return np.nan
 
+            modified_index = 1 - numerator / denominator
+
+            log_message("Computed modified Index of Agreement", modified_index=modified_index, exponent=j)
+            logging.info(f"[Done] Modified Index of Agreement computation: {modified_index}")
+
+            return modified_index
 ############################################################################### 
 def monthly_index_of_agreement_j(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
@@ -1169,26 +1334,38 @@ def monthly_index_of_agreement_j(
 
     d_j_monthly = []
 
-    # ===== LOOPING =====
-    for month in range(n_months):
-        # Aggregate all model data for the current month across years
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        # Aggregate all satellite data for the current month across years
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_index_of_agreement_j function"):
+        with start_action(action_type="monthly_index_of_agreement_j") as action:
+            log_message("Entered monthly_index_of_agreement_j", years=years, n_months=n_months, exponent=j)
+            logging.info("[Start] monthly_index_of_agreement_j computation")
 
-        # Mask to select valid paired (non-NaN) observations
-        mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
+            # ===== LOOPING =====
+            for month in range(n_months):
+                # Aggregate all model data for the current month across years
+                mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                # Aggregate all satellite data for the current month across years
+                sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
 
-        if np.any(mask):
-            # Compute the modified index of agreement for valid data only
-            val = index_of_agreement_j(sat_all[mask], mod_all[mask], j=j)
-        else:
-            # Return NaN if no valid data points available
-            val = np.nan
+                # Mask to select valid paired (non-NaN) observations
+                mask = ~np.isnan(mod_all) & ~np.isnan(sat_all)
 
-        d_j_monthly.append(val)
+                if np.any(mask):
+                    # Compute the modified index of agreement for valid data only
+                    val = index_of_agreement_j(sat_all[mask], mod_all[mask], j=j)
+                else:
+                    # Return NaN if no valid data points available
+                    val = np.nan
 
-    return d_j_monthly
+                d_j_monthly.append(val)
+
+                log_message("Computed monthly index_of_agreement_j", month=month + 1, value=val)
+                logging.info(f"Month {month + 1}: index_of_agreement_j = {val}")
+
+            logging.info("[Done] monthly_index_of_agreement_j computation completed")
+            log_message("Completed monthly_index_of_agreement_j", total_months=len(d_j_monthly))
+
+            return d_j_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -1232,25 +1409,41 @@ def relative_nse(
     """
     obs = np.asarray(obs)
     pred = np.asarray(pred)
-    
+
     # Mask to exclude NaNs and zeros in observations (to avoid division by zero)
     mask = ~np.isnan(obs) & ~np.isnan(pred) & (obs != 0)
-    
+
+    # Require at least two valid pairs
+    if np.sum(mask) < 2:
+        return np.nan
+
     obs_masked = obs[mask]
     pred_masked = pred[mask]
-    
+
     obs_mean = np.mean(obs_masked)
-    
-    # ===== COMPUTATIONS =====
-    # Numerator: sum of squared relative errors
-    numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
-    # Denominator: sum of squared relative deviations from mean
-    denominator = np.sum(((obs_masked - obs_mean) / obs_mean) ** 2)
-    
-    if denominator == 0:
-        return np.nan
-    
-    return 1 - numerator / denominator
+
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("relative_nse function"):
+        with start_action(action_type="relative_nse") as action:
+            log_message("Entered relative_nse function", valid_data_points=len(obs_masked))
+            logging.info("[Start] Relative NSE computation")
+
+            # Numerator: sum of squared relative errors
+            numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
+            # Denominator: sum of squared relative deviations from mean
+            denominator = np.sum(((obs_masked - obs_mean) / obs_mean) ** 2)
+
+            if denominator == 0:
+                logging.warning("Relative variance denominator is zero; Relative NSE undefined (NaN returned).")
+                log_message("Relative NSE undefined due to zero relative variance in observations")
+                return np.nan
+
+            rel_nse_value = 1 - numerator / denominator
+
+            log_message("Computed Relative NSE", relative_nse=rel_nse_value)
+            logging.info(f"[Done] Relative NSE computation: {rel_nse_value}")
+
+            return rel_nse_value
 ###############################################################################
 
 ############################################################################### 
@@ -1351,26 +1544,38 @@ def monthly_relative_nse(
 
     e_rel_monthly = []
 
-    # ===== LOOPING =====
-    for month in range(n_months):
-        try:
-            # Aggregate monthly data across all years
-            mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-            sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
-        except Exception as e:
-            raise ValueError(f"❌ Error concatenating monthly data for month {month}: {e} ❌")
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_relative_nse function"):
+        with start_action(action_type="monthly_relative_nse") as action:
+            log_message("Entered monthly_relative_nse", years=years, n_months=n_months)
+            logging.info("[Start] monthly_relative_nse computation")
 
-        # Mask: exclude NaNs and zero satellite observations to avoid division by zero
-        mask = (~np.isnan(mod_all)) & (~np.isnan(sat_all)) & (sat_all != 0)
+            # ===== LOOPING =====
+            for month in range(n_months):
+                try:
+                    # Aggregate monthly data across all years
+                    mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                    sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+                except Exception as e:
+                    raise ValueError(f"❌ Error concatenating monthly data for month {month}: {e} ❌")
 
-        if np.sum(mask) >= 2:  # Require at least two valid pairs
-            val = relative_nse(sat_all[mask], mod_all[mask])
-        else:
-            val = np.nan
+                # Mask: exclude NaNs and zero satellite observations to avoid division by zero
+                mask = (~np.isnan(mod_all)) & (~np.isnan(sat_all)) & (sat_all != 0)
 
-        e_rel_monthly.append(val)
+                if np.sum(mask) >= 2:  # Require at least two valid pairs
+                    val = relative_nse(sat_all[mask], mod_all[mask])
+                else:
+                    val = np.nan
 
-    return e_rel_monthly
+                e_rel_monthly.append(val)
+
+                log_message("Computed monthly_relative_nse", month=month + 1, value=val)
+                logging.info(f"Month {month + 1}: relative_nse = {val}")
+
+            logging.info("[Done] monthly_relative_nse computation completed")
+            log_message("Completed monthly_relative_nse", total_months=len(e_rel_monthly))
+
+            return e_rel_monthly
 ###############################################################################
 
 ############################################################################### 
@@ -1425,6 +1630,7 @@ def relative_index_of_agreement(
     # Mask to exclude NaNs and zero observations (avoid division by zero)
     mask = ~np.isnan(obs) & ~np.isnan(pred) & (obs != 0)
 
+    # Require at least two valid pairs
     if np.sum(mask) < 2:
         return np.nan  # Insufficient data
 
@@ -1437,17 +1643,29 @@ def relative_index_of_agreement(
     if np.allclose(obs_masked, obs_mean):
         return np.nan
 
-    # ===== COMPUTATIONS =====
-    numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("relative_index_of_agreement function"):
+        with start_action(action_type="relative_index_of_agreement") as action:
+            log_message("Entered relative_index_of_agreement function", valid_data_points=len(obs_masked))
+            logging.info("[Start] Relative Index of Agreement computation")
 
-    denominator = np.sum(
-        ((np.abs(pred_masked - obs_mean) + np.abs(obs_masked - obs_mean)) / obs_mean) ** 2
-    )
+            numerator = np.sum(((obs_masked - pred_masked) / obs_masked) ** 2)
 
-    if denominator == 0:
-        return np.nan
+            denominator = np.sum(
+                ((np.abs(pred_masked - obs_mean) + np.abs(obs_masked - obs_mean)) / obs_mean) ** 2
+            )
 
-    return 1 - numerator / denominator
+            if denominator == 0:
+                logging.warning("Relative Index of Agreement denominator is zero; undefined (NaN returned).")
+                log_message("Relative Index of Agreement undefined due to zero denominator")
+                return np.nan
+
+            ria_value = 1 - numerator / denominator
+
+            log_message("Computed Relative Index of Agreement", relative_index_of_agreement=ria_value)
+            logging.info(f"[Done] Relative Index of Agreement computation: {ria_value}")
+
+            return ria_value
 ###############################################################################
 
 ############################################################################### 
@@ -1527,24 +1745,36 @@ def monthly_relative_index_of_agreement(
 
     d_rel_monthly = []
 
-    # ===== LOOPING =====
-    for month in range(num_months):
-        # Concatenate monthly data for all years into single arrays
-        mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
-        sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("monthly_relative_index_of_agreement function"):
+        with start_action(action_type="monthly_relative_index_of_agreement") as action:
+            log_message("Entered monthly_relative_index_of_agreement", years=years, num_months=num_months)
+            logging.info("[Start] monthly_relative_index_of_agreement computation")
 
-        # Mask to exclude NaNs and satellite zeros (avoid division by zero)
-        mask = (~np.isnan(mod_all)) & (~np.isnan(sat_all)) & (sat_all != 0)
+            # ===== LOOPING =====
+            for month in range(num_months):
+                # Concatenate monthly data for all years into single arrays
+                mod_all = np.concatenate([np.asarray(mod_monthly[year][month]).ravel() for year in years])
+                sat_all = np.concatenate([np.asarray(sat_monthly[year][month]).ravel() for year in years])
 
-        # Compute relative index of agreement if data is valid; else NaN
-        if np.any(mask):
-            d_rel = relative_index_of_agreement(sat_all[mask], mod_all[mask])
-        else:
-            d_rel = np.nan
+                # Mask to exclude NaNs and satellite zeros (avoid division by zero)
+                mask = (~np.isnan(mod_all)) & (~np.isnan(sat_all)) & (sat_all != 0)
 
-        d_rel_monthly.append(d_rel)
+                # Compute relative index of agreement if data is valid; else NaN
+                if np.any(mask):
+                    d_rel = relative_index_of_agreement(sat_all[mask], mod_all[mask])
+                else:
+                    d_rel = np.nan
 
-    return d_rel_monthly
+                d_rel_monthly.append(d_rel)
+
+                log_message("Computed monthly_relative_index_of_agreement", month=month + 1, value=d_rel)
+                logging.info(f"Month {month + 1}: relative_index_of_agreement = {d_rel}")
+
+            logging.info("[Done] monthly_relative_index_of_agreement computation completed")
+            log_message("Completed monthly_relative_index_of_agreement", total_months=len(d_rel_monthly))
+
+            return d_rel_monthly
 ###############################################################################
 
 ###############################################################################
@@ -1638,27 +1868,35 @@ def compute_spatial_efficiency(
             unbiased_rmse(m_sel, o_sel),
         )
 
-    # ===== MAKE OUTPUT ======
-    # Apply the metrics computation for each time group
-    results = list(map(compute_metrics_for_group, groups))
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("compute_spatial_efficiency function"):
+        with start_action(action_type="compute_spatial_efficiency") as action:
+            log_message("Started compute_spatial_efficiency", time_group=time_group, groups=list(groups))
+            logging.info(f"[Start] Computing spatial efficiency metrics grouped by {time_group}")
 
-    # Unpack the results into separate metric lists
-    mb_maps, sde_maps, cc_maps, rm_maps, ro_maps, urmse_maps = zip(*results)
+            # Apply the metrics computation for each time group
+            results = list(map(compute_metrics_for_group, groups))
 
-    # Set dimension name and coordinates based on the time grouping
-    dim_name = time_group
-    coord_vals = groups
+            # Unpack the results into separate metric lists
+            mb_maps, sde_maps, cc_maps, rm_maps, ro_maps, urmse_maps = zip(*results)
 
-    # Concatenate results into DataArrays with the correct dimension and coordinate assignment
-    mb_all = xr.concat(mb_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
-    sde_all = xr.concat(sde_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
-    cc_all = xr.concat(cc_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
-    rm_all = xr.concat(rm_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
-    ro_all = xr.concat(ro_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
-    urmse_all = xr.concat(urmse_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            # Set dimension name and coordinates based on the time grouping
+            dim_name = time_group
+            coord_vals = groups
 
-    # Return the full set of spatial efficiency metrics
-    return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
+            # Concatenate results into DataArrays with the correct dimension and coordinate assignment
+            mb_all = xr.concat(mb_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            sde_all = xr.concat(sde_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            cc_all = xr.concat(cc_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            rm_all = xr.concat(rm_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            ro_all = xr.concat(ro_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+            urmse_all = xr.concat(urmse_maps, dim=dim_name).assign_coords(**{dim_name: coord_vals})
+
+            logging.info(f"[Done] Computed spatial efficiency metrics for {len(groups)} {time_group} groups")
+            log_message("Completed compute_spatial_efficiency", groups_computed=len(groups))
+
+            # Return the full set of spatial efficiency metrics
+            return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
 ###############################################################################
 
 ###############################################################################
@@ -1713,12 +1951,12 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
         if not isinstance(da, xr.DataArray):
             raise TypeError(f"❌ {name} must be an xarray.DataArray ❌")
      
-    # Swithing mask to datarray
+    # Switching mask to DataArray
     basin_mask = xr.DataArray(
         ocean_mask,
         coords={"lat": sat_sst_data["lat"], "lon": sat_sst_data["lon"]},
         dims=("lat", "lon")
-        )
+    )
     
     # Check spatial dimensions presence and alignment
     if not all(dim in model_sst_data.dims for dim in ('lat', 'lon')):
@@ -1750,24 +1988,32 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
     stats_list = []
     dates = model_sst_data['time'].values
 
-    # ===== LOOP THOUGH TIMESTEPS =====
-    # Loop over time steps 
-    for t in range(n_time):
-        m = model_masked.isel(time=t).values.flatten()
-        o = sat_masked.isel(time=t).values.flatten()
+    # ===== COMPUTATION AND LOGGING =====
+    with Timer("compute_error_timeseries function"):
+        with start_action(action_type="compute_error_timeseries") as action:
+            logging.info(f"[Start] Computing error timeseries for {n_time} time steps")
+            log_message("Started compute_error_timeseries", n_time=n_time)
 
-        # Remove pairs where either is nan
-        valid_mask = ~np.isnan(m) & ~np.isnan(o)
-        m_valid = m[valid_mask]
-        o_valid = o[valid_mask]
+            # ===== LOOP THROUGH TIMESTEPS =====
+            for t in range(n_time):
+                m = model_masked.isel(time=t).values.flatten()
+                o = sat_masked.isel(time=t).values.flatten()
 
-        # If no valid data, fill stats with NaNs or defaults
-        if len(m_valid) == 0:
-            stats = {k: np.nan for k in compute_stats_single_time(np.array([0]), np.array([0])).keys()}
-        else:
-            stats = compute_stats_single_time(m_valid, o_valid)
+                # Remove pairs where either is nan
+                valid_mask = ~np.isnan(m) & ~np.isnan(o)
+                m_valid = m[valid_mask]
+                o_valid = o[valid_mask]
 
-        stats_list.append(stats)
+                # If no valid data, fill stats with NaNs or defaults
+                if len(m_valid) == 0:
+                    stats = {k: np.nan for k in compute_stats_single_time(np.array([0]), np.array([0])).keys()}
+                else:
+                    stats = compute_stats_single_time(m_valid, o_valid)
+
+                stats_list.append(stats)
+
+            logging.info(f"[Done] Computed error timeseries for all {n_time} time steps")
+            log_message("Completed compute_error_timeseries", n_time=n_time)
 
     # Construct DataFrame indexed by time
     stats_df = pd.DataFrame(stats_list, index=pd.to_datetime(dates))
@@ -1825,27 +2071,28 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
     if model_slice.shape[0] != sat_slice.shape[0]:
         raise ValueError("model_slice and sat_slice must have the same length.")
 
-    # Create a boolean mask where both model and satellite values are not NaN
-    valid = ~np.isnan(model_slice) & ~np.isnan(sat_slice)
+    with Timer("compute_stats_single_time"):
+        # Create a boolean mask where both model and satellite values are not NaN
+        valid = ~np.isnan(model_slice) & ~np.isnan(sat_slice)
 
-    # ===== CORNER CASE HANDLING =====
-    # If there are no valid paired values, return NaN for all statistics
-    if valid.sum() == 0:
+        # ===== CORNER CASE HANDLING =====
+        # If there are no valid paired values, return NaN for all statistics
+        if valid.sum() == 0:
+            return dict(
+                mean_bias=np.nan,
+                unbiased_rmse=np.nan,
+                std_error=np.nan,
+                correlation=np.nan
+            )
+
+        # Extract only the valid model and satellite values
+        m_valid = model_slice[valid]
+        o_valid = sat_slice[valid]
+
+        # Compute and return the statistics using the valid data
         return dict(
-            mean_bias=np.nan,
-            unbiased_rmse=np.nan,
-            std_error=np.nan,
-            correlation=np.nan
+            mean_bias=mean_bias(m_valid, o_valid),
+            unbiased_rmse=unbiased_rmse(m_valid, o_valid),
+            std_error=standard_deviation_error(m_valid, o_valid),
+            correlation=cross_correlation(m_valid, o_valid)
         )
-
-    # Extract only the valid model and satellite values
-    m_valid = model_slice[valid]
-    o_valid = sat_slice[valid]
-
-    # Compute and return the statistics using the valid data
-    return dict(
-        mean_bias=mean_bias(m_valid, o_valid),
-        unbiased_rmse=unbiased_rmse(m_valid, o_valid),
-        std_error=standard_deviation_error(m_valid, o_valid),
-        correlation=cross_correlation(m_valid, o_valid)
-    )
