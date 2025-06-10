@@ -41,12 +41,12 @@ def leapyear(year: int) -> int:
     >>> leapyear(2023)
     0
     """
+    # Validate input is a positive integer
+    if not (isinstance(year, int) and year > 0):
+        raise ValueError("❌ Year must be a positive integer. ❌")
+
     with Timer("leapyear function"):
         with start_action(action_type="leapyear function", year=year):
-            # Validate input is a positive integer
-            if not (isinstance(year, int) and year > 0):
-                raise ValueError("❌ Year must be a positive integer. ❌")
-
             # Leap year if divisible by 4 but not 100, or divisible by 400
             result = int((year % 4 == 0 and year % 100 != 0) or (year % 400 == 0))
 
@@ -94,17 +94,17 @@ def true_time_series_length(
     >>> true_time_series_length([1999, 2001], [2000, 2002], 365)
     1096
     """
-    with Timer("true_time_series_length computation"):
-        # ===== VALIDATION =====
-        if len(chlfstart) != len(chlfend):
-            raise ValueError("❌ chlfstart and chlfend must be the same length. ❌")  # Matching start/end lists
-        if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
-            raise ValueError("❌ chlfstart and chlfend must contain integers only. ❌")  # All years are ints
-        if not all(end >= start for start, end in zip(chlfstart, chlfend)):
-            raise ValueError("❌ Each chlfend must be >= corresponding chlfstart. ❌")  # Valid year ranges
-        if not (isinstance(DinY, int) and DinY == 365):
-            raise ValueError("❌ DinY must be 365. ❌")  # Only standard year length allowed
+    # ===== VALIDATION =====
+    if len(chlfstart) != len(chlfend):
+        raise ValueError("❌ chlfstart and chlfend must be the same length. ❌")  # Matching start/end lists
+    if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
+        raise ValueError("❌ chlfstart and chlfend must contain integers only. ❌")  # All years are ints
+    if not all(end >= start for start, end in zip(chlfstart, chlfend)):
+        raise ValueError("❌ Each chlfend must be >= corresponding chlfstart. ❌")  # Valid year ranges
+    if not (isinstance(DinY, int) and DinY == 365):
+        raise ValueError("❌ DinY must be 365. ❌")  # Only standard year length allowed
 
+    with Timer("true_time_series_length computation"):
         logging.info(f"Inputs received - chlfstart: {chlfstart}, chlfend: {chlfend}, DinY: {DinY}")
         log_message("Inputs received", chlfstart=chlfstart, chlfend=chlfend, DinY=DinY)
 
@@ -165,20 +165,21 @@ def split_to_monthly(
     >>> monthly[2020][0].index.month.unique()
     Int64Index([1], dtype='int64')
     """
-    with Timer("Splitting yearly data into monthly segments"):
-        # ===== VALIDATION =====
-        if not isinstance(yearly_data, dict):
-            raise ValueError("❌ Input yearly_data must be a dictionary. ❌")
+    # ===== VALIDATION =====
+    if not isinstance(yearly_data, dict):
+        raise ValueError("❌ Input yearly_data must be a dictionary. ❌")
 
+    for year, data in yearly_data.items():
+        if not isinstance(year, int):
+            raise ValueError(f"❌ Year keys must be int, got {type(year)}. ❌")  # Ensure year keys are ints
+        if not isinstance(data, (pd.Series, pd.DataFrame)):
+            raise ValueError(f"❌ Values must be pandas Series or DataFrame, got {type(data)}. ❌")  # Validate types
+        if not pd.api.types.is_datetime64_any_dtype(data.index):
+            raise ValueError(f"❌ Data index for year {year} must be datetime-like. ❌")  # Confirm datetime index
+
+    with Timer("Splitting yearly data into monthly segments"):
         monthly_data_dict = {}
         for year, data in yearly_data.items():
-            if not isinstance(year, int):
-                raise ValueError(f"❌ Year keys must be int, got {type(year)}. ❌")  # Ensure year keys are ints
-            if not isinstance(data, (pd.Series, pd.DataFrame)):
-                raise ValueError(f"❌ Values must be pandas Series or DataFrame, got {type(data)}. ❌")  # Validate types
-            if not pd.api.types.is_datetime64_any_dtype(data.index):
-                raise ValueError(f"❌ Data index for year {year} must be datetime-like. ❌")  # Confirm datetime index
-
             logging.info(f"Processing year {year}, data type: {type(data).__name__}")
             log_message("Processing year", year=year, data_type=type(data).__name__)
 
@@ -241,13 +242,13 @@ def split_to_yearly(
     >>> split_yearly[2020].index.year.unique()
     Int64Index([2020], dtype='int64')
     """
-    with Timer("split_to_yearly computation"):
-        # ===== VALIDATION =====
-        if not isinstance(series.index, pd.DatetimeIndex):
-            raise ValueError("❌ series must have a DatetimeIndex ❌")  # Ensure datetime index
-        if not all(isinstance(year, (int, str)) for year in unique_years):
-            raise ValueError("❌ unique_years must contain only ints or strs ❌")  # Validate years list
+    # ===== VALIDATION =====
+    if not isinstance(series.index, pd.DatetimeIndex):
+        raise ValueError("❌ series must have a DatetimeIndex ❌")  # Ensure datetime index
+    if not all(isinstance(year, (int, str)) for year in unique_years):
+        raise ValueError("❌ unique_years must contain only ints or strs ❌")  # Validate years list
 
+    with Timer("split_to_yearly computation"):
         logging.info(f"Received series with index type: {type(series.index)}")
         log_message("Input validation passed", unique_years=unique_years)
 
@@ -310,17 +311,17 @@ def get_common_years(
     >>> get_common_years(data, 'model', 'satellite')
     [2021]
     """
-    with Timer("get_common_years computation"):
-        # ===== VALIDATE KEYS =====
-        if mod_key not in data_dict:
-            raise ValueError(f"❌ mod_key '{mod_key}' not found in data_dict ❌")  # Ensure model key exists
-        if sat_key not in data_dict:
-            raise ValueError(f"❌ sat_key '{sat_key}' not found in data_dict ❌")  # Ensure satellite key exists
-        if not isinstance(data_dict[mod_key], dict):
-            raise ValueError(f"❌ data_dict[{mod_key}] must be a dictionary ❌")  # Model data must be dict
-        if not isinstance(data_dict[sat_key], dict):
-            raise ValueError(f"❌ data_dict[{sat_key}] must be a dictionary ❌")  # Satellite data must be dict
+    # ===== VALIDATE KEYS =====
+    if mod_key not in data_dict:
+        raise ValueError(f"❌ mod_key '{mod_key}' not found in data_dict ❌")  # Ensure model key exists
+    if sat_key not in data_dict:
+        raise ValueError(f"❌ sat_key '{sat_key}' not found in data_dict ❌")  # Ensure satellite key exists
+    if not isinstance(data_dict[mod_key], dict):
+        raise ValueError(f"❌ data_dict[{mod_key}] must be a dictionary ❌")  # Model data must be dict
+    if not isinstance(data_dict[sat_key], dict):
+        raise ValueError(f"❌ data_dict[{sat_key}] must be a dictionary ❌")  # Satellite data must be dict
 
+    with Timer("get_common_years computation"):
         logging.info(f"Validated presence and type of keys: '{mod_key}', '{sat_key}'")
         log_message("Validated keys", mod_key=mod_key, sat_key=sat_key)
 
@@ -370,24 +371,24 @@ def get_season_mask(
     >>> get_season_mask(dates, 'DJF')
     array([ True,  True, False, False, False, False, False, False, False, False, False,  True])
     """
-    with Timer(f"get_season_mask computation for season '{season_name}'"):
-        # ===== VALIDATE SEASON NAME =====
-        valid_seasons = {'DJF', 'MAM', 'JJA', 'SON'}
-        if season_name not in valid_seasons:
-            raise ValueError(f"❌ Invalid season name: {season_name}. Expected one of {valid_seasons} ❌")
+    # ===== VALIDATE SEASON NAME =====
+    valid_seasons = {'DJF', 'MAM', 'JJA', 'SON'}
+    if season_name not in valid_seasons:
+        raise ValueError(f"❌ Invalid season name: {season_name}. Expected one of {valid_seasons} ❌")
 
+    # ===== VALIDATE DATES TYPE AND EXTRACT DATETIME INDEX =====
+    if isinstance(dates, pd.Series):
+        if not isinstance(dates.index, pd.DatetimeIndex):
+            raise TypeError("❌ If input is pd.Series, its index must be a pd.DatetimeIndex ❌")
+        dt_index = dates.index  # Use index if Series
+    elif isinstance(dates, pd.DatetimeIndex):
+        dt_index = dates  # Directly use DatetimeIndex
+    else:
+        raise TypeError("❌ dates must be a pandas DatetimeIndex or a Series with DatetimeIndex ❌")
+
+    with Timer(f"get_season_mask computation for season '{season_name}'"):
         logging.info(f"Validated season_name: {season_name}")
         log_message("Validated season_name", season_name=season_name)
-
-        # ===== VALIDATE DATES TYPE AND EXTRACT DATETIME INDEX =====
-        if isinstance(dates, pd.Series):
-            if not isinstance(dates.index, pd.DatetimeIndex):
-                raise TypeError("❌ If input is pd.Series, its index must be a pd.DatetimeIndex ❌")
-            dt_index = dates.index  # Use index if Series
-        elif isinstance(dates, pd.DatetimeIndex):
-            dt_index = dates  # Directly use DatetimeIndex
-        else:
-            raise TypeError("❌ dates must be a pandas DatetimeIndex or a Series with DatetimeIndex ❌")
 
         logging.info(f"Using datetime index of length {len(dt_index)}")
         log_message("Datetime index info", length=len(dt_index))
