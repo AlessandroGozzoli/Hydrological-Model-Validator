@@ -9,6 +9,11 @@ from netCDF4 import Dataset
 import io
 import os
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 ###############################################################################
 def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray, ...], Tuple[np.ndarray, ...], np.ndarray, np.ndarray]:
     """
@@ -38,48 +43,57 @@ def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray
     if not isinstance(BaseDIR, (str, Path)):
         raise TypeError("❌ BaseDIR must be a string or Path object ❌")
 
-    # ===== GETTING THE MASK =====
-    BaseDIR = Path(BaseDIR)
-    mask_file = BaseDIR / 'mesh_mask.nc'
-    if not mask_file.exists():
-        raise FileNotFoundError(f"❌ Mask file not found at {mask_file} ❌")
+    with Timer("mask_reader function"):
+        with start_action(action_type="mask_reader function", basedir=str(BaseDIR)):
 
-    with nc.Dataset(mask_file, 'r') as ds:
-        # Check required variables
-        required_vars = ['tmask', 'nav_lat', 'nav_lon']
-        for var in required_vars:
-            if var not in ds.variables:
-                raise KeyError(f"❌ '{var}' not found in {mask_file.name} ❌")
+            # ===== GETTING THE MASK =====
+            BaseDIR = Path(BaseDIR)
+            mask_file = BaseDIR / 'mesh_mask.nc'
+            if not mask_file.exists():
+                raise FileNotFoundError(f"❌ Mask file not found at {mask_file} ❌")
 
-        mask3d = ds.variables['tmask'][:]  # shape expected (time, depth, y, x) or (depth, y, x)
-        
-        # Handle if time dimension exists or not
-        if mask3d.ndim == 4:
-            # Take first time slice if present (usually time, depth, y, x)
-            mask3d = mask3d[0, :, :, :]
-        elif mask3d.ndim != 3:
-            raise ValueError(f"❌ Expected 'tmask' to be 3D or 4D, got shape {mask3d.shape} ❌")
+            log_message("Opening mask file", path=str(mask_file))
+            logging.info(f"Opening NetCDF file: {mask_file}")
 
-        # Surface mask is the top vertical layer (depth=0), shape (y, x)
-        Mmask = mask3d[0, :, :]
+            with nc.Dataset(mask_file, 'r') as ds:
+                # Check required variables
+                required_vars = ['tmask', 'nav_lat', 'nav_lon']
+                for var in required_vars:
+                    if var not in ds.variables:
+                        raise KeyError(f"❌ '{var}' not found in {mask_file.name} ❌")
 
-        if Mmask.ndim != 2:
-            raise ValueError(f"❌ Expected 2D surface mask (y, x), got shape {Mmask.shape} ❌")
+                log_message("All required variables found", variables=required_vars)
+                logging.info(f"Required variables present: {required_vars}")
 
-        # Indices of land points where mask == 0
-        Mfsm = np.where(Mmask == 0)
+                mask3d = ds.variables['tmask'][:]
 
-        # Indices of land points in full 3D mask (depth, y, x)
-        Mfsm_3d = np.where(mask3d == 0)
+                if mask3d.ndim == 4:
+                    mask3d = mask3d[0, :, :, :]
+                elif mask3d.ndim != 3:
+                    raise ValueError(f"❌ Expected 'tmask' to be 3D or 4D, got shape {mask3d.shape} ❌")
 
-        # Load lat/lon; assume shape matches Mmask (y, x)
-        Mlat = ds.variables['nav_lat'][:]
-        Mlon = ds.variables['nav_lon'][:]
+                Mmask = mask3d[0, :, :]
 
-        if Mlat.shape != Mmask.shape:
-            raise ValueError(f"❌ Shape mismatch: Mlat {Mlat.shape} vs Mmask {Mmask.shape} ❌")
-        if Mlon.shape != Mmask.shape:
-            raise ValueError(f"❌ Shape mismatch: Mlon {Mlon.shape} vs Mmask {Mmask.shape} ❌")
+                if Mmask.ndim != 2:
+                    raise ValueError(f"❌ Expected 2D surface mask (y, x), got shape {Mmask.shape} ❌")
+
+                Mfsm = np.where(Mmask == 0)
+                Mfsm_3d = np.where(mask3d == 0)
+
+                Mlat = ds.variables['nav_lat'][:]
+                Mlon = ds.variables['nav_lon'][:]
+
+                if Mlat.shape != Mmask.shape:
+                    raise ValueError(f"❌ Shape mismatch: Mlat {Mlat.shape} vs Mmask {Mmask.shape} ❌")
+                if Mlon.shape != Mmask.shape:
+                    raise ValueError(f"❌ Shape mismatch: Mlon {Mlon.shape} vs Mmask {Mmask.shape} ❌")
+
+                log_message("Mask and coordinates loaded",
+                            surface_mask_shape=Mmask.shape,
+                            land_points_2d=len(Mfsm[0]),
+                            land_points_3d=len(Mfsm_3d[0]))
+                logging.info(f"Loaded mask and coordinates: Mmask shape={Mmask.shape}, "
+                             f"2D land points={len(Mfsm[0])}, 3D land points={len(Mfsm_3d[0])}")
 
     return Mmask, Mfsm, Mfsm_3d, Mlat, Mlon
 ###############################################################################
@@ -140,20 +154,28 @@ def load_dataset(
     file_path = IDIR / f"Msst_{year}.nc"
 
     # ===== OPEN THE FILE =====
-    if file_path.exists():
-        print(f"Opening {file_path.name}...")
-        try:
-            # Try loading the dataset
-            ds = xr.open_dataset(file_path)
-            return year, ds
-        except Exception as e:
-            # Handle errors gracefully, return None if loading fails
-            print(f"❌ Error opening {file_path.name}: {e} ❌")
-            return year, None
-    else:
-        # Warn if file does not exist
-        print(f"❌ Warning: {file_path.name} not found! ❌")
-        return year, None
+    with Timer("load_dataset function"):
+        with start_action(action_type="load_dataset function", year=year, path=str(file_path)):
+            if file_path.exists():
+                print(f"Opening {file_path.name}...")
+                log_message("Dataset file found", filename=file_path.name)
+                logging.info(f"Attempting to open file: {file_path}")
+
+                try:
+                    ds = xr.open_dataset(file_path)
+                    log_message("Dataset loaded successfully", dimensions=dict(ds.dims))
+                    logging.info(f"Dataset loaded successfully: {file_path.name}")
+                    return year, ds
+                except Exception as e:
+                    print(f"❌ Error opening {file_path.name}: {e} ❌")
+                    log_message("Failed to load dataset", error=str(e))
+                    logging.error(f"Failed to open dataset {file_path.name}: {e}")
+                    return year, None
+            else:
+                print(f"❌ Warning: {file_path.name} not found! ❌")
+                log_message("Dataset file not found", filename=file_path.name)
+                logging.warning(f"Dataset file not found: {file_path}")
+                return year, None
 ###############################################################################
 
 ###############################################################################
@@ -193,13 +215,21 @@ def unzip_gz_to_file(file_gz: Path, target_file: Path) -> None:
         # Check input file presence before decompressing
         raise FileNotFoundError(f"❌ File not found: {file_gz} ❌")
 
-    # Make sure target directory exists, create if missing
-    target_file.parent.mkdir(parents=True, exist_ok=True)
+    with Timer("unzip_gz_to_file function"):
+        with start_action(action_type="unzip_gz_to_file function", input=str(file_gz), output=str(target_file)):
+            log_message("Starting decompression", input_file=str(file_gz), output_file=str(target_file))
+            logging.info(f"Decompressing {file_gz} to {target_file}")
 
-    # ===== UNZIP =====
-    # Open compressed file and copy decompressed content to target file
-    with gzip.open(file_gz, 'rb') as f_in, open(target_file, 'wb') as f_out:
-        shutil.copyfileobj(f_in, f_out)
+            # Make sure target directory exists, create if missing
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # ===== UNZIP =====
+            # Open compressed file and copy decompressed content to target file
+            with gzip.open(file_gz, 'rb') as f_in, open(target_file, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+            log_message("Decompression completed", output_file=str(target_file))
+            logging.info(f"Decompression completed: {target_file}")
 ###############################################################################
 
 ###############################################################################
@@ -246,15 +276,22 @@ def read_nc_variable_from_unzipped_file(
     if not file_nc.exists():
         raise FileNotFoundError(f"❌ NetCDF file not found: {file_nc} ❌")
 
-    # ===== FILE OPENING =====
-    # Open the NetCDF file in read-only mode
-    with Dataset(file_nc, 'r') as nc:
-        # Confirm the requested variable is present in the dataset
-        if variable_key not in nc.variables:
-            raise KeyError(f"❌ Variable '{variable_key}' not found in {file_nc} ❌")
-        # Extract the full variable data array
-        data = nc.variables[variable_key][:]
-    return data
+    with Timer("read_nc_variable_from_unzipped_file function"):
+        with start_action(action_type="read_nc_variable_from_unzipped_file function", file=str(file_nc), variable=variable_key):
+            log_message("Opening NetCDF file", filename=str(file_nc))
+            logging.info(f"Opening NetCDF file: {file_nc}")
+
+            with Dataset(file_nc, 'r') as nc:
+                if variable_key not in nc.variables:
+                    log_message("Variable not found", variable=variable_key)
+                    logging.error(f"Variable '{variable_key}' not found in {file_nc}")
+                    raise KeyError(f"❌ Variable '{variable_key}' not found in {file_nc} ❌")
+
+                data = nc.variables[variable_key][:]
+                log_message("Variable data read", variable=variable_key, shape=data.shape)
+                logging.info(f"Read variable '{variable_key}' with shape {data.shape} from {file_nc}")
+
+            return data
 ###############################################################################
 
 ###############################################################################
@@ -304,20 +341,29 @@ def read_nc_variable_from_gz_in_memory(
     if not file_gz.exists():
         raise FileNotFoundError(f"❌ File not found: {file_gz} ❌")
 
-    # ==== READ AND DECOMPRESS =====
-    # Read and decompress the gzipped file fully into memory as bytes
-    with gzip.open(file_gz, 'rb') as f_in:
-        decompressed_bytes = f_in.read()
+    with Timer("read_nc_variable_from_gz_in_memory function"):
+        with start_action(action_type="read_nc_variable_from_gz_in_memory function", file=str(file_gz), variable=variable_key):
+            log_message("Opening gzipped NetCDF file in memory", filename=str(file_gz))
+            logging.info(f"Opening gzipped NetCDF file in memory: {file_gz}")
 
-    # Open the decompressed bytes as an in-memory NetCDF dataset using xarray
-    with xr.open_dataset(io.BytesIO(decompressed_bytes)) as ds:
-        # Check that the requested variable exists in the dataset
-        if variable_key not in ds.variables:
-            raise KeyError(f"❌ Variable '{variable_key}' not found in {file_gz} ❌")
-        # Extract the variable data as a numpy array
-        data = ds[variable_key].values
+            # Read and decompress the gzipped file fully into memory as bytes
+            with gzip.open(file_gz, 'rb') as f_in:
+                decompressed_bytes = f_in.read()
+                log_message("Decompressed gzipped file", bytes_length=len(decompressed_bytes))
+                logging.info(f"Decompressed {len(decompressed_bytes)} bytes from {file_gz}")
 
-    return data
+            # Open the decompressed bytes as an in-memory NetCDF dataset using xarray
+            with xr.open_dataset(io.BytesIO(decompressed_bytes)) as ds:
+                if variable_key not in ds.variables:
+                    log_message("Variable not found", variable=variable_key)
+                    logging.error(f"Variable '{variable_key}' not found in {file_gz}")
+                    raise KeyError(f"❌ Variable '{variable_key}' not found in {file_gz} ❌")
+
+                data = ds[variable_key].values
+                log_message("Variable data read", variable=variable_key, shape=data.shape)
+                logging.info(f"Read variable '{variable_key}' with shape {data.shape} from gzipped file {file_gz}")
+
+            return data
 ###############################################################################
 
 ###############################################################################
