@@ -3,6 +3,11 @@ from itertools import starmap, chain
 import numpy as np
 import skill_metrics as sm
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 from ..Processing.data_alignment import (get_common_series_by_year, 
                                          get_common_series_by_year_month)
 from ..Processing.stats_math_utils import round_up_to_nearest 
@@ -56,24 +61,35 @@ def compute_single_target_stat(year: str,
     if not (np.issubdtype(mod.dtype, np.number) and np.issubdtype(sat.dtype, np.number)):
         raise ValueError("❌ 'mod' and 'sat' must contain numeric data. ❌")
 
-    # =====STD CHECK=====
-    # Compute standard deviation of satellite data for normalization
-    ref_std = np.std(sat, ddof=1)
-    # If std is zero, return None (no variability to compare against)
-    if ref_std == 0:
-        print(f"Warning: Zero standard deviation in satellite data for {year}. Skipping.")
-        return None
+    with Timer("compute_single_target_stat"):
+        with start_action(action_type="compute_single_target_stat", year=year):
+            logging.info(f"Computing target statistics for year {year}")
+            log_message("Starting compute_single_target_stat", year=year)
 
-    # =====COMPUTATION=====
-    # Compute statistical metrics using target diagram method
-    stats = sm.target_statistics(mod, sat, 'data')
-    # Normalize metrics by satellite std and return with year label
-    return (
-        stats['bias'] / ref_std,
-        stats['crmsd'] / ref_std,
-        stats['rmsd'] / ref_std,
-        year
-    )
+            # =====STD CHECK=====
+            # Compute standard deviation of satellite data for normalization
+            ref_std = np.std(sat, ddof=1)
+            # If std is zero, return None (no variability to compare against)
+            if ref_std == 0:
+                logging.warning(f"Zero standard deviation in satellite data for {year}. Skipping.")
+                print(f"Warning: Zero standard deviation in satellite data for {year}. Skipping.")
+                return None
+
+            # =====COMPUTATION=====
+            # Compute statistical metrics using target diagram method
+            stats = sm.target_statistics(mod, sat, 'data')
+            # Normalize metrics by satellite std and return with year label
+            result = (
+                stats['bias'] / ref_std,
+                stats['crmsd'] / ref_std,
+                stats['rmsd'] / ref_std,
+                year
+            )
+
+            logging.info(f"Computed stats for year {year}: {result}")
+            log_message("Completed compute_single_target_stat", year=year, result=result)
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -131,24 +147,35 @@ def compute_single_month_target_stat(year: int,
     if not (np.issubdtype(mod.dtype, np.number) and np.issubdtype(sat.dtype, np.number)):
         raise ValueError("❌ 'mod' and 'sat' must contain numeric data. ❌")
 
-    # =====STD CHECK=====
-    # Calculate standard deviation of satellite data
-    ref_std = np.std(sat, ddof=1)
-    # Skip if std is zero (no variability)
-    if ref_std == 0:
-        print(f"Warning: Zero standard deviation in satellite data for {year}, month {month}. Skipping.")
-        return None
+    with Timer("compute_single_month_target_stat"):
+        with start_action(action_type="compute_single_month_target_stat", year=year, month=month):
+            logging.info(f"Computing target statistics for year {year}, month {month}")
+            log_message("Starting compute_single_month_target_stat", year=year, month=month)
 
-    # =====COMPUTATION=====
-    # Compute statistics using target diagram metrics
-    stats = sm.target_statistics(mod, sat, 'data')
-    # Return normalized metrics and year as string
-    return (
-        stats['bias'] / ref_std,
-        stats['crmsd'] / ref_std,
-        stats['rmsd'] / ref_std,
-        str(year)
-    )
+            # =====STD CHECK=====
+            # Calculate standard deviation of satellite data
+            ref_std = np.std(sat, ddof=1)
+            # Skip if std is zero (no variability)
+            if ref_std == 0:
+                logging.warning(f"Zero standard deviation in satellite data for {year}, month {month}. Skipping.")
+                print(f"Warning: Zero standard deviation in satellite data for {year}, month {month}. Skipping.")
+                return None
+
+            # =====COMPUTATION=====
+            # Compute statistics using target diagram metrics
+            stats = sm.target_statistics(mod, sat, 'data')
+            # Return normalized metrics and year as string
+            result = (
+                stats['bias'] / ref_std,
+                stats['crmsd'] / ref_std,
+                stats['rmsd'] / ref_std,
+                str(year)
+            )
+
+            logging.info(f"Computed stats for year {year}, month {month}: {result}")
+            log_message("Completed compute_single_month_target_stat", year=year, month=month, result=result)
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -194,16 +221,25 @@ def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.nda
     if not yearly_data:
         raise ValueError("❌ No overlapping model/satellite data found. ❌")
 
-    # =====STATISTICS COMPUTATION=====
-    # Compute statistics for each valid year, ignoring any that return None
-    results = list(filter(None, starmap(compute_single_target_stat, yearly_data)))
-    if not results:
-        raise ValueError("❌ No valid data available to compute statistics. ❌")
+    with Timer("compute_normalised_target_stats"):
+        with start_action(action_type="compute_normalised_target_stats"):
+            logging.info("Starting computation of normalized target statistics")
+            log_message("Starting compute_normalised_target_stats")
 
-    # =====OUTPUT FORMATTING=====
-    # Unpack computed stats and return as arrays
-    bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
-    return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
+            # =====STATISTICS COMPUTATION=====
+            # Compute statistics for each valid year, ignoring any that return None
+            results = list(filter(None, starmap(compute_single_target_stat, yearly_data)))
+            if not results:
+                raise ValueError("❌ No valid data available to compute statistics. ❌")
+
+            # =====OUTPUT FORMATTING=====
+            # Unpack computed stats and return as arrays
+            bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
+
+            logging.info(f"Computed normalized target stats for years: {labels}")
+            log_message("Completed compute_normalised_target_stats", labels=list(labels))
+
+            return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
 ###############################################################################
 
 ###############################################################################
@@ -258,15 +294,23 @@ def compute_normalised_target_stats_by_month(data_dict: Dict,
     if not filtered_data:
         raise ValueError(f"❌ No overlapping model/satellite data found for month {month_index}. ❌")
 
-    # ===== STATISTICS COMPUTATION =====
-    results = list(filter(None, starmap(compute_single_month_target_stat, filtered_data)))
-    if not results:
-        raise ValueError("❌ No valid data available to compute statistics. ❌")
+    with Timer("compute_normalised_target_stats_by_month"):
+        with start_action(action_type="compute_normalised_target_stats_by_month"):
+            logging.info(f"Starting computation of normalized target stats for month {month_index}")
+            log_message(f"Starting compute_normalised_target_stats_by_month for month {month_index}")
 
-    # ===== OUTPUT FORMATTING =====
-    bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
-    return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
+            # ===== STATISTICS COMPUTATION =====
+            results = list(filter(None, starmap(compute_single_month_target_stat, filtered_data)))
+            if not results:
+                raise ValueError("❌ No valid data available to compute statistics. ❌")
 
+            # ===== OUTPUT FORMATTING =====
+            bias_norm, crmsd_norm, rmsd_norm, labels = zip(*results)
+
+            logging.info(f"Computed normalized target stats for month {month_index}, years: {labels}")
+            log_message(f"Completed compute_normalised_target_stats_by_month for month {month_index}", labels=list(labels))
+
+            return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
 ###############################################################################
 
 ###############################################################################
@@ -307,27 +351,37 @@ def compute_target_extent_monthly(taylor_dict: Dict) -> float:
         monthly_indices.add(month)
     monthly_indices = sorted(monthly_indices)
 
-    # =====RMSD COLLECTION=====
-    # Compute normalized RMSD values for each month
-    monthly_rmsds = (
-        compute_normalised_target_stats_by_month(taylor_dict, month)[2]  # index 2 = RMSD
-        for month in monthly_indices
-    )
+    with Timer("compute_target_extent_monthly"):
+        with start_action(action_type="compute_target_extent_monthly"):
+            logging.info("Starting RMSD extraction for all months")
+            log_message("Starting compute_target_extent_monthly")
 
-    # =====FLATTEN & FILTER=====
-    # Combine all monthly RMSD arrays into a single flat list
-    all_rmsds = list(chain.from_iterable(
-        rmsd for rmsd in monthly_rmsds if rmsd.size > 0  # skip empty arrays
-    ))
+            # =====RMSD COLLECTION=====
+            # Compute normalized RMSD values for each month
+            monthly_rmsds = (
+                compute_normalised_target_stats_by_month(taylor_dict, month)[2]  # index 2 = RMSD
+                for month in monthly_indices
+            )
 
-    # =====VALIDATION=====
-    # Raise error if no RMSD data was found
-    if not all_rmsds:
-        raise ValueError("❌ No valid RMSD data to determine extent. ❌")
+            # =====FLATTEN & FILTER=====
+            # Combine all monthly RMSD arrays into a single flat list
+            all_rmsds = list(chain.from_iterable(
+                rmsd for rmsd in monthly_rmsds if rmsd.size > 0  # skip empty arrays
+            ))
 
-    # =====MAX EXTENT=====
-    # Return maximum RMSD, rounded up
-    return round_up_to_nearest(max(all_rmsds))
+            # =====VALIDATION=====
+            # Raise error if no RMSD data was found
+            if not all_rmsds:
+                raise ValueError("❌ No valid RMSD data to determine extent. ❌")
+
+            # =====MAX EXTENT=====
+            # Return maximum RMSD, rounded up
+            extent = round_up_to_nearest(max(all_rmsds))
+
+            logging.info(f"Computed extent (max RMSD rounded): {extent}")
+            log_message(f"Completed compute_target_extent_monthly with extent {extent}")
+
+            return extent
 ###############################################################################
 
 ###############################################################################
@@ -366,17 +420,27 @@ def compute_target_extent_yearly(data_dict: Dict) -> float:
     if not isinstance(data_dict, dict):
         raise ValueError("❌ 'data_dict' must be a dictionary containing model and satellite data. ❌")
 
-    # =====STATISTICS COMPUTATION=====
-    # Get normalized RMSD values for each year (ignore bias and crmsd)
-    _, _, rmsd, _ = compute_normalised_target_stats(data_dict)
+    with Timer("compute_target_extent_yearly"):
+        with start_action(action_type="compute_target_extent_yearly"):
+            logging.info("Starting RMSD extraction for all years")
+            log_message("Starting compute_target_extent_yearly")
 
-    # =====VALIDATION=====
-    # Ensure RMSD array contains data
-    if rmsd.size == 0:
-        raise ValueError("❌ No valid RMSD data to determine extent. ❌")
+            # =====STATISTICS COMPUTATION=====
+            # Get normalized RMSD values for each year (ignore bias and crmsd)
+            _, _, rmsd, _ = compute_normalised_target_stats(data_dict)
 
-    # =====MAX EXTENT=====
-    # Return rounded-up max RMSD if > 1.0, else default to 1.0
-    max_rmsd = np.max(rmsd)
-    return round_up_to_nearest(max_rmsd) if max_rmsd > 1.0 else 1.0
+            # =====VALIDATION=====
+            # Ensure RMSD array contains data
+            if rmsd.size == 0:
+                raise ValueError("❌ No valid RMSD data to determine extent. ❌")
+
+            # =====MAX EXTENT=====
+            # Return rounded-up max RMSD if > 1.0, else default to 1.0
+            max_rmsd = np.max(rmsd)
+            extent = round_up_to_nearest(max_rmsd) if max_rmsd > 1.0 else 1.0
+
+            logging.info(f"Computed extent (max RMSD rounded or default 1.0): {extent}")
+            log_message(f"Completed compute_target_extent_yearly with extent {extent}")
+
+            return extent
 ###############################################################################

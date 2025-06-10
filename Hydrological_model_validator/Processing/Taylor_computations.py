@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Union, Tuple, Optional
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 from .data_alignment import get_common_series_by_year, get_valid_mask, extract_mod_sat_keys
 
 ###############################################################################
@@ -53,24 +58,32 @@ def compute_taylor_stat_tuple(mod_values: np.ndarray,
     if mod_values.size == 0 or sat_values.size == 0:
         raise ValueError("❌ Input arrays must not be empty. ❌")
 
-    # =====VALID DATA MASK=====
-    # Find valid finite data points for comparison
-    valid_mask = np.isfinite(mod_values) & np.isfinite(sat_values)
-    if not np.any(valid_mask):
-        raise ValueError("❌ No valid finite data pairs found in input arrays. ❌")
+    with Timer(f"compute_taylor_stat_tuple: {label}"):
+        with start_action(action_type="compute_taylor_stat_tuple", label=label):
+            logging.info(f"Computing Taylor stats for label: {label}")
+            log_message(f"Start compute_taylor_stat_tuple for label {label}")
 
-    # =====FILTER DATA=====
-    # Extract only valid data points
-    mod_valid = mod_values[valid_mask]
-    sat_valid = sat_values[valid_mask]
+            # =====VALID DATA MASK=====
+            # Find valid finite data points for comparison
+            valid_mask = np.isfinite(mod_values) & np.isfinite(sat_values)
+            if not np.any(valid_mask):
+                raise ValueError("❌ No valid finite data pairs found in input arrays. ❌")
 
-    # =====COMPUTE STATISTICS=====
-    # Calculate Taylor stats for filtered data
-    stats = sm.taylor_statistics(mod_valid, sat_valid, 'data')
+            # =====FILTER DATA=====
+            # Extract only valid data points
+            mod_valid = mod_values[valid_mask]
+            sat_valid = sat_values[valid_mask]
 
-    # =====RETURN=====
-    # Return tuple: (label, model std dev, centered RMSD, correlation coef)
-    return (label, stats['sdev'][1], stats['crmsd'][1], stats['ccoef'][1])
+            # =====COMPUTE STATISTICS=====
+            # Calculate Taylor stats for filtered data
+            stats = sm.taylor_statistics(mod_valid, sat_valid, 'data')
+
+            result = (label, stats['sdev'][1], stats['crmsd'][1], stats['ccoef'][1])
+            
+            logging.info(f"Computed Taylor stats for {label}: {result[1:]}")
+            log_message(f"Completed compute_taylor_stat_tuple for label {label}")
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -117,40 +130,49 @@ def compute_std_reference(sat_data_by_year: Dict[Union[int, str], List[Union[np.
     if not isinstance(month_index, int) or month_index < 0:
         raise ValueError(f"❌ 'month_index' must be a non-negative integer. Got {month_index}. ❌")
 
-    # =====COLLECT MONTHLY DATA=====
-    # Initialize list to hold monthly satellite data across years
-    monthly_data = []
-    for year in years:
-        # Skip year if not present in satellite data dictionary
-        if year not in sat_data_by_year:
-            continue
+    with Timer(f"compute_std_reference: month {month_index}"):
+        with start_action(action_type="compute_std_reference", month_index=month_index):
+            logging.info(f"Computing std reference for month_index: {month_index}")
+            log_message(f"Start compute_std_reference for month_index {month_index}")
 
-        monthly_series = sat_data_by_year[year]
-        # Skip if month_index out of range for that year
-        if month_index >= len(monthly_series):
-            continue
+            # =====COLLECT MONTHLY DATA=====
+            # Initialize list to hold monthly satellite data across years
+            monthly_data = []
+            for year in years:
+                # Skip year if not present in satellite data dictionary
+                if year not in sat_data_by_year:
+                    continue
 
-        # Flatten monthly data array to 1D for concatenation
-        arr = np.asarray(monthly_series[month_index]).flatten()
+                monthly_series = sat_data_by_year[year]
+                # Skip if month_index out of range for that year
+                if month_index >= len(monthly_series):
+                    continue
 
-        # Ensure monthly data is not empty
-        if arr.size == 0:
-            raise ValueError(f"❌ Empty data array for year {year}, month index {month_index}. ❌")
+                # Flatten monthly data array to 1D for concatenation
+                arr = np.asarray(monthly_series[month_index]).flatten()
 
-        # Append valid data array to collection
-        monthly_data.append(arr)
+                # Ensure monthly data is not empty
+                if arr.size == 0:
+                    raise ValueError(f"❌ Empty data array for year {year}, month index {month_index}. ❌")
 
-    # =====VALIDATION=====
-    # Check if any valid monthly data was collected
-    if not monthly_data:
-        raise ValueError(f"❌ No valid satellite data found for month index {month_index} across given years. ❌")
+                # Append valid data array to collection
+                monthly_data.append(arr)
 
-    # =====CONCATENATE & COMPUTE STD=====
-    # Concatenate all monthly arrays into one
-    all_monthly_sat = np.concatenate(monthly_data)
+            # =====VALIDATION=====
+            # Check if any valid monthly data was collected
+            if not monthly_data:
+                raise ValueError(f"❌ No valid satellite data found for month index {month_index} across given years. ❌")
 
-    # Return standard deviation ignoring NaNs
-    return np.nanstd(all_monthly_sat)
+            # =====CONCATENATE & COMPUTE STD=====
+            # Concatenate all monthly arrays into one
+            all_monthly_sat = np.concatenate(monthly_data)
+
+            std_value = np.nanstd(all_monthly_sat)
+
+            logging.info(f"Computed std reference: {std_value} for month_index: {month_index}")
+            log_message(f"Completed compute_std_reference with std {std_value} for month_index {month_index}")
+
+            return std_value
 ###############################################################################
 
 ###############################################################################
@@ -197,24 +219,34 @@ def compute_norm_taylor_stats(mod_vals: np.ndarray,
     if not isinstance(std_ref, (int, float)) or std_ref <= 0:
         raise ValueError(f"❌ 'std_ref' must be a positive number. Got {std_ref}. ❌")
 
-    # =====VALID DATA MASK=====
-    # Determine valid (finite) overlapping data points in both arrays
-    valid = get_valid_mask(mod_vals, sat_vals)
-    if not np.any(valid):
-        # Return None if no valid data points
-        return None
+    with Timer("compute_norm_taylor_stats"):
+        with start_action(action_type="compute_norm_taylor_stats", std_ref=std_ref):
+            logging.info(f"Computing normalized Taylor stats with std_ref={std_ref}")
+            log_message(f"Start compute_norm_taylor_stats with std_ref={std_ref}")
 
-    # =====COMPUTE TAYLOR STATISTICS=====
-    # Compute Taylor stats on valid data subset
-    stats = sm.taylor_statistics(mod_vals[valid], sat_vals[valid], 'data')
+            # =====VALID DATA MASK=====
+            # Determine valid (finite) overlapping data points in both arrays
+            valid = get_valid_mask(mod_vals, sat_vals)
+            if not np.any(valid):
+                logging.info("No valid overlapping data points found.")
+                log_message("No valid overlapping data points found, returning None")
+                return None
 
-    # =====NORMALIZE & RETURN=====
-    # Normalize standard deviation and CRMSD by std_ref, keep correlation coefficient unchanged
-    return {
-        "sdev": stats['sdev'][1] / std_ref,
-        "crmsd": stats['crmsd'][1] / std_ref,
-        "ccoef": stats['ccoef'][1],
-    }
+            # =====COMPUTE TAYLOR STATISTICS=====
+            # Compute Taylor stats on valid data subset
+            stats = sm.taylor_statistics(mod_vals[valid], sat_vals[valid], 'data')
+
+            # =====NORMALIZE & RETURN=====
+            result = {
+                "sdev": stats['sdev'][1] / std_ref,
+                "crmsd": stats['crmsd'][1] / std_ref,
+                "ccoef": stats['ccoef'][1],
+            }
+
+            logging.info(f"Computed normalized stats: {result}")
+            log_message(f"Completed compute_norm_taylor_stats with result {result}")
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -273,72 +305,73 @@ def build_all_points(
     ...
 
     """
-    # =====EXTRACT MODEL AND SATELLITE KEYS=====
-    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+    with Timer("build_all_points"):
+        with start_action(action_type="build_all_points"):
+            # =====EXTRACT MODEL AND SATELLITE KEYS=====
+            mod_key, sat_key = extract_mod_sat_keys(data_dict)
 
-    # =====VALIDATE PRESENCE OF REQUIRED KEYS=====
-    if mod_key not in data_dict or sat_key not in data_dict:
-        raise KeyError(f"❌ Expected keys '{mod_key}' and '{sat_key}' not found in data_dict. ❌")
+            # =====VALIDATE PRESENCE OF REQUIRED KEYS=====
+            if mod_key not in data_dict or sat_key not in data_dict:
+                raise KeyError(f"❌ Expected keys '{mod_key}' and '{sat_key}' not found in data_dict. ❌")
 
-    model_data_by_year = data_dict[mod_key]
-    sat_data_by_year = data_dict[sat_key]
+            model_data_by_year = data_dict[mod_key]
+            sat_data_by_year = data_dict[sat_key]
 
-    # =====SORT YEARS FROM SATELLITE DATA=====
-    years = sorted(sat_data_by_year.keys())
+            # =====SORT YEARS FROM SATELLITE DATA=====
+            years = sorted(sat_data_by_year.keys())
 
-    # =====DETERMINE MAXIMUM MONTHS AVAILABLE=====
-    max_months = max(len(sat_data_by_year[year]) for year in years if year in sat_data_by_year)
+            # =====DETERMINE MAXIMUM MONTHS AVAILABLE=====
+            max_months = max(len(sat_data_by_year[year]) for year in years if year in sat_data_by_year)
 
-    std_refs = {}
+            std_refs = {}
 
-    # =====COMPUTE REFERENCE STANDARD DEVIATION PER MONTH=====
-    for month_idx in range(max_months):
-        try:
-            std_refs[month_idx] = compute_std_reference(sat_data_by_year, years, month_idx)
-        except ValueError:
-            # Skip months without valid reference standard deviation
-            continue
+            # =====COMPUTE REFERENCE STANDARD DEVIATION PER MONTH=====
+            for month_idx in range(max_months):
+                try:
+                    std_refs[month_idx] = compute_std_reference(sat_data_by_year, years, month_idx)
+                except ValueError:
+                    # Skip months without valid reference standard deviation
+                    continue
 
-    all_points = []
+            all_points = []
 
-    # =====BUILD DATA POINTS INCLUDING REFERENCE AND NORMALIZED STATS=====
-    for month_idx, std_ref in std_refs.items():
-        # Skip invalid or NaN reference std deviation months
-        if std_ref <= 0 or np.isnan(std_ref):
-            continue
+            # =====BUILD DATA POINTS INCLUDING REFERENCE AND NORMALIZED STATS=====
+            for month_idx, std_ref in std_refs.items():
+                if std_ref <= 0 or np.isnan(std_ref):
+                    continue
 
-        # Add reference point for perfect agreement in this month
-        all_points.append({
-            "sdev": 1.0,
-            "crmsd": 0.0,
-            "ccoef": 1.0,
-            "month": month_idx,
-            "year": "Ref"
-        })
+                # Add reference point for perfect agreement in this month
+                all_points.append({
+                    "sdev": 1.0,
+                    "crmsd": 0.0,
+                    "ccoef": 1.0,
+                    "month": month_idx,
+                    "year": "Ref"
+                })
 
-        # For each year, compute normalized Taylor stats if data available
-        for year in years:
-            try:
-                mod_vals = np.asarray(model_data_by_year[year][month_idx])
-                sat_vals = np.asarray(sat_data_by_year[year][month_idx])
-            except (IndexError, KeyError):
-                # Skip if data is missing for this month/year
-                continue
+                for year in years:
+                    try:
+                        mod_vals = np.asarray(model_data_by_year[year][month_idx])
+                        sat_vals = np.asarray(sat_data_by_year[year][month_idx])
+                    except (IndexError, KeyError):
+                        continue
 
-            norm_stats = compute_norm_taylor_stats(mod_vals, sat_vals, std_ref)
-            if norm_stats is None:
-                # Skip if no valid overlapping data points
-                continue
+                    norm_stats = compute_norm_taylor_stats(mod_vals, sat_vals, std_ref)
+                    if norm_stats is None:
+                        continue
 
-            # Append computed normalized stats with month and year info
-            all_points.append({
-                **norm_stats,
-                "month": month_idx,
-                "year": year
-            })
+                    all_points.append({
+                        **norm_stats,
+                        "month": month_idx,
+                        "year": year
+                    })
 
-    # =====RETURN DATAFRAME AND YEARS LIST=====
-    return pd.DataFrame(all_points), years
+            df = pd.DataFrame(all_points)
+
+            log_message(f"Built {len(df)} Taylor stat points across {len(years)} years and {len(std_refs)} months.")
+            logging.info(f"build_all_points completed: {len(df)} points, years={years}, months={list(std_refs.keys())}")
+
+            return df, years
 ###############################################################################
 
 ###############################################################################
@@ -394,7 +427,6 @@ def compute_yearly_taylor_stats(
     sat_data_by_year = data_dict[sat_key]
 
     # =====FLATTEN ALL SATELLITE DATA ACROSS ALL YEARS AND MONTHS=====
-    # Filter out None or empty arrays, flatten each monthly array
     all_sat_data = np.concatenate([
         np.asarray(month_array).flatten()
         for year_data in sat_data_by_year.values()
@@ -409,15 +441,21 @@ def compute_yearly_taylor_stats(
     if np.isnan(std_ref) or std_ref == 0:
         raise ValueError("Global satellite standard deviation is zero or NaN, indicating invalid or missing data.")
 
-    # =====ALIGN DATA BY YEAR TO OBTAIN COMMON SERIES FOR MODEL AND SATELLITE=====
-    aligned_data = get_common_series_by_year(data_dict)
+    # =====START TIMER AND ELIOT TRACING FOR THE MAIN COMPUTATION=====
+    with Timer("compute_yearly_taylor_stats"):
+        with start_action(action_type="compute_yearly_taylor_stats"):
+            # =====ALIGN DATA BY YEAR TO OBTAIN COMMON SERIES FOR MODEL AND SATELLITE=====
+            aligned_data = get_common_series_by_year(data_dict)
 
-    # =====COMPUTE TAYLOR STATISTICS FOR EACH YEAR=====
-    yearly_stats = [
-        compute_taylor_stat_tuple(mod_values, sat_values, str(year))
-        for year, mod_values, sat_values in aligned_data
-    ]
+            # =====COMPUTE TAYLOR STATISTICS FOR EACH YEAR=====
+            yearly_stats = [
+                compute_taylor_stat_tuple(mod_values, sat_values, str(year))
+                for year, mod_values, sat_values in aligned_data
+            ]
 
-    # =====RETURN THE LIST OF YEARLY STATS AND GLOBAL STD REF=====
-    return yearly_stats, std_ref
+            log_message(f"Computed yearly Taylor stats for {len(yearly_stats)} years with std_ref={std_ref:.3f}.")
+            logging.info(f"compute_yearly_taylor_stats completed: years={len(yearly_stats)}, std_ref={std_ref}")
+
+            # =====RETURN THE LIST OF YEARLY STATS AND GLOBAL STD REF=====
+            return yearly_stats, std_ref
 ###############################################################################

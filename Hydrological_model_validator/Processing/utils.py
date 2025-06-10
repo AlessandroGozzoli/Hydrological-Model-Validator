@@ -4,6 +4,11 @@ import re
 import numpy as np
 import xarray as xr
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 ###############################################################################
 def find_key(
     dictionary: Dict[Any, Any], 
@@ -49,16 +54,25 @@ def find_key(
             all(isinstance(k, str) for k in possible_keys)):
         raise ValueError("Input 'possible_keys' must be an iterable of strings, not a string itself.")
 
-    # ===== PREPARE LOWERCASE SUBSTRINGS FOR MATCHING =====
-    possible_keys_lower = [sub.lower() for sub in possible_keys]  # Case-insensitive matching
+    with Timer("find_key function"):
+        with start_action(action_type="find_key function", possible_keys=list(possible_keys)):
+            logging.info("Starting key search in dictionary.")
+            log_message("find_key started", possible_keys=list(possible_keys))
 
-    # ===== SEARCH FOR FIRST MATCHING KEY =====
-    for key in dictionary:
-        key_str = str(key).lower()  # Convert key to lowercase string for matching
-        if any(sub in key_str for sub in possible_keys_lower):
-            return key  # Return first matching key found
+            # ===== PREPARE LOWERCASE SUBSTRINGS FOR MATCHING =====
+            possible_keys_lower = [sub.lower() for sub in possible_keys]  # Case-insensitive matching
 
-    return None  # No matching key found
+            # ===== SEARCH FOR FIRST MATCHING KEY =====
+            for key in dictionary:
+                key_str = str(key).lower()  # Convert key to lowercase string for matching
+                if any(sub in key_str for sub in possible_keys_lower):
+                    logging.info(f"Found matching key: {key}")
+                    log_message("find_key matched key", key=key)
+                    return key  # Return first matching key found
+
+            logging.info("No matching key found.")
+            log_message("find_key no match found")
+            return None  # No matching key found
 ###############################################################################
 
 ###############################################################################
@@ -111,16 +125,24 @@ def extract_options(
     if not isinstance(prefix, str):
         raise ValueError("Input 'prefix' must be a string.")
 
-    # ===== COPY DEFAULTS AND OVERRIDE WITH USER VALUES =====
-    result = default_dict.copy()  # Start with default options
-    for key in default_dict:
-        prefixed_key = f"{prefix}{key}"  # Compose prefixed key
-        if prefixed_key in user_kwargs:
-            result[key] = user_kwargs[prefixed_key]  # Override with prefixed key if present
-        elif key in user_kwargs:
-            result[key] = user_kwargs[key]  # Else override with non-prefixed key if present
+    with Timer("extract_options function"):
+        with start_action(action_type="extract_options function", prefix=prefix):
+            logging.info("Starting extraction of options from user_kwargs.")
+            log_message("extract_options started", prefix=prefix)
 
-    return result
+            # ===== COPY DEFAULTS AND OVERRIDE WITH USER VALUES =====
+            result = default_dict.copy()  # Start with default options
+            for key in default_dict:
+                prefixed_key = f"{prefix}{key}"  # Compose prefixed key
+                if prefixed_key in user_kwargs:
+                    result[key] = user_kwargs[prefixed_key]  # Override with prefixed key if present
+                elif key in user_kwargs:
+                    result[key] = user_kwargs[key]  # Else override with non-prefixed key if present
+
+            logging.info("Options extraction complete.")
+            log_message("extract_options completed", result_keys=list(result.keys()))
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -170,38 +192,45 @@ def infer_years_from_path(
     if not directory.exists():
         raise ValueError(f"Directory '{directory}' does not exist.")
 
-    # ===== LIST TARGET ITEMS =====
     target_type = target_type.lower()
-    if target_type == "file":
-        items = [f for f in directory.iterdir() if f.is_file()]  # List files
-    elif target_type == "folder":
-        items = [d for d in directory.iterdir() if d.is_dir()]   # List directories
-    else:
+    if target_type not in ("file", "folder"):
         raise ValueError(f"Invalid target_type '{target_type}'. Use 'file' or 'folder'.")
 
-    # ===== COMPILE REGEX AND EXTRACT YEARS =====
-    year_re = re.compile(pattern)
+    with Timer("infer_years_from_path function"):
+        with start_action(action_type="infer_years_from_path function", directory=str(directory), target_type=target_type):
+            logging.info(f"Scanning directory '{directory}' for {target_type}s matching year pattern.")
+            log_message("infer_years_from_path started", directory=str(directory), target_type=target_type)
 
-    # Use set comprehension with regex search to find all unique years in item names
-    years_found = sorted({
-        int(match.group(1)) 
-        for item in items 
-        if (match := year_re.search(item.name))
-    })
+            # ===== LIST TARGET ITEMS =====
+            if target_type == "file":
+                items = [f for f in directory.iterdir() if f.is_file()]  # List files
+            else:
+                items = [d for d in directory.iterdir() if d.is_dir()]   # List directories
 
-    if debug:
-        print(f"Scanned {len(items)} {target_type}s in {directory}")
-        print(f"Found years: {years_found}")
+            # ===== COMPILE REGEX AND EXTRACT YEARS =====
+            year_re = re.compile(pattern)
 
-    # ===== VALIDATE YEARS FOUND =====
-    if not years_found:
-        raise ValueError(f"No {target_type}s with year pattern '{pattern}' found in {directory}")
+            years_found = sorted({
+                int(match.group(1))
+                for item in items
+                if (match := year_re.search(item.name))
+            })
 
-    # ===== RETURN YEAR RANGE AND SEQUENCE =====
-    Ybeg, Yend = years_found[0], years_found[-1]   # Earliest and latest years
-    ysec = list(range(Ybeg, Yend + 1))             # Full continuous list of years
+            if debug:
+                print(f"Scanned {len(items)} {target_type}s in {directory}")
+                print(f"Found years: {years_found}")
 
-    return Ybeg, Yend, ysec
+            # ===== VALIDATE YEARS FOUND =====
+            if not years_found:
+                raise ValueError(f"No {target_type}s with year pattern '{pattern}' found in {directory}")
+
+            Ybeg, Yend = years_found[0], years_found[-1]   # Earliest and latest years
+            ysec = list(range(Ybeg, Yend + 1))             # Full continuous list of years
+
+            logging.info(f"Years found from {Ybeg} to {Yend}.")
+            log_message("infer_years_from_path completed", Ybeg=Ybeg, Yend=Yend, ysec=ysec)
+
+            return Ybeg, Yend, ysec
 ###############################################################################
 
 ###############################################################################
@@ -239,19 +268,28 @@ def temp_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: 
     array([[False,  True],
            [ True, False]])
     """
-    # ===== APPLY SHALLOW THRESHOLD =====
-    # Valid shallow temps: 5 < temp < 35; invert and restrict to shallow mask
-    invalid_shallow = ~((slice_data > 5) & (slice_data < 35)) & mask_shallow
+    with Timer("temp_threshold function"):
+        with start_action(action_type="temp_threshold function"):
+            logging.info("Computing invalid temperature mask based on shallow and deep thresholds.")
+            log_message("temp_threshold started")
 
-    # ===== APPLY DEEP THRESHOLD =====
-    # Valid deep temps: 8 < temp < 25; invert and restrict to deep mask
-    invalid_deep = ~((slice_data > 8) & (slice_data < 25)) & mask_deep
+            # ===== APPLY SHALLOW THRESHOLD =====
+            # Valid shallow temps: 5 < temp < 35; invert and restrict to shallow mask
+            invalid_shallow = ~((slice_data > 5) & (slice_data < 35)) & mask_shallow
 
-    # ===== COMBINE MASKS =====
-    # Mark points invalid if they fail either shallow or deep threshold criteria
-    invalid_mask = invalid_shallow | invalid_deep
+            # ===== APPLY DEEP THRESHOLD =====
+            # Valid deep temps: 8 < temp < 25; invert and restrict to deep mask
+            invalid_deep = ~((slice_data > 8) & (slice_data < 25)) & mask_deep
 
-    return invalid_mask
+            # ===== COMBINE MASKS =====
+            # Mark points invalid if they fail either shallow or deep threshold criteria
+            invalid_mask = invalid_shallow | invalid_deep
+
+            logging.info("Computed invalid temperature mask.")
+            log_message("temp_threshold completed")
+
+            return invalid_mask
+
 ###############################################################################
 
 ###############################################################################
@@ -283,19 +321,27 @@ def hal_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: n
     array([[False,  True],
            [False, False]])
     """
-    # ===== APPLY SHALLOW THRESHOLD =====
-    # Valid shallow salinity: 25 < salinity < 40; invert and restrict to shallow mask
-    invalid_shallow = ~((slice_data > 25) & (slice_data < 40)) & mask_shallow
+    with Timer("hal_threshold function"):
+        with start_action(action_type="hal_threshold function"):
+            logging.info("Computing invalid salinity mask based on shallow and deep thresholds.")
+            log_message("hal_threshold started")
 
-    # ===== APPLY DEEP THRESHOLD =====
-    # Valid deep salinity: 36 < salinity < 40; invert and restrict to deep mask
-    invalid_deep = ~((slice_data > 36) & (slice_data < 40)) & mask_deep
+            # ===== APPLY SHALLOW THRESHOLD =====
+            # Valid shallow salinity: 25 < salinity < 40; invert and restrict to shallow mask
+            invalid_shallow = ~((slice_data > 25) & (slice_data < 40)) & mask_shallow
 
-    # ===== COMBINE MASKS =====
-    # Mark points invalid if they fail either shallow or deep threshold criteria
-    invalid_mask = invalid_shallow | invalid_deep
+            # ===== APPLY DEEP THRESHOLD =====
+            # Valid deep salinity: 36 < salinity < 40; invert and restrict to deep mask
+            invalid_deep = ~((slice_data > 36) & (slice_data < 40)) & mask_deep
 
-    return invalid_mask
+            # ===== COMBINE MASKS =====
+            # Mark points invalid if they fail either shallow or deep threshold criteria
+            invalid_mask = invalid_shallow | invalid_deep
+
+            logging.info("Computed invalid salinity mask.")
+            log_message("hal_threshold completed")
+
+            return invalid_mask
 ###############################################################################
 
 ###############################################################################
@@ -328,18 +374,30 @@ def find_key_variable(nc_vars: Iterable[str], candidates: List[str]) -> str:
     >>> find_key_variable(vars_available, candidates)
     'salinity'
     """
-    # ===== SEARCH FOR FIRST MATCH =====
-    # Iterate over candidates, return first found variable in nc_vars
-    found_var = next((v for v in candidates if v in nc_vars), None)
+    # ===== VALIDATE INPUT TYPES =====
+    if not hasattr(nc_vars, '__iter__'):
+        raise ValueError("Input 'nc_vars' must be an iterable of strings.")
+    if not isinstance(candidates, list) or not all(isinstance(c, str) for c in candidates):
+        raise ValueError("Input 'candidates' must be a list of strings.")
 
-    # ===== HANDLE NO MATCH =====
-    # Raise error if no candidate variable found
-    if found_var is None:
-        raise KeyError(
-            f"\033[91m❌ None of the variables {candidates} found in the dataset\033[0m"
-        )
+    with Timer("find_key_variable function"):
+        with start_action(action_type="find_key_variable function"):
+            logging.info("Searching for first matching variable in nc_vars from candidates.")
+            log_message("find_key_variable started")
 
-    return found_var
+            # ===== SEARCH FOR FIRST MATCH =====
+            found_var = next((v for v in candidates if v in nc_vars), None)
+
+            # ===== HANDLE NO MATCH =====
+            if found_var is None:
+                logging.error(f"No variables {candidates} found in dataset.")
+                raise KeyError(
+                    f"\033[91m❌ None of the variables {candidates} found in the dataset\033[0m"
+                )
+
+            logging.info(f"Found variable '{found_var}' in nc_vars.")
+            log_message("find_key_variable completed", found_var=found_var)
+            return found_var
 ###############################################################################
 
 ###############################################################################
@@ -378,26 +436,37 @@ def _to_dataarray(
       * lat      (lat) int64 0 1 2 3 4
       * lon      (lon) int64 0 1 2 3 4 5 6 7 8 9
     """
-    # ===== RETURN IF ALREADY DATAARRAY =====
-    # Return val directly if it is already an xarray.DataArray
-    if isinstance(val, xr.DataArray):
-        return val
-
-    # ===== CHECK SCALAR =====
-    # Only allow scalar values to be broadcasted
-    if not np.isscalar(val):
+    # ===== VALIDATE INPUTS =====
+    if not (isinstance(val, xr.DataArray) or np.isscalar(val)):
         raise ValueError(f"Expected scalar or DataArray, got {type(val)}")
+    if not isinstance(reference_da, xr.DataArray):
+        raise ValueError("Input 'reference_da' must be an xarray.DataArray.")
 
-    # ===== SELECT REFERENCE SLICE =====
-    # If 'time' dim exists, use first time slice as shape template
-    if 'time' in reference_da.dims:
-        ref = reference_da.isel(time=0)
-    else:
-        ref = reference_da
+    with Timer("_to_dataarray function"):
+        with start_action(action_type="_to_dataarray function"):
+            logging.info("Starting conversion to DataArray or broadcasting scalar.")
+            log_message("Starting _to_dataarray", val_type=type(val).__name__)
 
-    # ===== BROADCAST SCALAR TO DATAARRAY =====
-    # Create DataArray full of val with shape of ref
-    return xr.full_like(ref, val)
+            # ===== RETURN IF ALREADY DATAARRAY =====
+            if isinstance(val, xr.DataArray):
+                logging.info("Input val is already a DataArray; returning directly.")
+                log_message("Completed _to_dataarray (already DataArray)")
+                return val
+
+            # ===== SELECT REFERENCE SLICE =====
+            # If 'time' dim exists, use first time slice as shape template
+            if 'time' in reference_da.dims:
+                ref = reference_da.isel(time=0)
+                logging.info("Reference DataArray has 'time' dimension; using first slice for shape.")
+            else:
+                ref = reference_da
+                logging.info("Reference DataArray has no 'time' dimension; using full DataArray as shape.")
+
+            # ===== BROADCAST SCALAR TO DATAARRAY =====
+            result = xr.full_like(ref, val)
+            logging.info("Broadcasted scalar to DataArray matching reference shape.")
+            log_message("Completed _to_dataarray", result_shape=result.shape)
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -434,12 +503,33 @@ def check_numeric_data(data_dict: Dict[str, Dict[int, List[np.ndarray]]]) -> Non
     ... }
     >>> check_numeric_data(data)  # passes silently if valid
     """
-    for key in ['model', 'satellite']:
-        if key not in data_dict:
-            continue
-        for year, monthly_arrays in data_dict[key].items():
-            if not isinstance(monthly_arrays, (list, tuple)) or len(monthly_arrays) != 12:
-                raise ValueError(f"Data for year {year} under '{key}' must be a list or tuple of 12 numpy arrays")
-            for month_idx, arr in enumerate(monthly_arrays):
-                if arr.size > 0 and not np.issubdtype(arr.dtype, np.number):
-                    raise ValueError(f"Data for year {year}, month {month_idx} under '{key}' must contain numeric data")
+    # ===== VALIDATE INPUT TYPE =====
+    if not isinstance(data_dict, dict):
+        raise ValueError("Input 'data_dict' must be a dictionary.")
+
+    with Timer("check_numeric_data function"):
+        with start_action(action_type="check_numeric_data function"):
+            logging.info("Starting numeric data validation")
+            log_message("Starting check_numeric_data")
+
+            for key in ['model', 'satellite']:
+                if key not in data_dict:
+                    logging.info(f"Key '{key}' not found in data_dict, skipping.")
+                    continue
+                for year, monthly_arrays in data_dict[key].items():
+                    # Validate list/tuple length
+                    if not isinstance(monthly_arrays, (list, tuple)) or len(monthly_arrays) != 12:
+                        error_msg = f"Data for year {year} under '{key}' must be a list or tuple of 12 numpy arrays"
+                        logging.error(error_msg)
+                        raise ValueError(error_msg)
+
+                    for month_idx, arr in enumerate(monthly_arrays):
+                        # Validate numeric dtype if array not empty
+                        if arr.size > 0 and not np.issubdtype(arr.dtype, np.number):
+                            error_msg = (f"Data for year {year}, month {month_idx} under '{key}' "
+                                         "must contain numeric data")
+                            logging.error(error_msg)
+                            raise ValueError(error_msg)
+
+            logging.info("Numeric data validation completed successfully")
+            log_message("Completed check_numeric_data")

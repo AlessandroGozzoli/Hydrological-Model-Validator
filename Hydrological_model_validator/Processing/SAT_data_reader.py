@@ -6,6 +6,11 @@ from typing import Union, Tuple
 from pathlib import Path
 import shutil
 
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
+
 from .utils import find_key_variable
 
 ###############################################################################
@@ -36,10 +41,7 @@ def sat_data_loader(
     TypeError, FileNotFoundError, ValueError, KeyError, RuntimeError
         On invalid inputs or missing data files.
     """
-
     # ===== INPUT VALIDATION BLOCK =====
-    # Validate directory path for satellite data and basic parameter checks
-
     if not isinstance(D_sat, (str, Path)):
         raise TypeError("❌ D_sat must be a string or a Path object. ❌")
     D_sat = Path(D_sat)
@@ -60,133 +62,123 @@ def sat_data_loader(
     if varname_lower not in ['chl', 'sst']:
         raise ValueError("❌ varname must be either 'chl' or 'sst' ❌")
 
-    # ===== FILE DISCOVERY BLOCK =====
-    # Find and filter compressed files matching the data_level
+    with Timer("sat_data_loader function"):
+        with start_action(
+            action_type="sat_data_loader function",
+            data_level=data_level,
+            variable=varname_lower,
+            directory=str(D_sat)
+        ):
+            logging.info(f"Starting satellite data loading for level '{data_level}' and variable '{varname_lower}'.")
+            log_message("Satellite data loading started", data_level=data_level, variable=varname_lower)
 
-    all_files = sorted(D_sat.glob('*.gz'))
-    data_files = [f for f in all_files if data_level in f.name]
+            # ===== FILE DISCOVERY BLOCK =====
+            all_files = sorted(D_sat.glob('*.gz'))
+            data_files = [f for f in all_files if data_level in f.name]
 
-    if not data_files:
-        raise FileNotFoundError(f"❌ No .gz data files found in '{D_sat}' for data level '{data_level}'. ❌")
+            if not data_files:
+                raise FileNotFoundError(f"❌ No .gz data files found in '{D_sat}' for data level '{data_level}'. ❌")
 
-    print(f"Reading satellite data for level '{data_level}'...")
-    print(f"\033[91m⚠️ Found {len(data_files)} data files ⚠️\033[0m")
+            print(f"Reading satellite data for level '{data_level}'...")
+            print(f"\033[91m⚠️ Found {len(data_files)} data files ⚠️\033[0m")
 
-    # ===== INITIALIZATION BLOCK =====
-    # Initialize variables for storing lon, lat, time, and data
+            # ===== INITIALIZATION BLOCK =====
+            lon = None
+            lat = None
+            T_orig = []
+            data_orig_list = []
+            total_time_count = 0
 
-    lon = None
-    lat = None
-    T_orig = []
-    data_orig_list = []
-    total_time_count = 0
+            # ===== FILE PROCESSING LOOP =====
+            for n, gz_file in enumerate(data_files, start=1):
+                nc_file = gz_file.with_suffix('')  # remove .gz extension
 
-    # ===== FILE PROCESSING LOOP =====
-    # Loop through each file: decompress if needed, extract variables, and accumulate data
+                if not nc_file.exists():
+                    with gzip.open(gz_file, 'rb') as f_in, open(nc_file, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    os.remove(gz_file)  # remove original compressed file after decompression
+                    logging.info(f"Decompressed file: {gz_file.name}")
 
-    for n, gz_file in enumerate(data_files, start=1):
-        nc_file = gz_file.with_suffix('')  # remove .gz extension
+                with ds(nc_file, 'r') as nc:
+                    # ===== LONGITUDE & LATITUDE EXTRACTION BLOCK =====
+                    if lon is None or lat is None:
+                        lon_var = find_key_variable(nc.variables, ['lon', 'longitude'])
+                        lat_var = find_key_variable(nc.variables, ['lat', 'latitude'])
 
-        # Decompress only if uncompressed file does not exist
-        if not nc_file.exists():
-            with gzip.open(gz_file, 'rb') as f_in, open(nc_file, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-            os.remove(gz_file)  # remove original compressed file after decompression
+                        if lon_var is None or lat_var is None:
+                            raise KeyError("❌ Longitude or latitude variable not found in NetCDF file. ❌")
 
-        with ds(nc_file, 'r') as nc:
-            # ===== LONGITUDE & LATITUDE EXTRACTION BLOCK =====
-            # Extract lon/lat once, ensure 1D arrays and tile to 2D grid shape
+                        lon_1d = nc.variables[lon_var][:]
+                        lat_1d = nc.variables[lat_var][:]
 
+                        if lon_1d.ndim != 1 or lat_1d.ndim != 1:
+                            raise ValueError("❌ Longitude and latitude variables must be 1D arrays. ❌")
+
+                        lon = np.tile(lon_1d, (len(lat_1d), 1))
+                        lat = np.tile(lat_1d, (len(lon_1d), 1))
+
+                    # ===== TIME EXTRACTION BLOCK =====
+                    time_arr = nc.variables.get('time')
+                    if time_arr is None:
+                        raise KeyError("❌ 'time' variable not found in NetCDF file. ❌")
+                    time_arr = time_arr[:]
+
+                    # ===== DATA VARIABLE NAME RESOLUTION BLOCK =====
+                    vars_lower = {k.lower(): k for k in nc.variables.keys()}
+
+                    if varname_lower in vars_lower:
+                        real_varname = vars_lower[varname_lower]
+                    elif varname_lower == 'sst':
+                        alt_varname = 'adjusted_sea_surface_temperature'
+                        if alt_varname in vars_lower:
+                            real_varname = vars_lower[alt_varname]
+                        else:
+                            raise KeyError(
+                                f"❌ Variable '{varname_lower}' or '{alt_varname}' not found in file ❌"
+                            )
+                    else:
+                        raise KeyError(f"❌ Variable '{varname_lower}' not found in file ❌")
+
+                    # ===== DATA EXTRACTION & CLEANING BLOCK =====
+                    data_arr = nc.variables[real_varname][:]
+                    data_arr = np.array(data_arr, dtype=float)
+                    data_arr[data_arr == -999] = np.nan
+
+                    if data_arr.ndim != 3:
+                        raise ValueError("❌ Expected 3D data (time, lat, lon) ❌")
+
+                    SZTtmp = time_arr.shape[0]
+                    total_time_count += SZTtmp
+                    print(f"File {n}: {SZTtmp} time points, cumulative: {total_time_count}")
+
+                    T_orig.extend(time_arr)
+                    data_orig_list.append(data_arr)
+
+            # ===== FINAL VALIDATION BLOCK =====
             if lon is None or lat is None:
-                lon_var = find_key_variable(nc.variables, ['lon', 'longitude'])
-                lat_var = find_key_variable(nc.variables, ['lat', 'latitude'])
+                raise RuntimeError("❌ Longitude or latitude not found in any file ❌")
 
-                if lon_var is None or lat_var is None:
-                    raise KeyError("❌ Longitude or latitude variable not found in NetCDF file. ❌")
+            T_orig = np.array(T_orig)
+            data_orig = np.concatenate(data_orig_list, axis=0)
 
-                lon_1d = nc.variables[lon_var][:]
-                lat_1d = nc.variables[lat_var][:]
+            print("*" * 45)
+            print("Attempting to merge datasets...")
 
-                if lon_1d.ndim != 1 or lat_1d.ndim != 1:
-                    raise ValueError("❌ Longitude and latitude variables must be 1D arrays. ❌")
-
-                # Create 2D grid by tiling 1D arrays to match expected shape (lat x lon)
-                lon = np.tile(lon_1d, (len(lat_1d), 1))
-                lat = np.tile(lat_1d, (len(lon_1d), 1))
-
-            # ===== TIME EXTRACTION BLOCK =====
-            # Extract time variable for the current file
-
-            time_arr = nc.variables.get('time')
-            if time_arr is None:
-                raise KeyError("❌ 'time' variable not found in NetCDF file. ❌")
-            time_arr = time_arr[:]
-
-            # ===== DATA VARIABLE NAME RESOLUTION BLOCK =====
-            # Resolve real variable name ignoring case; handle SST special cases
-
-            vars_lower = {k.lower(): k for k in nc.variables.keys()}
-
-            if varname_lower in vars_lower:
-                real_varname = vars_lower[varname_lower]
-            elif varname_lower == 'sst':
-                alt_varname = 'adjusted_sea_surface_temperature'
-                if alt_varname in vars_lower:
-                    real_varname = vars_lower[alt_varname]
-                else:
-                    raise KeyError(
-                        f"❌ Variable '{varname}' or '{alt_varname}' not found in file ❌"
-                    )
-            else:
-                raise KeyError(
-                    f"❌ Variable '{varname}' not found in file ❌"
+            if T_orig.shape[0] != total_time_count:
+                raise ValueError(
+                    f"❌ Merge failed: expected {total_time_count} time points, got {T_orig.shape[0]} ❌"
                 )
+            print("\033[92m✅ The data merging has been successful!\033[0m")
+            print("*" * 45)
 
-            # ===== DATA EXTRACTION & CLEANING BLOCK =====
-            # Extract data array, convert to float, mask invalid fill values (-999) as NaN
+            # ===== UNIT CONVERSION BLOCK =====
+            if varname_lower in ['sst', 'adjusted_sea_surface_temperature']:
+                print("Converting the SST data from Kelvin into Celsius...")
+                data_orig -= 273.15
+                print("\033[92m✅ SST successfully converted to Celsius!\033[0m")
 
-            data_arr = nc.variables[real_varname][:]
-            data_arr = np.array(data_arr, dtype=float)  # force float type for NaN assignment
-            data_arr[data_arr == -999] = np.nan
+            logging.info(f"Satellite data loading completed successfully: {total_time_count} time points")
+            log_message("Satellite data loading completed", total_time_count=total_time_count)
 
-            # Verify data shape matches expected 3D (time, lat, lon)
-            if data_arr.ndim != 3:
-                raise ValueError("❌ Expected 3D data (time, lat, lon) ❌")
-
-            # Update counters and accumulate data/time
-            SZTtmp = time_arr.shape[0]
-            total_time_count += SZTtmp
-            print(f"File {n}: {SZTtmp} time points, cumulative: {total_time_count}")
-
-            T_orig.extend(time_arr)
-            data_orig_list.append(data_arr)
-
-    # ===== FINAL VALIDATION BLOCK =====
-    # Ensure longitude and latitude were found and accumulated data/time sizes match
-
-    if lon is None or lat is None:
-        raise RuntimeError("❌ Longitude or latitude not found in any file ❌")
-
-    T_orig = np.array(T_orig)
-    data_orig = np.concatenate(data_orig_list, axis=0)
-
-    print("*" * 45)
-    print("Attempting to merge datasets...")
-
-    if T_orig.shape[0] != total_time_count:
-        raise ValueError(
-            f"❌ Merge failed: expected {total_time_count} time points, got {T_orig.shape[0]} ❌"
-        )
-    print("\033[92m✅ The data merging has been successful!\033[0m")
-    print("*" * 45)
-
-    # ===== UNIT CONVERSION BLOCK =====
-    # Convert SST data from Kelvin to Celsius, if applicable
-
-    if varname_lower in ['sst', 'adjusted_sea_surface_temperature']:
-        print("Converting the SST data from Kelvin into Celsius...")
-        data_orig -= 273.15
-        print("\033[92m✅ SST successfully converted to Celsius!\033[0m")
-
-    return T_orig, data_orig, lon, lat
+            return T_orig, data_orig, lon, lat
 ###############################################################################
