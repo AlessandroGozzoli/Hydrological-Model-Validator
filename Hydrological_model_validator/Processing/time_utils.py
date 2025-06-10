@@ -4,6 +4,11 @@ import numpy as np
 import itertools
 from dask.diagnostics import ProgressBar
 from concurrent.futures import ThreadPoolExecutor
+import logging
+from datetime import datetime
+from contextlib import contextmanager
+from eliot import start_action, log_message, to_file
+from eliot.stdlib import EliotHandler
 
 ###############################################################################
 def leapyear(year: int) -> int:
@@ -36,12 +41,19 @@ def leapyear(year: int) -> int:
     >>> leapyear(2023)
     0
     """
-    # Validate input is a positive integer
-    if not (isinstance(year, int) and year > 0):
-        raise ValueError("❌ Year must be a positive integer. ❌")
+    with Timer("leapyear function"):
+        with start_action(action_type="leapyear function", year=year):
+            # Validate input is a positive integer
+            if not (isinstance(year, int) and year > 0):
+                raise ValueError("❌ Year must be a positive integer. ❌")
 
-    # Leap year if divisible by 4 but not 100, or divisible by 400
-    return int((year % 4 == 0 and year % 100 != 0) or (year % 400 == 0))
+            # Leap year if divisible by 4 but not 100, or divisible by 400
+            result = int((year % 4 == 0 and year % 100 != 0) or (year % 400 == 0))
+
+            log_message("Computed leap year result", year=year, result=result)
+            logging.info(f"Year {year} is {'a leap year' if result else 'not a leap year'}.")
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -82,24 +94,36 @@ def true_time_series_length(
     >>> true_time_series_length([1999, 2001], [2000, 2002], 365)
     1096
     """
-    # ===== VALIDATION =====
-    if len(chlfstart) != len(chlfend):
-        raise ValueError("❌ chlfstart and chlfend must be the same length. ❌")  # Matching start/end lists
-    if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
-        raise ValueError("❌ chlfstart and chlfend must contain integers only. ❌")  # All years are ints
-    if not all(end >= start for start, end in zip(chlfstart, chlfend)):
-        raise ValueError("❌ Each chlfend must be >= corresponding chlfstart. ❌")  # Valid year ranges
-    if not (isinstance(DinY, int) and DinY == 365):
-        raise ValueError("❌ DinY must be 365. ❌")  # Only standard year length allowed
+    with Timer("true_time_series_length computation"):
+        # ===== VALIDATION =====
+        if len(chlfstart) != len(chlfend):
+            raise ValueError("❌ chlfstart and chlfend must be the same length. ❌")  # Matching start/end lists
+        if not all(isinstance(x, int) for x in itertools.chain(chlfstart, chlfend)):
+            raise ValueError("❌ chlfstart and chlfend must contain integers only. ❌")  # All years are ints
+        if not all(end >= start for start, end in zip(chlfstart, chlfend)):
+            raise ValueError("❌ Each chlfend must be >= corresponding chlfstart. ❌")  # Valid year ranges
+        if not (isinstance(DinY, int) and DinY == 365):
+            raise ValueError("❌ DinY must be 365. ❌")  # Only standard year length allowed
 
-    # ===== CALCULATION =====
-    # Generate all years covered by the file ranges inclusive
-    years = itertools.chain.from_iterable(range(start, end + 1) for start, end in zip(chlfstart, chlfend))
-    
-    # Sum days per year adding 1 day if leap year, else 0
-    total_days = sum(DinY + leapyear(year) for year in years)
+        logging.info(f"Inputs received - chlfstart: {chlfstart}, chlfend: {chlfend}, DinY: {DinY}")
+        log_message("Inputs received", chlfstart=chlfstart, chlfend=chlfend, DinY=DinY)
 
-    return total_days
+        # ===== CALCULATION =====
+        # Generate all years covered by the file ranges inclusive
+        years = itertools.chain.from_iterable(range(start, end + 1) for start, end in zip(chlfstart, chlfend))
+        
+        # Sum days per year adding 1 day if leap year, else 0
+        total_days = 0
+        for year in years:
+            days = DinY + leapyear(year)
+            total_days += days
+            logging.info(f"Year: {year}, days added: {days}")
+            log_message("Year days added", year=year, days=days)
+        
+        logging.info(f"Computed total_days: {total_days}")
+        log_message("Computed total_days", total_days=total_days)
+
+        return total_days
 ###############################################################################
 
 ###############################################################################
@@ -141,34 +165,44 @@ def split_to_monthly(
     >>> monthly[2020][0].index.month.unique()
     Int64Index([1], dtype='int64')
     """
-    # ===== VALIDATION =====
-    if not isinstance(yearly_data, dict):
-        raise ValueError("❌ Input yearly_data must be a dictionary. ❌")
+    with Timer("Splitting yearly data into monthly segments"):
+        # ===== VALIDATION =====
+        if not isinstance(yearly_data, dict):
+            raise ValueError("❌ Input yearly_data must be a dictionary. ❌")
 
-    monthly_data_dict = {}
-    for year, data in yearly_data.items():
-        if not isinstance(year, int):
-            raise ValueError(f"❌ Year keys must be int, got {type(year)}. ❌")  # Ensure year keys are ints
-        if not isinstance(data, (pd.Series, pd.DataFrame)):
-            raise ValueError(f"❌ Values must be pandas Series or DataFrame, got {type(data)}. ❌")  # Validate types
-        if not pd.api.types.is_datetime64_any_dtype(data.index):
-            raise ValueError(f"❌ Data index for year {year} must be datetime-like. ❌")  # Confirm datetime index
+        monthly_data_dict = {}
+        for year, data in yearly_data.items():
+            if not isinstance(year, int):
+                raise ValueError(f"❌ Year keys must be int, got {type(year)}. ❌")  # Ensure year keys are ints
+            if not isinstance(data, (pd.Series, pd.DataFrame)):
+                raise ValueError(f"❌ Values must be pandas Series or DataFrame, got {type(data)}. ❌")  # Validate types
+            if not pd.api.types.is_datetime64_any_dtype(data.index):
+                raise ValueError(f"❌ Data index for year {year} must be datetime-like. ❌")  # Confirm datetime index
 
-        # Create an empty template slice (same type, no rows) for months with no data
-        empty_template = data.iloc[0:0]
+            logging.info(f"Processing year {year}, data type: {type(data).__name__}")
+            log_message("Processing year", year=year, data_type=type(data).__name__)
 
-        # ===== SPLITTING =====
-        monthly_slices = []
-        for month in range(1, 13):
-            month_data = data.loc[data.index.month == month]  # Filter data for each month
-            if month_data.empty:
-                monthly_slices.append(empty_template.copy())  # Append empty slice if no data
-            else:
-                monthly_slices.append(month_data)  # Append actual data for month
+            # Create an empty template slice (same type, no rows) for months with no data
+            empty_template = data.iloc[0:0]
 
-        monthly_data_dict[year] = monthly_slices  # Store monthly slices for the year
+            # ===== SPLITTING =====
+            monthly_slices = []
+            for month in range(1, 13):
+                month_data = data.loc[data.index.month == month]  # Filter data for each month
+                if month_data.empty:
+                    monthly_slices.append(empty_template.copy())  # Append empty slice if no data
+                    logging.info(f"Empty month slice added for year {year}, month {month}")
+                    log_message("Empty month slice added", year=year, month=month)
+                else:
+                    monthly_slices.append(month_data)  # Append actual data for month
+                    logging.info(f"Month slice added for year {year}, month {month}, length {len(month_data)}")
+                    log_message("Month slice added", year=year, month=month, length=len(month_data))
 
-    return monthly_data_dict
+            monthly_data_dict[year] = monthly_slices  # Store monthly slices for the year
+
+        logging.info(f"Completed splitting all years, total years processed: {len(monthly_data_dict)}")
+        log_message("Completed splitting all years", years_processed=len(monthly_data_dict))
+        return monthly_data_dict
 ###############################################################################
 
 ###############################################################################
@@ -207,27 +241,36 @@ def split_to_yearly(
     >>> split_yearly[2020].index.year.unique()
     Int64Index([2020], dtype='int64')
     """
-    # ===== VALIDATION =====
-    if not isinstance(series.index, pd.DatetimeIndex):
-        raise ValueError("❌ series must have a DatetimeIndex ❌")  # Ensure datetime index
-    if not all(isinstance(year, (int, str)) for year in unique_years):
-        raise ValueError("❌ unique_years must contain only ints or strs ❌")  # Validate years list
+    with Timer("split_to_yearly computation"):
+        # ===== VALIDATION =====
+        if not isinstance(series.index, pd.DatetimeIndex):
+            raise ValueError("❌ series must have a DatetimeIndex ❌")  # Ensure datetime index
+        if not all(isinstance(year, (int, str)) for year in unique_years):
+            raise ValueError("❌ unique_years must contain only ints or strs ❌")  # Validate years list
 
-    yearly_data = {}
+        logging.info(f"Received series with index type: {type(series.index)}")
+        log_message("Input validation passed", unique_years=unique_years)
 
-    # ===== SPLITTING =====
-    for year in unique_years:
-        try:
-            year_int = int(year)  # Convert year to int for comparison
-        except ValueError:
-            raise ValueError(f"❌ Year {year} cannot be converted to int ❌")
+        yearly_data = {}
 
-        # Filter series by year and copy slice to avoid reference issues
-        filtered = series.loc[series.index.year == year_int].copy()
+        # ===== SPLITTING =====
+        for year in unique_years:
+            try:
+                year_int = int(year)  # Convert year to int for comparison
+            except ValueError:
+                raise ValueError(f"❌ Year {year} cannot be converted to int ❌")
 
-        yearly_data[year] = filtered  # Store filtered series keyed by original year type
+            filtered = series.loc[series.index.year == year_int].copy()
 
-    return yearly_data
+            yearly_data[year] = filtered  # Store filtered series keyed by original year type
+
+            logging.info(f"Year {year} filtered with {len(filtered)} records")
+            log_message("Yearly data filtered", year=year, count=len(filtered))
+
+        logging.info(f"Split completed for years: {list(yearly_data.keys())}")
+        log_message("Completed splitting to yearly", years=list(yearly_data.keys()))
+
+        return yearly_data
 ###############################################################################
 
 ###############################################################################
@@ -267,24 +310,30 @@ def get_common_years(
     >>> get_common_years(data, 'model', 'satellite')
     [2021]
     """
-    # ===== VALIDATE KEYS =====
-    if mod_key not in data_dict:
-        raise ValueError(f"❌ mod_key '{mod_key}' not found in data_dict ❌")  # Ensure model key exists
-    if sat_key not in data_dict:
-        raise ValueError(f"❌ sat_key '{sat_key}' not found in data_dict ❌")  # Ensure satellite key exists
-    if not isinstance(data_dict[mod_key], dict):
-        raise ValueError(f"❌ data_dict[{mod_key}] must be a dictionary ❌")  # Model data must be dict
-    if not isinstance(data_dict[sat_key], dict):
-        raise ValueError(f"❌ data_dict[{sat_key}] must be a dictionary ❌")  # Satellite data must be dict
+    with Timer("get_common_years computation"):
+        # ===== VALIDATE KEYS =====
+        if mod_key not in data_dict:
+            raise ValueError(f"❌ mod_key '{mod_key}' not found in data_dict ❌")  # Ensure model key exists
+        if sat_key not in data_dict:
+            raise ValueError(f"❌ sat_key '{sat_key}' not found in data_dict ❌")  # Ensure satellite key exists
+        if not isinstance(data_dict[mod_key], dict):
+            raise ValueError(f"❌ data_dict[{mod_key}] must be a dictionary ❌")  # Model data must be dict
+        if not isinstance(data_dict[sat_key], dict):
+            raise ValueError(f"❌ data_dict[{sat_key}] must be a dictionary ❌")  # Satellite data must be dict
 
-    # ===== COMPUTE COMMON YEARS =====
-    mod_years = set(data_dict[mod_key].keys())  # Set of model years
-    sat_years = set(data_dict[sat_key].keys())  # Set of satellite years
+        logging.info(f"Validated presence and type of keys: '{mod_key}', '{sat_key}'")
+        log_message("Validated keys", mod_key=mod_key, sat_key=sat_key)
 
-    # Intersection gives years present in both datasets
-    common_years = sorted(mod_years.intersection(sat_years))
+        # ===== COMPUTE COMMON YEARS =====
+        mod_years = set(data_dict[mod_key].keys())  # Set of model years
+        sat_years = set(data_dict[sat_key].keys())  # Set of satellite years
 
-    return common_years
+        common_years = sorted(mod_years.intersection(sat_years))
+
+        logging.info(f"Common years computed: {common_years}")
+        log_message("Computed common years", common_years=common_years)
+
+        return common_years
 ###############################################################################
 
 ###############################################################################
@@ -321,33 +370,43 @@ def get_season_mask(
     >>> get_season_mask(dates, 'DJF')
     array([ True,  True, False, False, False, False, False, False, False, False, False,  True])
     """
-    # ===== VALIDATE SEASON NAME =====
-    valid_seasons = {'DJF', 'MAM', 'JJA', 'SON'}
-    if season_name not in valid_seasons:
-        raise ValueError(f"❌ Invalid season name: {season_name}. Expected one of {valid_seasons} ❌")
+    with Timer(f"get_season_mask computation for season '{season_name}'"):
+        # ===== VALIDATE SEASON NAME =====
+        valid_seasons = {'DJF', 'MAM', 'JJA', 'SON'}
+        if season_name not in valid_seasons:
+            raise ValueError(f"❌ Invalid season name: {season_name}. Expected one of {valid_seasons} ❌")
 
-    # ===== VALIDATE DATES TYPE AND EXTRACT DATETIME INDEX =====
-    if isinstance(dates, pd.Series):
-        if not isinstance(dates.index, pd.DatetimeIndex):
-            raise TypeError("❌ If input is pd.Series, its index must be a pd.DatetimeIndex ❌")
-        dt_index = dates.index  # Use index if Series
-    elif isinstance(dates, pd.DatetimeIndex):
-        dt_index = dates  # Directly use DatetimeIndex
-    else:
-        raise TypeError("❌ dates must be a pandas DatetimeIndex or a Series with DatetimeIndex ❌")
+        logging.info(f"Validated season_name: {season_name}")
+        log_message("Validated season_name", season_name=season_name)
 
-    # ===== MAP SEASON TO MONTHS =====
-    season_months = {
-        'DJF': {12, 1, 2},
-        'MAM': {3, 4, 5},
-        'JJA': {6, 7, 8},
-        'SON': {9, 10, 11},
-    }
+        # ===== VALIDATE DATES TYPE AND EXTRACT DATETIME INDEX =====
+        if isinstance(dates, pd.Series):
+            if not isinstance(dates.index, pd.DatetimeIndex):
+                raise TypeError("❌ If input is pd.Series, its index must be a pd.DatetimeIndex ❌")
+            dt_index = dates.index  # Use index if Series
+        elif isinstance(dates, pd.DatetimeIndex):
+            dt_index = dates  # Directly use DatetimeIndex
+        else:
+            raise TypeError("❌ dates must be a pandas DatetimeIndex or a Series with DatetimeIndex ❌")
 
-    months = dt_index.month  # Extract month numbers from dates
-    mask = np.isin(months, list(season_months[season_name]))  # Boolean mask for season months
+        logging.info(f"Using datetime index of length {len(dt_index)}")
+        log_message("Datetime index info", length=len(dt_index))
 
-    return mask
+        # ===== MAP SEASON TO MONTHS =====
+        season_months = {
+            'DJF': {12, 1, 2},
+            'MAM': {3, 4, 5},
+            'JJA': {6, 7, 8},
+            'SON': {9, 10, 11},
+        }
+
+        months = dt_index.month  # Extract month numbers from dates
+        mask = np.isin(months, list(season_months[season_name]))  # Boolean mask for season months
+
+        logging.info(f"Computed season mask for '{season_name}'")
+        log_message("Computed season mask", season_name=season_name, mask_shape=mask.shape)
+
+        return mask
 ###############################################################################
 
 ###############################################################################
@@ -369,17 +428,68 @@ def resample_and_compute(model_sst_chunked, sat_sst_chunked):
     sat_sst_monthly : xarray.DataArray or Dataset
         The computed monthly mean resampled satellite SST.
     """
-    # ===== RESAMPLE TO MONTHLY MEAN (LAZY) =====
-    model_sst_monthly_lazy = model_sst_chunked.resample(time='1MS').mean()  # Resample model to start-of-month monthly means (lazy)
-    sat_sst_monthly_lazy = sat_sst_chunked.resample(time='1MS').mean()      # Resample satellite similarly (lazy)
+    with Timer("Resample and compute monthly SST datasets concurrently"):
+        # ===== RESAMPLE TO MONTHLY MEAN (LAZY) =====
+        model_sst_monthly_lazy = model_sst_chunked.resample(time='1MS').mean()  # Resample model to start-of-month monthly means (lazy)
+        sat_sst_monthly_lazy = sat_sst_chunked.resample(time='1MS').mean()      # Resample satellite similarly (lazy)
 
-    # ===== COMPUTE RESAMPLED DATA IN PARALLEL =====
-    with ProgressBar(), ThreadPoolExecutor(max_workers=2) as executor:
-        # Schedule parallel compute tasks for model and satellite with thread scheduler
-        future_model = executor.submit(model_sst_monthly_lazy.compute, scheduler='threads')
-        future_sat = executor.submit(sat_sst_monthly_lazy.compute, scheduler='threads')
+        logging.info("Resampled model and satellite SST to monthly means (lazy)")
+        log_message("Resampled SST to monthly means", model_resample="lazy", sat_resample="lazy")
 
-        model_sst_monthly = future_model.result()  # Get computed model results
-        sat_sst_monthly = future_sat.result()      # Get computed satellite results
+        # ===== COMPUTE RESAMPLED DATA IN PARALLEL =====
+        with ProgressBar(), ThreadPoolExecutor(max_workers=2) as executor:
+            # Schedule parallel compute tasks for model and satellite with thread scheduler
+            future_model = executor.submit(model_sst_monthly_lazy.compute, scheduler='threads')
+            future_sat = executor.submit(sat_sst_monthly_lazy.compute, scheduler='threads')
 
-    return model_sst_monthly, sat_sst_monthly
+            model_sst_monthly = future_model.result()  # Get computed model results
+            sat_sst_monthly = future_sat.result()      # Get computed satellite results
+
+        logging.info("Computed monthly SST datasets concurrently")
+        log_message("Computed SST datasets", model_computed=True, satellite_computed=True)
+
+        return model_sst_monthly, sat_sst_monthly
+###############################################################################
+
+###############################################################################
+# ----- SETUP OF THE LOGGER AND TIMER -----
+
+# Clear existing handlers on root logger 
+root_logger = logging.getLogger()
+if root_logger.hasHandlers():
+    root_logger.handlers.clear()
+
+# Create handlers explicitly
+file_handler = logging.FileHandler("app.log", mode='a', encoding='utf-8')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Add handlers to root logger
+root_logger.addHandler(file_handler)
+root_logger.addHandler(stream_handler)
+root_logger.setLevel(logging.INFO)
+
+# Setup Eliot logging
+to_file(open("eliot.log", "a", encoding="utf-8"))
+root_logger.addHandler(EliotHandler())
+
+# --- Timer context manager that logs to both systems ---
+@contextmanager
+def Timer(description):
+    start = datetime.now()
+    log_message("Timer started", description=description, start=str(start))
+    logging.info(f"[Timer Start] {description} at {start}")
+    
+    with start_action(action_type="timed block", description=description, start_time=str(start)) as action:
+        try:
+            yield
+        finally:
+            end = datetime.now()
+            elapsed = end - start
+            action.add_success_fields(end_time=str(end), elapsed=str(elapsed))
+            log_message("Timer ended", description=description, end=str(end), elapsed=str(elapsed))
+            logging.info(f"[Timer End] {description} at {end} (Elapsed: {elapsed})")
