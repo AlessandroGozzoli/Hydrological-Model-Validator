@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 from typing import Tuple, List, Dict, Union
+import logging
+from eliot import start_action, log_message
+
+from .time_utils import Timer
 
 ###############################################################################
 def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
@@ -40,21 +44,31 @@ def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
     >>> print(mask)
     [ True False False  True]
     """
-    # ===== INPUT VALIDATION =====
-    # Validate that mod_vals is a numpy array to ensure compatibility with numpy operations
-    if not isinstance(mod_vals, np.ndarray):
-        raise TypeError("❌ mod_vals must be a numpy array ❌")
+    with Timer("get_valid_mask function"):
+        with start_action(action_type="get_valid_mask function"):
 
-    # Validate that sat_vals is a numpy array for the same reason
-    if not isinstance(sat_vals, np.ndarray):
-        raise TypeError("❌ sat_vals must be a numpy array ❌")
+            if not isinstance(mod_vals, np.ndarray):
+                raise TypeError("❌ mod_vals must be a numpy array ❌")
+            if not isinstance(sat_vals, np.ndarray):
+                raise TypeError("❌ sat_vals must be a numpy array ❌")
 
-    # Ensure that both arrays have the same shape to allow element-wise comparison
-    if mod_vals.shape != sat_vals.shape:
-        raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
+            log_message("Input types validated",
+                        mod_vals_type=str(type(mod_vals)),
+                        sat_vals_type=str(type(sat_vals)))
+            logging.info(f"Input arrays validated: mod_vals type={type(mod_vals)}, sat_vals type={type(sat_vals)}")
 
-    # Create a boolean mask indicating True where mod_vals is not NaN AND sat_vals is not NaN
-    return ~np.isnan(mod_vals) & ~np.isnan(sat_vals)
+            if mod_vals.shape != sat_vals.shape:
+                raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
+
+            log_message("Input shapes validated", shape=mod_vals.shape)
+            logging.info(f"Input arrays shapes matched: shape={mod_vals.shape}")
+
+            valid_mask = ~np.isnan(mod_vals) & ~np.isnan(sat_vals)
+
+            log_message("Computed valid mask", valid_count=np.sum(valid_mask), total_elements=valid_mask.size)
+            logging.info(f"Valid mask computed: {np.sum(valid_mask)} valid points out of {valid_mask.size}")
+
+            return valid_mask
 ###############################################################################
 
 ###############################################################################
@@ -99,29 +113,51 @@ def get_valid_mask_pandas(mod_series: pd.Series,
     2023-01-04     True
     Freq: D, dtype: bool
     """
-    # ===== INPUT VALIDATION =====
-    # Validate that mod_series is a pandas Series for correct operations and alignment
-    if not isinstance(mod_series, pd.Series):
-        raise TypeError("❌ mod_series must be a pandas Series ❌")
-    
-    # Validate that sat_series is a pandas Series as well
-    if not isinstance(sat_series, pd.Series):
-        raise TypeError("❌ sat_series must be a pandas Series ❌")
+    with Timer("get_valid_mask_pandas function"):
+        with start_action(action_type="get_valid_mask_pandas function"):
 
-    # ===== ALIGN THE DATA =====
-    # Find the intersection of indices between both Series to compare aligned data points
-    common_index = mod_series.index.intersection(sat_series.index)
-    
-    # Align both Series to the common index so the mask compares matching data points
-    mod_aligned = mod_series.loc[common_index]
-    sat_aligned = sat_series.loc[common_index]
-    
-    # ===== MASK =====
-    # Create mask: True where neither Series has NaN (isna() checks for NaNs, ~ negates it)
-    mask = (~mod_aligned.isna()) & (~sat_aligned.isna())
+            # ===== INPUT VALIDATION =====
+            # Validate that mod_series is a pandas Series for correct operations and alignment
+            if not isinstance(mod_series, pd.Series):
+                raise TypeError("❌ mod_series must be a pandas Series ❌")
+            
+            # Validate that sat_series is a pandas Series as well
+            if not isinstance(sat_series, pd.Series):
+                raise TypeError("❌ sat_series must be a pandas Series ❌")
 
-    # Return the boolean mask Series indexed by the common index
-    return mask
+            log_message("Input types validated",
+                        mod_series_type=str(type(mod_series)),
+                        sat_series_type=str(type(sat_series)))
+            logging.info(f"Input Series validated: mod_series type={type(mod_series)}, sat_series type={type(sat_series)}")
+
+            # ===== ALIGN THE DATA =====
+            # Find the intersection of indices between both Series to compare aligned data points
+            common_index = mod_series.index.intersection(sat_series.index)
+
+            log_message("Computed common index",
+                        common_index_length=len(common_index))
+            logging.info(f"Common index computed with length: {len(common_index)}")
+
+            # Align both Series to the common index so the mask compares matching data points
+            mod_aligned = mod_series.loc[common_index]
+            sat_aligned = sat_series.loc[common_index]
+
+            log_message("Series aligned to common index",
+                        aligned_length=len(mod_aligned))
+            logging.info(f"Series aligned to common index length: {len(mod_aligned)}")
+
+            # ===== MASK =====
+            # Create mask: True where neither Series has NaN (isna() checks for NaNs, ~ negates it)
+            mask = (~mod_aligned.isna()) & (~sat_aligned.isna())
+
+            valid_count = mask.sum()
+            log_message("Computed valid mask",
+                        valid_count=int(valid_count),
+                        total=len(mask))
+            logging.info(f"Valid mask computed: {valid_count} valid points out of {len(mask)}")
+
+            # Return the boolean mask Series indexed by the common index
+            return mask
 ###############################################################################
 
 ###############################################################################
@@ -164,31 +200,47 @@ def align_pandas_series(mod_series: pd.Series,
     >>> print(sat_vals)
     [1.5 4.5]
     """
-    # ===== INPUT VALIDATION =====
-    # Ensure mod_series is a pandas Series to support index alignment and selection
-    if not isinstance(mod_series, pd.Series):
-        raise TypeError("❌ mod_series must be a pandas Series ❌")
-    
-    # Ensure sat_series is also a pandas Series
-    if not isinstance(sat_series, pd.Series):
-        raise TypeError("❌ sat_series must be a pandas Series ❌")
+    with Timer("align_pandas_series function"):
+        with start_action(action_type="align_pandas_series function"):
 
-    # ===== MASK =====
-    # Generate a boolean mask identifying positions where both Series have valid (non-NaN) data,
-    # aligned on their common indices using the helper function.
-    mask = get_valid_mask_pandas(mod_series, sat_series)
+            # ===== INPUT VALIDATION =====
+            # Ensure mod_series is a pandas Series to support index alignment and selection
+            if not isinstance(mod_series, pd.Series):
+                raise TypeError("❌ mod_series must be a pandas Series ❌")
+            
+            # Ensure sat_series is also a pandas Series
+            if not isinstance(sat_series, pd.Series):
+                raise TypeError("❌ sat_series must be a pandas Series ❌")
 
-    # ===== ALIGN THE DATA =====
-    # Use the boolean mask's index to select the overlapping indices, then filter mod_series 
-    # to keep only the valid values (where mask is True). Extract values as a numpy array.
-    mod_aligned = mod_series.loc[mask.index][mask].values
+            log_message("Input types validated",
+                        mod_series_type=str(type(mod_series)),
+                        sat_series_type=str(type(sat_series)))
+            logging.info(f"Input Series validated: mod_series type={type(mod_series)}, sat_series type={type(sat_series)}")
 
-    # Similarly, filter sat_series for the same indices and valid mask positions,
-    # extracting corresponding numpy array values.
-    sat_aligned = sat_series.loc[mask.index][mask].values
+            # ===== MASK =====
+            # Generate a boolean mask identifying positions where both Series have valid (non-NaN) data,
+            # aligned on their common indices using the helper function.
+            mask = get_valid_mask_pandas(mod_series, sat_series)
 
-    # Return the two numpy arrays containing aligned and valid data pairs for analysis.
-    return mod_aligned, sat_aligned
+            log_message("Valid mask generated", valid_mask_sum=int(mask.sum()))
+            logging.info(f"Valid mask generated with {mask.sum()} valid points")
+
+            # ===== ALIGN THE DATA =====
+            # Use the boolean mask's index to select the overlapping indices, then filter mod_series 
+            # to keep only the valid values (where mask is True). Extract values as a numpy array.
+            mod_aligned = mod_series.loc[mask.index][mask].values
+
+            # Similarly, filter sat_series for the same indices and valid mask positions,
+            # extracting corresponding numpy array values.
+            sat_aligned = sat_series.loc[mask.index][mask].values
+
+            log_message("Aligned data extracted",
+                        mod_aligned_len=len(mod_aligned),
+                        sat_aligned_len=len(sat_aligned))
+            logging.info(f"Aligned data extracted: mod_aligned length={len(mod_aligned)}, sat_aligned length={len(sat_aligned)}")
+
+            # Return the two numpy arrays containing aligned and valid data pairs for analysis.
+            return mod_aligned, sat_aligned
 ###############################################################################
 
 ###############################################################################
@@ -231,24 +283,38 @@ def align_numpy_arrays(mod_vals: np.ndarray,
     >>> print(sat_filt)
     [1.5 4.5]
     """
-    # ===== INPUT VALIDATION =====
-    # Ensure both inputs are numpy arrays to support element-wise operations
-    if not isinstance(mod_vals, np.ndarray):
-        raise TypeError("❌ mod_vals must be a numpy array ❌")
-    if not isinstance(sat_vals, np.ndarray):
-        raise TypeError("❌ sat_vals must be a numpy array ❌")
+    with Timer("align_numpy_arrays function"):
+        with start_action(action_type="align_numpy_arrays function"):
 
-    # Check that both arrays have the same shape to allow element-wise comparison
-    if mod_vals.shape != sat_vals.shape:
-        raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
+            # ===== INPUT VALIDATION =====
+            # Ensure both inputs are numpy arrays to support element-wise operations
+            if not isinstance(mod_vals, np.ndarray):
+                raise TypeError("❌ mod_vals must be a numpy array ❌")
+            if not isinstance(sat_vals, np.ndarray):
+                raise TypeError("❌ sat_vals must be a numpy array ❌")
 
-    # ===== MAKE MASK =====
-    # Generate a boolean mask where both arrays have valid (non-NaN) entries
-    # This allows filtering out positions with missing data in either input
-    mask = get_valid_mask(mod_vals, sat_vals)
+            # Check that both arrays have the same shape to allow element-wise comparison
+            if mod_vals.shape != sat_vals.shape:
+                raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
 
-    # Apply the mask to both arrays to extract only valid (paired) data points
-    return mod_vals[mask], sat_vals[mask]
+            log_message("Input validation passed",
+                        mod_vals_type=str(type(mod_vals)),
+                        sat_vals_type=str(type(sat_vals)),
+                        mod_vals_shape=mod_vals.shape,
+                        sat_vals_shape=sat_vals.shape)
+            logging.info(f"Input validation passed: mod_vals type={type(mod_vals)}, sat_vals type={type(sat_vals)}, "
+                         f"mod_vals shape={mod_vals.shape}, sat_vals shape={sat_vals.shape}")
+
+            # ===== MAKE MASK =====
+            # Generate a boolean mask where both arrays have valid (non-NaN) entries
+            # This allows filtering out positions with missing data in either input
+            mask = get_valid_mask(mod_vals, sat_vals)
+
+            log_message("Valid mask created", valid_mask_sum=int(mask.sum()))
+            logging.info(f"Valid mask created with {mask.sum()} valid elements")
+
+            # Apply the mask to both arrays to extract only valid (paired) data points
+            return mod_vals[mask], sat_vals[mask]
 ###############################################################################
 
 ###############################################################################
@@ -301,44 +367,71 @@ def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> Lis
     >>> get_common_series_by_year(data)
     [('2000', array([1., 2.]), array([1.1, 2.1])), ('2001', array([4.]), array([4.1]))]
     """
-    # ===== INPUT VALIDATION =====
-    # Confirm input is a dictionary to avoid errors when accessing keys
-    if not isinstance(data_dict, dict):
-        raise TypeError(f"❌ Expected input data to be dict, got {type(data_dict)} ❌")
+    with Timer("get_common_series_by_year function"):
+        with start_action(action_type="get_common_series_by_year function"):
 
-    # Use helper function to find keys for model and satellite data, making this function flexible
-    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+            # ===== INPUT VALIDATION =====
+            # Confirm input is a dictionary to avoid errors when accessing keys
+            if not isinstance(data_dict, dict):
+                raise TypeError(f"❌ Expected input data to be dict, got {type(data_dict)} ❌")
 
-    # Validate that the data for model and satellite are dictionaries keyed by year
-    if not isinstance(data_dict[mod_key], dict):
-        raise TypeError(f"❌ Expected '{mod_key}' data to be a dict keyed by years, got {type(data_dict[mod_key])} ❌")
-    if not isinstance(data_dict[sat_key], dict):
-        raise TypeError(f"❌ Expected '{sat_key}' data to be a dict keyed by years, got {type(data_dict[sat_key])} ❌")
+            # Use helper function to find keys for model and satellite data, making this function flexible
+            mod_key, sat_key = extract_mod_sat_keys(data_dict)
 
-    common_series = []
+            # Validate that the data for model and satellite are dictionaries keyed by year
+            if not isinstance(data_dict[mod_key], dict):
+                raise TypeError(f"❌ Expected '{mod_key}' data to be a dict keyed by years, got {type(data_dict[mod_key])} ❌")
+            if not isinstance(data_dict[sat_key], dict):
+                raise TypeError(f"❌ Expected '{sat_key}' data to be a dict keyed by years, got {type(data_dict[sat_key])} ❌")
 
-    # ===== ALIGN AND SORT =====
-    # Iterate over each year in model data to align with satellite data
-    # Sorting ensures consistent order for downstream processing
-    for year in sorted(data_dict[mod_key].keys()):
-        # Remove NaNs from both series to avoid false matches on missing data
-        mod_series = data_dict[mod_key][year].dropna()
-        sat_series = data_dict[sat_key][year].dropna()
+            log_message("Input validation passed",
+                        data_type=str(type(data_dict)),
+                        model_key=mod_key,
+                        satellite_key=sat_key)
+            logging.info(f"Input validation passed with data type {type(data_dict)}; model_key={mod_key}, satellite_key={sat_key}")
 
-        # Join the two series on their datetime indices (inner join keeps only overlapping dates)
-        # Drop any remaining NaNs after joining to ensure paired valid data
-        combined = mod_series.to_frame('mod').join(sat_series.to_frame('sat'), how='inner').dropna()
+            common_series = []
 
-        # If no overlapping valid data points exist, skip this year to avoid empty results
-        if combined.empty:
-            print(f"⚠️ Warning: No overlapping data for year {year}. Skipping. ⚠️")
-            continue
+            # ===== ALIGN AND SORT =====
+            # Iterate over each year in model data to align with satellite data
+            # Sorting ensures consistent order for downstream processing
+            for year in sorted(data_dict[mod_key].keys()):
+                mod_series = data_dict[mod_key][year].dropna()  # Remove NaNs from both series to avoid false matches on missing data
+                sat_series = data_dict[sat_key][year].dropna()
 
-        # Append a tuple containing the year (as string), and the numpy arrays of aligned values
-        # Using .values extracts the raw numeric arrays for further numerical processing
-        common_series.append((str(year), combined['mod'].values, combined['sat'].values))
+                log_message("Processing year",
+                            year=year,
+                            mod_series_length=len(mod_series),
+                            sat_series_length=len(sat_series))
+                logging.info(f"Processing year {year}: mod_series length={len(mod_series)}, sat_series length={len(sat_series)}")
 
-    return common_series
+                # Join the two series on their datetime indices (inner join keeps only overlapping dates)
+                # Drop any remaining NaNs after joining to ensure paired valid data
+                combined = mod_series.to_frame('mod').join(sat_series.to_frame('sat'), how='inner').dropna()
+
+                log_message("Joined series",
+                            year=year,
+                            combined_length=len(combined))
+                logging.info(f"Year {year}: combined series length after join and dropna = {len(combined)}")
+
+                # If no overlapping valid data points exist, skip this year to avoid empty results
+                if combined.empty:
+                    print(f"⚠️ Warning: No overlapping data for year {year}. Skipping. ⚠️")
+                    log_message("Skipping year due to no overlapping data", year=year)
+                    logging.warning(f"No overlapping data for year {year}, skipping.")
+                    continue
+
+                # Append a tuple containing the year (as string), and the numpy arrays of aligned values
+                # Using .values extracts the raw numeric arrays for further numerical processing
+                common_series.append((str(year), combined['mod'].values, combined['sat'].values))
+
+                log_message("Appended aligned data",
+                            year=year,
+                            mod_values_len=len(combined['mod'].values),
+                            sat_values_len=len(combined['sat'].values))
+                logging.info(f"Appended data for year {year} with {len(combined['mod'].values)} model and {len(combined['sat'].values)} satellite points")
+
+            return common_series
 ###############################################################################
 
 ###############################################################################
@@ -389,55 +482,85 @@ def get_common_series_by_year_month(
     >>> get_common_series_by_year_month(data)
     [(2000, 0, array([1.]), array([1.1])), (2000, 1, array([2.]), array([2.1]))]
     """
-    # ===== INPU VALIDATION AND GET KEYS =====
-    if not isinstance(data_dict, dict):
-        raise TypeError("❌ data_dict must be a dictionary ❌")
+    with Timer("get_common_series_by_year_month function"):
+        with start_action(action_type="get_common_series_by_year_month function"):
 
-    # Identify model and satellite keys from the dictionary keys
-    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+            # ===== INPU VALIDATION AND GET KEYS =====
+            if not isinstance(data_dict, dict):
+                raise TypeError("❌ data_dict must be a dictionary ❌")
 
-    model_data = data_dict.get(mod_key, {})
-    satellite_data = data_dict.get(sat_key, {})
+            # Identify model and satellite keys from the dictionary keys
+            mod_key, sat_key = extract_mod_sat_keys(data_dict)
 
-    if not isinstance(model_data, dict) or not isinstance(satellite_data, dict):
-        raise TypeError("❌ Sub-values of data_dict must be dictionaries of lists of numpy arrays ❌")
+            model_data = data_dict.get(mod_key, {})
+            satellite_data = data_dict.get(sat_key, {})
 
-    results = []
+            if not isinstance(model_data, dict) or not isinstance(satellite_data, dict):
+                raise TypeError("❌ Sub-values of data_dict must be dictionaries of lists of numpy arrays ❌")
 
-    # Find common years
-    common_years = sorted(set(model_data.keys()) & set(satellite_data.keys()))
+            log_message("Input validation passed",
+                        data_type=str(type(data_dict)),
+                        model_key=mod_key,
+                        satellite_key=sat_key)
+            logging.info(f"Input validation passed; model_key={mod_key}, satellite_key={sat_key}")
 
-    # ===== GET COMMON YEARS =====
-    for year in common_years:
-        mod_monthly = model_data[year]
-        sat_monthly = satellite_data[year]
+            results = []
 
-        # ===== FURTHER VALIDATION =====
-        if not isinstance(mod_monthly, (list, tuple)) or not isinstance(sat_monthly, (list, tuple)):
-            raise TypeError(f"❌ Data for year {year} must be a list or tuple of numpy arrays ❌")
-        if len(mod_monthly) != len(sat_monthly):
-            raise ValueError(f"❌ Year {year} does not contain the same number of monthly entries for model and satellite ❌")
+            # Find common years
+            common_years = sorted(set(model_data.keys()) & set(satellite_data.keys()))
 
-        month_count = len(mod_monthly)
-        # ===== MONTHS LOOP =====
-        for month in range(month_count):
-            mod_vals = mod_monthly[month]
-            sat_vals = sat_monthly[month]
+            log_message("Common years found", years=common_years)
+            logging.info(f"Common years found: {common_years}")
 
-            mod_vals = np.asarray(mod_vals)
-            sat_vals = np.asarray(sat_vals)
+            # ===== GET COMMON YEARS =====
+            for year in common_years:
+                mod_monthly = model_data[year]
+                sat_monthly = satellite_data[year]
 
-            # Skip if shapes differ
-            if mod_vals.shape != sat_vals.shape:
-                continue
+                # ===== FURTHER VALIDATION =====
+                if not isinstance(mod_monthly, (list, tuple)) or not isinstance(sat_monthly, (list, tuple)):
+                    raise TypeError(f"❌ Data for year {year} must be a list or tuple of numpy arrays ❌")
+                if len(mod_monthly) != len(sat_monthly):
+                    raise ValueError(f"❌ Year {year} does not contain the same number of monthly entries for model and satellite ❌")
 
-            # Align arrays by removing entries where either is NaN
-            mod_filtered, sat_filtered = align_numpy_arrays(mod_vals, sat_vals)
+                month_count = len(mod_monthly)
+                log_message("Processing year",
+                            year=year,
+                            month_count=month_count)
+                logging.info(f"Processing year {year} with {month_count} months")
 
-            if len(mod_filtered) > 0:
-                results.append((int(year), month, mod_filtered, sat_filtered))
+                # ===== MONTHS LOOP =====
+                for month in range(month_count):
+                    mod_vals = mod_monthly[month]
+                    sat_vals = sat_monthly[month]
 
-    return results
+                    mod_vals = np.asarray(mod_vals)
+                    sat_vals = np.asarray(sat_vals)
+
+                    # Skip if shapes differ
+                    if mod_vals.shape != sat_vals.shape:
+                        log_message("Skipping month due to shape mismatch",
+                                    year=year,
+                                    month=month,
+                                    mod_shape=mod_vals.shape,
+                                    sat_shape=sat_vals.shape)
+                        logging.warning(f"Skipping year {year} month {month} due to shape mismatch: mod_shape={mod_vals.shape}, sat_shape={sat_vals.shape}")
+                        continue
+
+                    # Align arrays by removing entries where either is NaN
+                    mod_filtered, sat_filtered = align_numpy_arrays(mod_vals, sat_vals)
+
+                    log_message("Aligned month data",
+                                year=year,
+                                month=month,
+                                mod_filtered_len=len(mod_filtered),
+                                sat_filtered_len=len(sat_filtered))
+                    logging.info(f"Year {year} month {month}: aligned data lengths: mod={len(mod_filtered)}, sat={len(sat_filtered)}")
+
+                    if len(mod_filtered) > 0:
+                        results.append((int(year), month, mod_filtered, sat_filtered))
+
+            return results
 ###############################################################################
 
 ###############################################################################
@@ -474,46 +597,56 @@ def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
     >>> extract_mod_sat_keys(data)
     ('model', 'satellite')
     """
-    # ===== INPUT VALIDATION =====
-    if not isinstance(taylor_dict, dict):
-        raise TypeError("❌ Input must be a dictionary ❌")
+    with Timer("extract_mod_sat_keys function"):
+        with start_action(action_type="extract_mod_sat_keys function"):
 
-    # ===== POSSIBLE CANDIDATES =====
-    model_candidates = ['mod', 'model', 'predicted', 'model_data']
-    satellite_candidates = ['sat', 'satellite', 'observed', 'obs', 'sat_data']
+            # ===== INPUT VALIDATION =====
+            if not isinstance(taylor_dict, dict):
+                raise TypeError("❌ Input must be a dictionary ❌")
 
-    model_key = None
-    satellite_key = None
+            log_message("Input validation passed", input_type=str(type(taylor_dict)))
+            logging.info(f"Input validation passed; type: {type(taylor_dict)}")
 
-    # Iterate keys and lower them once for efficiency
-    lowered_keys = {k: k.lower() for k in taylor_dict.keys()}
+            # ===== POSSIBLE CANDIDATES =====
+            model_candidates = ['mod', 'model', 'predicted', 'model_data']
+            satellite_candidates = ['sat', 'satellite', 'observed', 'obs', 'sat_data']
 
-    # ===== START LOOKING =====
-    # Find model key by substring matching candidates in keys
-    for candidate in model_candidates:
-        for orig_key, lowered_key in lowered_keys.items():
-            if candidate in lowered_key:
-                model_key = orig_key
-                break
-        if model_key is not None:
-            break
+            model_key = None
+            satellite_key = None
 
-    # Find satellite key similarly
-    for candidate in satellite_candidates:
-        for orig_key, lowered_key in lowered_keys.items():
-            if candidate in lowered_key:
-                satellite_key = orig_key
-                break
-        if satellite_key is not None:
-            break
+            # Iterate keys and lower them once for efficiency
+            lowered_keys = {k: k.lower() for k in taylor_dict.keys()}
 
-    # ===== FAILURE ERRORS =====
-    if model_key is None:
-        raise ValueError("❌ No suitable model key found in the dictionary ❌")
-    if satellite_key is None:
-        raise ValueError("❌ No suitable satellite key found in the dictionary ❌")
+            # ===== START LOOKING =====
+            # Find model key by substring matching candidates in keys
+            for candidate in model_candidates:
+                for orig_key, lowered_key in lowered_keys.items():
+                    if candidate in lowered_key:
+                        model_key = orig_key
+                        log_message("Found model key", candidate=candidate, model_key=model_key)
+                        logging.info(f"Found model key '{model_key}' matching candidate '{candidate}'")
+                        break
+                if model_key is not None:
+                    break
 
-    return model_key, satellite_key
+            # Find satellite key similarly
+            for candidate in satellite_candidates:
+                for orig_key, lowered_key in lowered_keys.items():
+                    if candidate in lowered_key:
+                        satellite_key = orig_key
+                        log_message("Found satellite key", candidate=candidate, satellite_key=satellite_key)
+                        logging.info(f"Found satellite key '{satellite_key}' matching candidate '{candidate}'")
+                        break
+                if satellite_key is not None:
+                    break
+
+            # ===== FAILURE ERRORS =====
+            if model_key is None:
+                raise ValueError("❌ No suitable model key found in the dictionary ❌")
+            if satellite_key is None:
+                raise ValueError("❌ No suitable satellite key found in the dictionary ❌")
+
+            return model_key, satellite_key
 ###############################################################################
 
 ###############################################################################     
@@ -561,43 +694,58 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     >>> gather_monthly_data_across_years(data, 'mod', 0)
     array([1., 2., 5.])
     """
-    # ===== INPUT VALIDATION =====
-    if not isinstance(data_dict, dict):
-        raise ValueError("❌ data_dict must be a dictionary ❌")
-    if key not in data_dict:
-        raise ValueError(f"❌ Key '{key}' not found in data_dict ❌")
-    if not isinstance(month_idx, int) or not (0 <= month_idx <= 11):
-        raise IndexError("❌ month_idx must be an integer between 0 and 11 ❌")
+    with Timer("gather_monthly_data_across_years function"):
+        with start_action(action_type="gather_monthly_data_across_years function", key=key, month_idx=month_idx):
+            
+            # ===== INPUT VALIDATION =====
+            if not isinstance(data_dict, dict):
+                raise ValueError("❌ data_dict must be a dictionary ❌")
+            if key not in data_dict:
+                raise ValueError(f"❌ Key '{key}' not found in data_dict ❌")
+            if not isinstance(month_idx, int) or not (0 <= month_idx <= 11):
+                raise IndexError("❌ month_idx must be an integer between 0 and 11 ❌")
 
-    year_data = data_dict[key]
-    all_data = []
+            logging.info(f"Starting data gathering for key '{key}', month index {month_idx}")
+            log_message("Starting data gathering", key=key, month_idx=month_idx)
 
-    # ===== GATHER THE DATA =====
-    for year, monthly_list in year_data.items():
-        if not isinstance(monthly_list, (list, tuple)):
-            raise ValueError(f"❌ Year {year} data must be a list or tuple ❌")
+            year_data = data_dict[key]
+            all_data = []
 
-        if month_idx >= len(monthly_list):
-            raise IndexError(f"❌ Year {year} does not contain month index {month_idx} ❌")
+            # ===== GATHER THE DATA =====
+            for year, monthly_list in year_data.items():
+                if not isinstance(monthly_list, (list, tuple)):
+                    raise ValueError(f"❌ Year {year} data must be a list or tuple ❌")
 
-        month_data = monthly_list[month_idx]
+                if month_idx >= len(monthly_list):
+                    raise IndexError(f"❌ Year {year} does not contain month index {month_idx} ❌")
 
-        # Use np.asarray to handle any array-like input flexibly
-        month_array = np.asarray(month_data)
+                month_data = monthly_list[month_idx]
 
-        if month_array.ndim == 0:
-            # For scalar values, convert to 1D array explicitly
-            month_array = month_array.reshape(1)
+                # Use np.asarray to handle any array-like input flexibly
+                month_array = np.asarray(month_data)
 
-        flat_data = month_array.ravel()
-        all_data.append(flat_data)
+                if month_array.ndim == 0:
+                    # For scalar values, convert to 1D array explicitly
+                    month_array = month_array.reshape(1)
 
-    if not all_data:
-        return np.array([])
+                flat_data = month_array.ravel()
+                all_data.append(flat_data)
 
-    concatenated = np.concatenate(all_data)
-    valid_data = concatenated[~np.isnan(concatenated)]
-    return valid_data
+                logging.info(f"Collected data for year {year}, month {month_idx}, length: {len(flat_data)}")
+                log_message("Collected monthly data", year=year, month_idx=month_idx, length=len(flat_data))
+
+            if not all_data:
+                logging.info("No data found to concatenate; returning empty array")
+                log_message("No data found to concatenate")
+                return np.array([])
+
+            concatenated = np.concatenate(all_data)
+            valid_data = concatenated[~np.isnan(concatenated)]
+
+            logging.info(f"Concatenated data length: {len(concatenated)}; valid data length (no NaNs): {len(valid_data)}")
+            log_message("Completed data gathering", concatenated_length=len(concatenated), valid_length=len(valid_data))
+
+            return valid_data
 ###############################################################################
 
 ###############################################################################
@@ -640,26 +788,44 @@ def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
     >>> np.isnan(masked_data[:, 1, 2, 3]).all()
     True
     """
-    # ===== INPUT VALIDATION =====
-    # Validate input types upfront to ensure proper usage and prevent obscure errors later
-    if not isinstance(data, np.ndarray) or not isinstance(mask3d, np.ndarray):
-        raise TypeError("❌ Both data and mask3d must be numpy arrays ❌")
+    with Timer("apply_3d_mask function"):
+        with start_action(action_type="apply_3d_mask_function") as action:
+            # Log the shapes inside Eliot action
+            action.log("shapes_logged", fields={
+                "data_shape": str(data.shape),
+                "mask_shape": str(mask3d.shape),
+            })
+            
+            # ===== INPUT VALIDATION =====
+            if not isinstance(data, np.ndarray) or not isinstance(mask3d, np.ndarray):
+                raise TypeError("❌ Both data and mask3d must be numpy arrays ❌")
 
-    # ===== APPLY MASK =====
-    # Ensure the mask has exactly 3 dimensions representing (depth, lat, lon)
-    if mask3d.ndim != 3:
-        raise ValueError("❌ mask3d must be a 3D array ❌")
+            # ===== APPLY MASK =====
+            # Ensure the mask has exactly 3 dimensions representing (depth, lat, lon)
+            if mask3d.ndim != 3:
+                raise ValueError("❌ mask3d must be a 3D array ❌")
 
-    try:
-        # Broadcast the mask to the shape of the last three dimensions of data
-        # This allows applying the same mask pattern to all preceding dimensions (e.g., time)
-        broadcast_mask = np.broadcast_to(mask3d, data.shape[-3:])
-        # Then broadcast this mask to the full data shape so indexing can be done directly
-        full_mask = np.broadcast_to(broadcast_mask, data.shape)
-    except ValueError:
-        # Raise clear error if broadcasting is not possible, helping user debug shape mismatches
-        raise ValueError(f"❌ mask3d shape {mask3d.shape} is not broadcast-compatible with data shape {data.shape} ❌")
+            logging.info(f"Applying 3D mask with shape {mask3d.shape} to data with shape {data.shape}")
+            log_message("Starting mask application", data_shape=str(data.shape), mask_shape=str(mask3d.shape))
 
-    # Use np.where to replace data values where the mask is zero with np.nan,
-    # preserving other values. This is an efficient, vectorized masking operation.
-    return np.where(full_mask == 0, np.nan, data)
+            try:
+                # Broadcast the mask to the shape of the last three dimensions of data
+                # This allows applying the same mask pattern to all preceding dimensions (e.g., time)
+                broadcast_mask = np.broadcast_to(mask3d, data.shape[-3:])
+                # Then broadcast this mask to the full data shape so indexing can be done directly
+                full_mask = np.broadcast_to(broadcast_mask, data.shape)
+            except ValueError:
+                # Raise clear error if broadcasting is not possible, helping user debug shape mismatches
+                err_msg = f"❌ mask3d shape {mask3d.shape} is not broadcast-compatible with data shape {data.shape} ❌"
+                logging.error(err_msg)
+                log_message("Mask broadcasting error", error=err_msg)
+                raise ValueError(err_msg)
+
+            # Use np.where to replace data values where the mask is zero with np.nan,
+            # preserving other values. This is an efficient, vectorized masking operation.
+            masked_data = np.where(full_mask == 0, np.nan, data)
+
+            logging.info("Mask applied successfully")
+            log_message("Completed mask application")
+
+            return masked_data
