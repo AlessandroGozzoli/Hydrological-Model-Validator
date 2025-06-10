@@ -63,31 +63,31 @@ def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> list[np.ndarray
     >>> print(bottom_layers[0].shape)
     (2, 2)
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"❌ data must be a numpy.ndarray, got {type(data)} ❌")
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
+
+    if data.ndim != 4:
+        raise ValueError(f"❌ data must be a 4D array with shape (time, depth, y, x), got shape {data.shape} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be a 2D array with shape (y, x), got shape {Bmost.shape} ❌")
+
+    time_len, depth_len, ny, nx = data.shape
+
+    if Bmost.shape != (ny, nx):
+        raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dimensions (y, x) of data {(ny, nx)} ❌")
+
+    if not np.issubdtype(Bmost.dtype, np.integer):
+        raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
+    if np.any(Bmost < 0):
+        raise ValueError("❌ Bmost indices must be >= 0 ❌")
+    if np.any(Bmost > depth_len):
+        raise ValueError(f"❌ Bmost indices must be <= depth dimension of data ({depth_len}), found values exceeding it ❌")
+
     with Timer("extract_bottom_layer function"):
         with start_action(action_type="extract_bottom_layer function"):
-            # ===== INPUT VALIDATION =====
-            if not isinstance(data, np.ndarray):
-                raise TypeError(f"❌ data must be a numpy.ndarray, got {type(data)} ❌")
-            if not isinstance(Bmost, np.ndarray):
-                raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
-
-            if data.ndim != 4:
-                raise ValueError(f"❌ data must be a 4D array with shape (time, depth, y, x), got shape {data.shape} ❌")
-            if Bmost.ndim != 2:
-                raise ValueError(f"❌ Bmost must be a 2D array with shape (y, x), got shape {Bmost.shape} ❌")
-
-            time_len, depth_len, ny, nx = data.shape
-
-            if Bmost.shape != (ny, nx):
-                raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dimensions (y, x) of data {(ny, nx)} ❌")
-
-            if not np.issubdtype(Bmost.dtype, np.integer):
-                raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
-            if np.any(Bmost < 0):
-                raise ValueError("❌ Bmost indices must be >= 0 ❌")
-            if np.any(Bmost > depth_len):
-                raise ValueError(f"❌ Bmost indices must be <= depth dimension of data ({depth_len}), found values exceeding it ❌")
-
             log_message("Input validation passed",
                         data_shape=data.shape,
                         Bmost_shape=Bmost.shape)
@@ -176,29 +176,30 @@ def extract_and_filter_benthic_data(data_4d: np.ndarray,
     >>> print(benthic_filtered.shape)
     (12, 5, 5)
     """
+    # ===== Input validation =====
+    if not isinstance(data_4d, np.ndarray):
+        raise TypeError(f"❌ data_4d must be a numpy.ndarray, got {type(data_4d)} ❌")
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
+    if data_4d.ndim != 4:
+        raise ValueError(f"❌ data_4d must be 4D with shape (time, depth, Y, X), got {data_4d.shape} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be 2D with shape (Y, X), got {Bmost.shape} ❌")
+    time_len, depth_len, Y, X = data_4d.shape
+    if Bmost.shape != (Y, X):
+        raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dims (Y, X) of data_4d {(Y, X)} ❌")
+    if not np.issubdtype(Bmost.dtype, np.integer):
+        raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
+    if np.any(Bmost < 0) or np.any(Bmost >= depth_len):
+        raise ValueError(f"❌ Bmost indices must be in the range 0 to depth_len={depth_len} ❌")
+    if not isinstance(dz, (float, int)) or dz <= 0:
+        raise ValueError("❌ dz must be a positive number ❌")
+    if variable_key is not None and variable_key not in {'votemper', 'vosaline'}:
+        # Just warn, no filtering will be applied
+        print(f"⚠️ Warning: Unsupported variable_key '{variable_key}', no filtering will be applied ⚠️")
+
     with Timer("extract_and_filter_benthic_data function"):
         with start_action(action_type="extract_and_filter_benthic_data function"):
-            # === Input validation ===
-            if not isinstance(data_4d, np.ndarray):
-                raise TypeError(f"❌ data_4d must be a numpy.ndarray, got {type(data_4d)} ❌")
-            if not isinstance(Bmost, np.ndarray):
-                raise TypeError(f"❌ Bmost must be a numpy.ndarray, got {type(Bmost)} ❌")
-            if data_4d.ndim != 4:
-                raise ValueError(f"❌ data_4d must be 4D with shape (time, depth, Y, X), got {data_4d.shape} ❌")
-            if Bmost.ndim != 2:
-                raise ValueError(f"❌ Bmost must be 2D with shape (Y, X), got {Bmost.shape} ❌")
-            time_len, depth_len, Y, X = data_4d.shape
-            if Bmost.shape != (Y, X):
-                raise ValueError(f"❌ Bmost shape {Bmost.shape} must match spatial dims (Y, X) of data_4d {(Y, X)} ❌")
-            if not np.issubdtype(Bmost.dtype, np.integer):
-                raise ValueError("❌ Bmost must contain integer values (1-based indices) ❌")
-            if np.any(Bmost < 0) or np.any(Bmost >= depth_len):
-                raise ValueError(f"❌ Bmost indices must be in the range 0 to depth_len={depth_len} ❌")
-            if not isinstance(dz, (float, int)) or dz <= 0:
-                raise ValueError("❌ dz must be a positive number ❌")
-            if variable_key is not None and variable_key not in {'votemper', 'vosaline'}:
-                # Just warn, no filtering will be applied
-                print(f"⚠️ Warning: Unsupported variable_key '{variable_key}', no filtering will be applied ⚠️")
 
             log_message("Input validation passed",
                         data_shape=data_4d.shape,
@@ -353,45 +354,45 @@ def process_year(year: int,
     >>> print(benthic_arr.shape)
     (time_steps, 20, 30)
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(year, int):
+        raise TypeError(f"❌ year must be int, got {type(year)} ❌")
+    if not isinstance(mask3d, np.ndarray):
+        raise TypeError(f"❌ mask3d must be np.ndarray, got {type(mask3d)} ❌")
+    if mask3d.ndim != 3:
+        raise ValueError(f"❌ mask3d must be 3D (depth, Y, X), got shape {mask3d.shape} ❌")
+    if not isinstance(Bmost, np.ndarray):
+        raise TypeError(f"❌ Bmost must be np.ndarray, got {type(Bmost)} ❌")
+    if Bmost.ndim != 2:
+        raise ValueError(f"❌ Bmost must be 2D (Y, X), got shape {Bmost.shape} ❌")
+    if not isinstance(filename_fragments, dict):
+        raise TypeError(f"❌ filename_fragments must be dict, got {type(filename_fragments)} ❌")
+    required_keys = {'ffrag1', 'ffrag2', 'ffrag3'}
+    missing_keys = required_keys - filename_fragments.keys()
+    if missing_keys:
+        raise KeyError(f"❌ filename_fragments missing keys: {missing_keys} ❌")
+    if not isinstance(variable_key, str):
+        raise TypeError(f"❌ variable_key must be str, got {type(variable_key)} ❌")
+
+    log_message("Input validation passed",
+                year=year,
+                mask3d_shape=mask3d.shape,
+                Bmost_shape=Bmost.shape,
+                filename_fragments_keys=list(filename_fragments.keys()),
+                variable_key=variable_key)
+    logging.info(f"Input validation passed for year {year}.")
+
+    # ===== PATH CHECK =====
+    IDIR = Path(IDIR)
+    if not IDIR.exists() or not IDIR.is_dir():
+        raise ValueError(f"❌ IDIR path does not exist or is not a directory: {IDIR} ❌")
+
+    year_str = str(year)
+    log_message("Input directory verified",
+                IDIR=str(IDIR))
+
     with Timer("process_year function"):
         with start_action(action_type="process_year function", year=year):
-            # === INPUT VALIDATION ===
-            if not isinstance(year, int):
-                raise TypeError(f"❌ year must be int, got {type(year)} ❌")
-            if not isinstance(mask3d, np.ndarray):
-                raise TypeError(f"❌ mask3d must be np.ndarray, got {type(mask3d)} ❌")
-            if mask3d.ndim != 3:
-                raise ValueError(f"❌ mask3d must be 3D (depth, Y, X), got shape {mask3d.shape} ❌")
-            if not isinstance(Bmost, np.ndarray):
-                raise TypeError(f"❌ Bmost must be np.ndarray, got {type(Bmost)} ❌")
-            if Bmost.ndim != 2:
-                raise ValueError(f"❌ Bmost must be 2D (Y, X), got shape {Bmost.shape} ❌")
-            if not isinstance(filename_fragments, dict):
-                raise TypeError(f"❌ filename_fragments must be dict, got {type(filename_fragments)} ❌")
-            required_keys = {'ffrag1', 'ffrag2', 'ffrag3'}
-            missing_keys = required_keys - filename_fragments.keys()
-            if missing_keys:
-                raise KeyError(f"❌ filename_fragments missing keys: {missing_keys} ❌")
-            if not isinstance(variable_key, str):
-                raise TypeError(f"❌ variable_key must be str, got {type(variable_key)} ❌")
-
-            log_message("Input validation passed",
-                        year=year,
-                        mask3d_shape=mask3d.shape,
-                        Bmost_shape=Bmost.shape,
-                        filename_fragments_keys=list(filename_fragments.keys()),
-                        variable_key=variable_key)
-            logging.info(f"Input validation passed for year {year}.")
-
-            # ===== PATH CHECK =====
-            IDIR = Path(IDIR)
-            if not IDIR.exists() or not IDIR.is_dir():
-                raise ValueError(f"❌ IDIR path does not exist or is not a directory: {IDIR} ❌")
-
-            year_str = str(year)
-            log_message("Input directory verified",
-                        IDIR=str(IDIR))
-
             # ===== BUILD FILENAME AND PATH =====
             filename = build_bfm_filename(year, filename_fragments)
             file_nc = IDIR / f"output{year_str}" / filename
@@ -507,28 +508,28 @@ def read_benthic_parameter(IDIR: Union[str, Path],
     >>> for year, monthly_data in data_by_year.items():
     ...     print(f"Year {year} has {len(monthly_data)} months of data, shape {monthly_data[0].shape}")
     """
+    # ===== INPUT VALIDATIONS =====
+    # Convert input path to Path object for consistent filesystem operations
+    IDIR = Path(IDIR)
+
+    # Check existence early to avoid wasted computation on missing data
+    if not IDIR.exists():
+        raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
+
+    # Validate input types and dimensions to prevent downstream errors
+    if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
+    if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
+        raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
+    if not filename_fragments:
+        raise ValueError("❌ filename_fragments must be provided and not None. ❌")
+    for key in ('ffrag1', 'ffrag2', 'ffrag3'):
+        # Ensure all required filename parts are available to correctly locate files
+        if key not in filename_fragments or filename_fragments[key] is None:
+            raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
+
     with Timer("read_benthic_parameter function"):
         with start_action(action_type="read_benthic_parameter function"):
-            # Convert input path to Path object for consistent filesystem operations
-            IDIR = Path(IDIR)
-
-            # ===== INPUT VALIDATIONS =====
-            # Check existence early to avoid wasted computation on missing data
-            if not IDIR.exists():
-                raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
-
-            # Validate input types and dimensions to prevent downstream errors
-            if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
-                raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
-            if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
-                raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
-            if not filename_fragments:
-                raise ValueError("❌ filename_fragments must be provided and not None. ❌")
-            for key in ('ffrag1', 'ffrag2', 'ffrag3'):
-                # Ensure all required filename parts are available to correctly locate files
-                if key not in filename_fragments or filename_fragments[key] is None:
-                    raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
-
             log_message("Input validation passed",
                         IDIR=str(IDIR),
                         mask3d_shape=mask3d.shape,
@@ -546,7 +547,7 @@ def read_benthic_parameter(IDIR: Union[str, Path],
 
             parameter_data: Dict[int, List[np.ndarray]] = {}
 
-            # ===== GET DATA ALL TOGHETHER =====
+            # ===== GET DATA ALL TOGETHER =====
             # Use a thread pool to process multiple years concurrently
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {
@@ -628,30 +629,30 @@ def read_bfm_chemical(
     >>> for year, monthly_layers in data_by_year.items():
     ...     print(f"Year {year} has {len(monthly_layers)} time slices, shape {monthly_layers[0].shape}")
     """
+    # ===== INPUT VALIDATIONS =====
+    IDIR = Path(IDIR)
+
+    if not IDIR.exists():
+        raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
+
+    if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
+
+    if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
+        raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
+
+    if not filename_fragments or not isinstance(filename_fragments, dict):
+        raise ValueError("❌ filename_fragments must be a non-empty dictionary. ❌")
+
+    for key in ('ffrag1', 'ffrag2', 'ffrag3'):
+        if key not in filename_fragments or filename_fragments[key] is None:
+            raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
+
+    if not isinstance(variable_key, str) or not variable_key:
+        raise ValueError("❌ variable_key must be a non-empty string. ❌")
+
     with Timer("read_bfm_chemical function"):
         with start_action(action_type="read_bfm_chemical function"):
-            IDIR = Path(IDIR)
-
-            # ===== INPUT VALIDATIONS =====
-            if not IDIR.exists():
-                raise FileNotFoundError(f"❌ Directory {IDIR} does not exist. ❌")
-
-            if not isinstance(mask3d, np.ndarray) or mask3d.ndim != 3:
-                raise ValueError("❌ mask3d must be a 3D numpy array. ❌")
-
-            if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
-                raise ValueError("❌ Bmost must be a 2D numpy array. ❌")
-
-            if not filename_fragments or not isinstance(filename_fragments, dict):
-                raise ValueError("❌ filename_fragments must be a non-empty dictionary. ❌")
-
-            for key in ('ffrag1', 'ffrag2', 'ffrag3'):
-                if key not in filename_fragments or filename_fragments[key] is None:
-                    raise ValueError(f"❌ Missing filename fragment: '{key}' ❌")
-
-            if not isinstance(variable_key, str) or not variable_key:
-                raise ValueError("❌ variable_key must be a non-empty string. ❌")
-
             log_message("Input validation passed",
                         IDIR=str(IDIR),
                         mask3d_shape=mask3d.shape,

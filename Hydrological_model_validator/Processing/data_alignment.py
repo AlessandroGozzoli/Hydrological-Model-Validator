@@ -44,25 +44,27 @@ def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
     >>> print(mask)
     [ True False False  True]
     """
+    # ===== INPUT VALIDATIONS =====
+    if not isinstance(mod_vals, np.ndarray):
+        raise TypeError("❌ mod_vals must be a numpy array ❌")
+    if not isinstance(sat_vals, np.ndarray):
+        raise TypeError("❌ sat_vals must be a numpy array ❌")
+
+    if mod_vals.shape != sat_vals.shape:
+        raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
+
     with Timer("get_valid_mask function"):
         with start_action(action_type="get_valid_mask function"):
-
-            if not isinstance(mod_vals, np.ndarray):
-                raise TypeError("❌ mod_vals must be a numpy array ❌")
-            if not isinstance(sat_vals, np.ndarray):
-                raise TypeError("❌ sat_vals must be a numpy array ❌")
 
             log_message("Input types validated",
                         mod_vals_type=str(type(mod_vals)),
                         sat_vals_type=str(type(sat_vals)))
             logging.info(f"Input arrays validated: mod_vals type={type(mod_vals)}, sat_vals type={type(sat_vals)}")
 
-            if mod_vals.shape != sat_vals.shape:
-                raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
-
             log_message("Input shapes validated", shape=mod_vals.shape)
             logging.info(f"Input arrays shapes matched: shape={mod_vals.shape}")
 
+            # Create a boolean mask indicating True where mod_vals is not NaN AND sat_vals is not NaN
             valid_mask = ~np.isnan(mod_vals) & ~np.isnan(sat_vals)
 
             log_message("Computed valid mask", valid_count=np.sum(valid_mask), total_elements=valid_mask.size)
@@ -113,17 +115,17 @@ def get_valid_mask_pandas(mod_series: pd.Series,
     2023-01-04     True
     Freq: D, dtype: bool
     """
+    # ===== INPUT VALIDATION =====
+    # Validate that mod_series is a pandas Series for correct operations and alignment
+    if not isinstance(mod_series, pd.Series):
+        raise TypeError("❌ mod_series must be a pandas Series ❌")
+    
+    # Validate that sat_series is a pandas Series as well
+    if not isinstance(sat_series, pd.Series):
+        raise TypeError("❌ sat_series must be a pandas Series ❌")
+
     with Timer("get_valid_mask_pandas function"):
         with start_action(action_type="get_valid_mask_pandas function"):
-
-            # ===== INPUT VALIDATION =====
-            # Validate that mod_series is a pandas Series for correct operations and alignment
-            if not isinstance(mod_series, pd.Series):
-                raise TypeError("❌ mod_series must be a pandas Series ❌")
-            
-            # Validate that sat_series is a pandas Series as well
-            if not isinstance(sat_series, pd.Series):
-                raise TypeError("❌ sat_series must be a pandas Series ❌")
 
             log_message("Input types validated",
                         mod_series_type=str(type(mod_series)),
@@ -200,17 +202,17 @@ def align_pandas_series(mod_series: pd.Series,
     >>> print(sat_vals)
     [1.5 4.5]
     """
+    # ===== INPUT VALIDATION =====
+    # Ensure mod_series is a pandas Series to support index alignment and selection
+    if not isinstance(mod_series, pd.Series):
+        raise TypeError("❌ mod_series must be a pandas Series ❌")
+    
+    # Ensure sat_series is also a pandas Series
+    if not isinstance(sat_series, pd.Series):
+        raise TypeError("❌ sat_series must be a pandas Series ❌")
+
     with Timer("align_pandas_series function"):
         with start_action(action_type="align_pandas_series function"):
-
-            # ===== INPUT VALIDATION =====
-            # Ensure mod_series is a pandas Series to support index alignment and selection
-            if not isinstance(mod_series, pd.Series):
-                raise TypeError("❌ mod_series must be a pandas Series ❌")
-            
-            # Ensure sat_series is also a pandas Series
-            if not isinstance(sat_series, pd.Series):
-                raise TypeError("❌ sat_series must be a pandas Series ❌")
 
             log_message("Input types validated",
                         mod_series_type=str(type(mod_series)),
@@ -283,19 +285,19 @@ def align_numpy_arrays(mod_vals: np.ndarray,
     >>> print(sat_filt)
     [1.5 4.5]
     """
+    # ===== INPUT VALIDATION =====
+    # Ensure both inputs are numpy arrays to support element-wise operations
+    if not isinstance(mod_vals, np.ndarray):
+        raise TypeError("❌ mod_vals must be a numpy array ❌")
+    if not isinstance(sat_vals, np.ndarray):
+        raise TypeError("❌ sat_vals must be a numpy array ❌")
+
+    # Check that both arrays have the same shape to allow element-wise comparison
+    if mod_vals.shape != sat_vals.shape:
+        raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
+
     with Timer("align_numpy_arrays function"):
         with start_action(action_type="align_numpy_arrays function"):
-
-            # ===== INPUT VALIDATION =====
-            # Ensure both inputs are numpy arrays to support element-wise operations
-            if not isinstance(mod_vals, np.ndarray):
-                raise TypeError("❌ mod_vals must be a numpy array ❌")
-            if not isinstance(sat_vals, np.ndarray):
-                raise TypeError("❌ sat_vals must be a numpy array ❌")
-
-            # Check that both arrays have the same shape to allow element-wise comparison
-            if mod_vals.shape != sat_vals.shape:
-                raise ValueError("❌ mod_vals and sat_vals must have the same shape ❌")
 
             log_message("Input validation passed",
                         mod_vals_type=str(type(mod_vals)),
@@ -367,22 +369,22 @@ def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> Lis
     >>> get_common_series_by_year(data)
     [('2000', array([1., 2.]), array([1.1, 2.1])), ('2001', array([4.]), array([4.1]))]
     """
+    # ===== INPUT VALIDATION =====
+    # Confirm input is a dictionary to avoid errors when accessing keys
+    if not isinstance(data_dict, dict):
+        raise TypeError(f"❌ Expected input data to be dict, got {type(data_dict)} ❌")
+
+    # Use helper function to find keys for model and satellite data, making this function flexible
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+
+    # Validate that the data for model and satellite are dictionaries keyed by year
+    if not isinstance(data_dict[mod_key], dict):
+        raise TypeError(f"❌ Expected '{mod_key}' data to be a dict keyed by years, got {type(data_dict[mod_key])} ❌")
+    if not isinstance(data_dict[sat_key], dict):
+        raise TypeError(f"❌ Expected '{sat_key}' data to be a dict keyed by years, got {type(data_dict[sat_key])} ❌")
+
     with Timer("get_common_series_by_year function"):
         with start_action(action_type="get_common_series_by_year function"):
-
-            # ===== INPUT VALIDATION =====
-            # Confirm input is a dictionary to avoid errors when accessing keys
-            if not isinstance(data_dict, dict):
-                raise TypeError(f"❌ Expected input data to be dict, got {type(data_dict)} ❌")
-
-            # Use helper function to find keys for model and satellite data, making this function flexible
-            mod_key, sat_key = extract_mod_sat_keys(data_dict)
-
-            # Validate that the data for model and satellite are dictionaries keyed by year
-            if not isinstance(data_dict[mod_key], dict):
-                raise TypeError(f"❌ Expected '{mod_key}' data to be a dict keyed by years, got {type(data_dict[mod_key])} ❌")
-            if not isinstance(data_dict[sat_key], dict):
-                raise TypeError(f"❌ Expected '{sat_key}' data to be a dict keyed by years, got {type(data_dict[sat_key])} ❌")
 
             log_message("Input validation passed",
                         data_type=str(type(data_dict)),
@@ -482,21 +484,21 @@ def get_common_series_by_year_month(
     >>> get_common_series_by_year_month(data)
     [(2000, 0, array([1.]), array([1.1])), (2000, 1, array([2.]), array([2.1]))]
     """
+    # ===== INPU VALIDATION AND GET KEYS =====
+    if not isinstance(data_dict, dict):
+        raise TypeError("❌ data_dict must be a dictionary ❌")
+
+    # Identify model and satellite keys from the dictionary keys
+    mod_key, sat_key = extract_mod_sat_keys(data_dict)
+
+    model_data = data_dict.get(mod_key, {})
+    satellite_data = data_dict.get(sat_key, {})
+
+    if not isinstance(model_data, dict) or not isinstance(satellite_data, dict):
+        raise TypeError("❌ Sub-values of data_dict must be dictionaries of lists of numpy arrays ❌")
+
     with Timer("get_common_series_by_year_month function"):
         with start_action(action_type="get_common_series_by_year_month function"):
-
-            # ===== INPU VALIDATION AND GET KEYS =====
-            if not isinstance(data_dict, dict):
-                raise TypeError("❌ data_dict must be a dictionary ❌")
-
-            # Identify model and satellite keys from the dictionary keys
-            mod_key, sat_key = extract_mod_sat_keys(data_dict)
-
-            model_data = data_dict.get(mod_key, {})
-            satellite_data = data_dict.get(sat_key, {})
-
-            if not isinstance(model_data, dict) or not isinstance(satellite_data, dict):
-                raise TypeError("❌ Sub-values of data_dict must be dictionaries of lists of numpy arrays ❌")
 
             log_message("Input validation passed",
                         data_type=str(type(data_dict)),
@@ -597,12 +599,12 @@ def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
     >>> extract_mod_sat_keys(data)
     ('model', 'satellite')
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(taylor_dict, dict):
+        raise TypeError("❌ Input must be a dictionary ❌")
+
     with Timer("extract_mod_sat_keys function"):
         with start_action(action_type="extract_mod_sat_keys function"):
-
-            # ===== INPUT VALIDATION =====
-            if not isinstance(taylor_dict, dict):
-                raise TypeError("❌ Input must be a dictionary ❌")
 
             log_message("Input validation passed", input_type=str(type(taylor_dict)))
             logging.info(f"Input validation passed; type: {type(taylor_dict)}")
@@ -694,17 +696,17 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
     >>> gather_monthly_data_across_years(data, 'mod', 0)
     array([1., 2., 5.])
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(data_dict, dict):
+        raise ValueError("❌ data_dict must be a dictionary ❌")
+    if key not in data_dict:
+        raise ValueError(f"❌ Key '{key}' not found in data_dict ❌")
+    if not isinstance(month_idx, int) or not (0 <= month_idx <= 11):
+        raise IndexError("❌ month_idx must be an integer between 0 and 11 ❌")
+
     with Timer("gather_monthly_data_across_years function"):
         with start_action(action_type="gather_monthly_data_across_years function", key=key, month_idx=month_idx):
             
-            # ===== INPUT VALIDATION =====
-            if not isinstance(data_dict, dict):
-                raise ValueError("❌ data_dict must be a dictionary ❌")
-            if key not in data_dict:
-                raise ValueError(f"❌ Key '{key}' not found in data_dict ❌")
-            if not isinstance(month_idx, int) or not (0 <= month_idx <= 11):
-                raise IndexError("❌ month_idx must be an integer between 0 and 11 ❌")
-
             logging.info(f"Starting data gathering for key '{key}', month index {month_idx}")
             log_message("Starting data gathering", key=key, month_idx=month_idx)
 
@@ -788,6 +790,14 @@ def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
     >>> np.isnan(masked_data[:, 1, 2, 3]).all()
     True
     """
+    # ===== INPUT VALIDATION =====
+    if not isinstance(data, np.ndarray) or not isinstance(mask3d, np.ndarray):
+        raise TypeError("❌ Both data and mask3d must be numpy arrays ❌")
+
+    # Ensure the mask has exactly 3 dimensions representing (depth, lat, lon)
+    if mask3d.ndim != 3:
+        raise ValueError("❌ mask3d must be a 3D array ❌")
+
     with Timer("apply_3d_mask function"):
         with start_action(action_type="apply_3d_mask_function") as action:
             # Log the shapes inside Eliot action
@@ -795,15 +805,6 @@ def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
                 "data_shape": str(data.shape),
                 "mask_shape": str(mask3d.shape),
             })
-            
-            # ===== INPUT VALIDATION =====
-            if not isinstance(data, np.ndarray) or not isinstance(mask3d, np.ndarray):
-                raise TypeError("❌ Both data and mask3d must be numpy arrays ❌")
-
-            # ===== APPLY MASK =====
-            # Ensure the mask has exactly 3 dimensions representing (depth, lat, lon)
-            if mask3d.ndim != 3:
-                raise ValueError("❌ mask3d must be a 3D array ❌")
 
             logging.info(f"Applying 3D mask with shape {mask3d.shape} to data with shape {data.shape}")
             log_message("Starting mask application", data_shape=str(data.shape), mask_shape=str(mask3d.shape))
