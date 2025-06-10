@@ -473,9 +473,12 @@ def test_apply_3d_mask_shape_error():
         apply_3d_mask(data, mask)
 
 # Test apply_3d_mask raises TypeError if mask is not an array
+class DummyMask:
+    shape = (1, 2, 2)  # must have .shape to avoid AttributeError
+
 def test_apply_3d_mask_type_error():
     data = np.ones((1, 2, 2))
-    mask = "not an array"
+    mask = DummyMask()  # Not an ndarray, but has .shape
     with pytest.raises(TypeError):
         apply_3d_mask(data, mask)
 
