@@ -19,6 +19,8 @@ dask
 # Testing dependencies
 pytest
 pytest-fixture-config
+eliot
+eliot-tree
 
 # Documentation dependencies for Sphinx
 sphinx
