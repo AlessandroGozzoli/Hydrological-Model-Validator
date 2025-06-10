@@ -1,3 +1,38 @@
+# **Version:** 4.8.7
+**Date:** 10/06/2025  
+
+## Summary
+
+Introduced logging and performance timing utilities to monitor function usage and track computational costs across the codebase.
+
+## Logging and Timing Utilities
+
+A new utility class, `Timer`, has been added to the `time_utils.py` submodule. This tool is designed to be integrated with all core functions to monitor execution duration and improve traceability.
+
+Logging is now performed via two channels:
+
+- **`app.log`**: A traditional log file with human-readable messages and timestamps.
+- **`eliot.log`**: A structured `.json` log formatted for use with the `eliot-tree` tool, enabling users to visualize computation flow in a hierarchical tree structure.
+
+Nearly all functions in the `Processing` submodule have been wrapped with the `Timer`, with the **exceptions** of:
+- `stats_math_utils`
+- `Data_saver`
+
+These will be updated in upcoming patches after:
+- Logging is fully integrated into the `Plotting` submodules.
+- Refactors to handle deprecations and new features (e.g., JSON export for model data in `Data_saver` and extended analysis in `stats_math_utils`) are completed.
+
+## Future Work
+
+- **Climate data analysis**: Finalize the new analytical functions (e.g., for Indian Monsoon trends). Due to time constraints, associated large test datasets are unlikely to be uploaded.
+- **Documentation overhaul**: Complete the `README.md` rework and finalize all documentation elements.
+- **Public test-case datasets**: Ensure reproducibility by uploading a curated set of test data.
+- **Extend logging utilities**: Finalize integration of the logging/timing system across all remaining submodules.
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.6  
 **Date:** 09/06/2025  
 
