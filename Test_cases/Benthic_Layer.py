@@ -352,11 +352,15 @@ dense_water_volume_TEOS10 = compute_dense_water_volume(IDIR, mask3d, fragments, 
 print("Dense water volume has been computed!")
 
 print("Proceeding to plot it...")
+outdir = os.path.join(BDIR, "OUTPUT", "PLOTS", "BFM", "Density")
+os.makedirs(outdir, exist_ok=True)
+
 dense_water_timeseries({
     "EOS": dense_water_volume_SEOS,
     "EOS80": dense_water_volume_EOS80,
-    "TEOS10": dense_water_volume_TEOS10
-})
+    "TEOS10": dense_water_volume_TEOS10,
+    },
+    output_path=output_path)
 print("Dense water volume plotted!")
 print('*'*45)
 
