@@ -1,3 +1,53 @@
+# **Version:** 4.9.0  
+**Date:** 11/06/2025  
+
+## Summary
+
+Major update introducing climate data analysis utilities, `.json` save support for model data, and enhanced control over line plots. Minor cleanup and test alignment also included.
+
+## Climate Data Analysis
+
+To broaden the analytical capabilities of the project, new statistical tools have been added to the `stats_math_utils` module, primarily aimed at climate and long-term signal analysis. Each function is equipped with `Timer` logging and proper test coverage.
+
+Newly added functions include:
+
+- `detrend_linear`, `detrend_poly_dim` — for lightweight linear and polynomial detrending
+- `monthly_anomaly`, `yearly_anomaly`, `detrended_monthly_anomaly` — anomaly isolators for different timescales
+- `np_covariance`, `np_correlation`, `np_regression` — NumPy-based correlation and regression metrics
+- `extract_multidecadal_peak`, `extract_multidecadal_peaks_from_spectra` — signal diagnostics from spectral power densities
+- `identify_extreme_events` — simple threshold-based extreme event detection
+
+## `.json` Model Save Support
+
+The `save_model_data` function now supports `.json` output alongside `.csv`, improving data interoperability and modern usage scenarios.
+
+## Updated `plot_line` Logic
+
+To address incorrect `NaN` handling by `seaborn`, the `plot_line` function now supports two rendering engines:
+
+- `matplotlib` (default) — maintains breaks in line plots for missing data
+- `seaborn` — can still be manually selected by setting `library='seaborn'`, but note it *masks* `NaN` values incorrectly in time series
+
+This change ensures that all `timeseries` plots reflect missing data clearly and behave as expected under scientific scrutiny.
+
+## Minor Cleanup
+
+- Unified dataset and mask imports in `SST_data_analyser` and `CHL_data_analyser` test scripts
+- All imports are now grouped at the top for clarity and to avoid repeated disk reads
+
+## Future Work
+
+Barring critical bugs or fixes, this is the **final major feature release** before introducing CLI tools and project packaging. Final steps include:
+
+- `argparse` integration and `__main__.py` setup  
+- Setup of script **entrypoints** (test cases + main) 
+- **README.md** refactor with updated figures and proper image paths  
+- Final publication of the **public test-case dataset**  
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.8
 **Date:** 11/06/2025  
 
