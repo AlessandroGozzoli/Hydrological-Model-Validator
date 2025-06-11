@@ -19,16 +19,16 @@ Newly added functions include:
 
 ## `.json` Model Save Support
 
-The `save_model_data` function now supports `.json` output alongside `.csv`, improving data interoperability and modern usage scenarios.
+The `save_model_data` function now supports `.json` output alongside already existing file types.
 
 ## Updated `plot_line` Logic
 
 To address incorrect `NaN` handling by `seaborn`, the `plot_line` function now supports two rendering engines:
 
 - `matplotlib` (default) — maintains breaks in line plots for missing data
-- `seaborn` — can still be manually selected by setting `library='seaborn'`, but note it *masks* `NaN` values incorrectly in time series
+- `seaborn` — can still be manually selected by setting `library='sns'`, but note it *masks* `NaN` values incorrectly in time series
 
-This change ensures that all `timeseries` plots reflect missing data clearly and behave as expected under scientific scrutiny.
+This change ensures that all `timeseries` plots reflect missing data clearly and behave as expected under scientific studies.
 
 ## Minor Cleanup
 
@@ -37,7 +37,7 @@ This change ensures that all `timeseries` plots reflect missing data clearly and
 
 ## Future Work
 
-Barring critical bugs or fixes, this is the **final major feature release** before introducing CLI tools and project packaging. Final steps include:
+With the exception of critical bugs or fixes, this is the **final major feature release** before introducing CLI tools and project packaging. Final steps include:
 
 - `argparse` integration and `__main__.py` setup  
 - Setup of script **entrypoints** (test cases + main) 
