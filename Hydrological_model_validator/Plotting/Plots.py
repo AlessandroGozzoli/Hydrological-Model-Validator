@@ -166,7 +166,8 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
         ax=ax1,
         label_lookup=label_lookup,
         color_palette=options.color_palette,
-        line_width=options.line_width
+        line_width=options.line_width,
+        library='plt',
     )
     list(starmap(plotter, data_dict.items()))
 
@@ -180,7 +181,7 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
     # ----- OPTIONAL BIAS PLOT -----
     if BIAS is not None:
         ax2 = fig.add_subplot(gs[1])
-        sns.lineplot(data=BIAS, color='k', ax=ax2)
+        ax2.plot(BIAS.index, BIAS.values, color='k')
 
         ax2.set_title(f'BIAS ({options.variable_name})', fontsize=options.bias_title_fontsize, fontweight='bold')
         ax2.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
