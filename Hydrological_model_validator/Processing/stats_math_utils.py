@@ -1227,7 +1227,7 @@ def extract_multidecadal_peak(
 
 ###############################################################################
 def extract_multidecadal_peaks_from_spectra(
-    power_spectra: Dict[str, Tuple[np.ndarray, np.ndarray, ...]],
+        power_spectra: Dict[str, Tuple[np.ndarray, ...]],
     frequency_threshold: float = 1/10
 ) -> pd.DataFrame:
     """
