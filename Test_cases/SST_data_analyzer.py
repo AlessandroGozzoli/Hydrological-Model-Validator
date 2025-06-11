@@ -144,6 +144,39 @@ print("*"*45)
 print("Setting up the SST dictionary...")
 print('-'*45)
 
+# ----- RETRIEVING THE MASK -----
+print("Retrieving the mask...")
+Mfsm = mask_reader(BDIR)
+ocean_mask = Mfsm[0]  # This returns a NumPy array
+print("\033[92m✅ Mask succesfully imported! \033[0m")
+print('*'*45)
+
+# ----- IMPORTING 2D DAILY DATASETS -----
+
+# ----- LOADING THE DAILY DATASETS, OUTPUT OF THE INTERPOLATOR.M -----
+print("Loading the datasets...")
+ds_model = xr.open_dataset(IDIR / "ModData_sst_interp_l3.nc")
+ds_sat = xr.open_dataset(IDIR / "SatData_sst_interp_l3.nc")
+print("The datasets have been loaded!")
+print('-'*45)
+
+# ----- TRANSPOSING -----
+print("Due to the necessity to resample the data the datasets need to be")
+print("Transposed so that the 1st dimension is the time")
+print("Transposing the datasets...")
+model_sst = ds_model['ModData_interp'].transpose('time', 'lat', 'lon')
+sat_sst = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
+print("The datasets have been transposed!")
+print('-'*45)
+
+# ----- ADDIING CORRECT DATETIME -----
+print("Adding a datetime to aid with the resampling...")
+time_origin = pd.Timestamp("2000-01-01")
+model_sst['time'] = time_origin + pd.to_timedelta(model_sst.time.values, unit="D")
+sat_sst['time'] = time_origin + pd.to_timedelta(sat_sst.time.values, unit="D")
+print("Daily datetime index added!")
+print('-'*45)
+
 # ----- IMPORTING BASIN AVERAGES -----
 
 print("Importing the Basin Average SST timeseries...")
@@ -433,13 +466,6 @@ print("*" * 45)
 ##                                                                           ##
 ###############################################################################
 
-# ----- RETRIEVING THE MASK -----
-print("Retrieving the mask...")
-Mfsm = mask_reader(BDIR)
-ocean_mask = Mfsm  # This returns a NumPy array
-print("\033[92m✅ Mask succesfully imported! \033[0m")
-print('*'*45)
-
 # ----- GEOLOCALIZE THE DATASET -----
 print("Computing the geolocalization...")
 # Known values from the dataset, need to be changed if the area of analysis is changed
@@ -453,30 +479,6 @@ y_step = 0.00897
 geo_coords = compute_geolocalized_coords(grid_shape, epsilon, x_start, x_step, y_start, y_step)
 print("\033[92m✅ Geolocalization complete! \033[0m")
 print('*'*45)
-
-# ----- LOADING THE DAILY DATASETS, OUTPUT OF THE INTERPOLATOR.M -----
-print("Loading the datasets...")
-ds_model = xr.open_dataset(IDIR / "ModData_sst_interp_l3.nc")
-ds_sat = xr.open_dataset(IDIR / "SatData_sst_interp_l3.nc")
-print("The datasets have been loaded!")
-print('-'*45)
-
-# ----- TRANSPOSING -----
-print("Due to the necessity to resample the data the datasets need to be")
-print("Transposed so that the 1st dimension is the time")
-print("Transposing the datasets...")
-model_sst = ds_model['ModData_interp'].transpose('time', 'lat', 'lon')
-sat_sst = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
-print("The datasets have been transposed!")
-print('-'*45)
-
-# ----- ADDIING CORRECT DATETIME -----
-print("Adding a datetime to aid with the resampling...")
-time_origin = pd.Timestamp("2000-01-01")
-model_sst['time'] = time_origin + pd.to_timedelta(model_sst.time.values, unit="D")
-sat_sst['time'] = time_origin + pd.to_timedelta(sat_sst.time.values, unit="D")
-print("Daily datetime index added!")
-print('-'*45)
 
 # ----- WARNING AND RESAMPLING -----
 print("\n--- Data Resampling Notice ---")
@@ -505,6 +507,18 @@ if not do_resample and not do_cdo:
     check = input("Are you using the monthly resampled datasets provided in the /Data folder? (Yes/No): ")
     if check in ["yes", "y"]:
         print("Good! We can move on then!")
+        
+        # ----- LOAD NEW DATASETS -----    
+        print("Loading the monthly datasets...")
+        model_sst_monthly = xr.open_dataset(IDIR / "model_sst_monthly.nc")
+        sat_sst_monthly = xr.open_dataset(IDIR / "sat_sst_monthly.nc")
+        print("The datasets have been loaded!")
+        print('-'*45)
+
+        print("Fetching the data...")
+        model_sst_data = model_sst_monthly["ModData_interp"]
+        sat_sst_data = sat_sst_monthly["SatData_complete"]
+        
     else:
         print("\n❌ No action selected. The following analysis cannot progress without resampling.")
         exit()
@@ -571,16 +585,6 @@ if do_cdo:
     print("The satellite data has been resampled!")
     
 # ----- GET BACK TO THE ANALYSIS -----
-# ----- LOAD NEW DATASETS -----    
-print("Loading the monthly datasets...")
-model_sst_monthly = xr.open_dataset(IDIR / "model_sst_monthly.nc")
-sat_sst_monthly = xr.open_dataset(IDIR / "sat_sst_monthly.nc")
-print("The datasets have been loaded!")
-print('-'*45)
-
-print("Fetching the data...")
-model_sst_data = model_sst_monthly["ModData_interp"]
-sat_sst_data = sat_sst_monthly["SatData_complete"]
 
 # ----- APPLY THE MASK -----
 # ----- REUSES THE SAME FROM THE DATA SETUPPING -----
@@ -957,49 +961,10 @@ print("The dataset that needs to be used is the 2D daily value one already")
 print("Imported in the previous section of this test case, but in this case")
 print("it must remain composed of daily values!")
 
-print('-'*45)
-
-# As a failsafe if the user decides to launche the code here reimport it
-
-# ----- LOADING THE DAILY DATASETS, OUTPUT OF THE INTERPOLATOR.M -----
-print("Loading the datasets...")
-ds_model = xr.open_dataset(IDIR / "ModData_sst_interp_l3.nc")
-ds_sat = xr.open_dataset(IDIR / "SatData_sst_interp_l3.nc")
-print("The datasets have been loaded!")
-print('-'*45)
-
-# ----- TRANSPOSING -----
-print("Due to the necessity to resample the data the datasets need to be")
-print("Transposed so that the 1st dimension is the time")
-print("Transposing the datasets...")
-model_sst = ds_model['ModData_interp'].transpose('time', 'lat', 'lon')
-sat_sst = ds_sat['SatData_complete'].transpose('time', 'lat', 'lon')
-print("The datasets have been transposed!")
-print('-'*45)
-
-# ----- ADDIING CORRECT DATETIME -----
-print("Adding a datetime to aid with the resampling...")
-time_origin = pd.Timestamp("2000-01-01")
-model_sst['time'] = time_origin + pd.to_timedelta(model_sst.time.values, unit="D")
-sat_sst['time'] = time_origin + pd.to_timedelta(sat_sst.time.values, unit="D")
-print("Daily datetime index added!")
-print('-'*45)
-
 print("The data contains Nans so it can be either masked or, since we are")
 print("making timeseries they can be skipped...")
 print("For consistency with the previous data we are going to mask them!")
 print("We are going to the the Ocean Mask since it can be used for our case")
-
-print('-'*45)
-
-# Once again reimport it as a failsafe
-
-# ----- RETRIEVING THE MASK -----
-print("Retrieving the mask...")
-Mfsm = mask_reader(BDIR)
-ocean_mask = Mfsm[0]  # This returns a NumPy array
-print("\033[92m✅ Mask succesfully imported! \033[0m")
-print('-'*45)
 
 print("Computing the error components timeseries...")
 error_comp_stats_df = compute_error_timeseries(model_sst, sat_sst, ocean_mask)
