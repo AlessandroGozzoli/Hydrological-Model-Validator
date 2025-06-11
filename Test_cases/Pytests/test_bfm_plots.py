@@ -499,17 +499,23 @@ def empty_data():
     return {}
 
 # Test the normal plotting flow and check figure axes, titles, labels, and fill_between polygons
+@patch("matplotlib.pyplot.close")  
+@patch("matplotlib.pyplot.savefig")
 @patch("matplotlib.pyplot.show")
-def test_normal_flow(mock_show, multi_series_data):
-    dense_water_timeseries(multi_series_data)
+def test_normal_flow(mock_show, mock_savefig, mock_close, multi_series_data, tmp_path):
+    # Make plt.close a no-op so figure is not closed inside the function
+    mock_close.side_effect = lambda *args, **kwargs: None
 
-    # Show should be called once after plotting
-    assert mock_show.call_count == 1
+    dense_water_timeseries(multi_series_data, output_path=str(tmp_path))
 
-    # Access current figure and axes
     fig = plt.gcf()
-    ax1 = fig.axes[0]  # main axis
-    ax2 = fig.axes[1]  # twin axis
+    assert len(fig.axes) >= 2  # we expect at least main and twin axes
+
+    ax1 = fig.axes[0]
+    ax2 = fig.axes[1]
+
+    # Show should be called twice after plotting ('cause of pause)
+    assert mock_show.call_count == 2
 
     # Check title and y-axis labels
     assert ax1.get_title() == "Dense Water Volume Time Series"
@@ -525,9 +531,11 @@ def test_normal_flow(mock_show, multi_series_data):
 
 
 # Test that plotting with empty data calls no show and produces no lines
-@patch("matplotlib.pyplot.show")
-def test_empty_data_runs(mock_show, empty_data):
-    dense_water_timeseries(empty_data)
+@patch("matplotlib.pyplot.savefig", autospec=True)
+@patch("matplotlib.pyplot.show", autospec=True)
+def test_empty_data_runs(mock_show, mock_savefig, empty_data, tmp_path):
+    dense_water_timeseries(empty_data,
+                           output_path=str(tmp_path))
 
     # Show should not be called with empty data
     assert mock_show.call_count == 0
@@ -538,16 +546,22 @@ def test_empty_data_runs(mock_show, empty_data):
 
 
 # Test single point data plotting creates one line but no fill_between polygons
-@patch("matplotlib.pyplot.show")
-def test_single_point_no_fill_between(mock_show, single_point_data):
-    dense_water_timeseries(single_point_data)
+@patch("matplotlib.pyplot.close", autospec=True)
+@patch("matplotlib.pyplot.savefig", autospec=True)
+@patch("matplotlib.pyplot.show", autospec=True)
+def test_single_point_no_fill_between(mock_close, mock_show, mock_savefig, single_point_data, tmp_path):
+    dense_water_timeseries(single_point_data,
+                           output_path=str(tmp_path))
+
+    # Prevent the figure from being closed
+    mock_close.side_effect = lambda *args, **kwargs: None
 
     assert mock_show.call_count == 1
 
     fig = plt.gcf()
     ax1 = fig.axes[0]
 
-    # One data line with exactly one point
+    # Only count actual data lines (with non-empty xdata)
     data_lines = [line for line in ax1.lines if len(line.get_xdata()) > 0]
     assert len(data_lines) == 1
     assert len(data_lines[0].get_xdata()) == 1
@@ -562,15 +576,22 @@ def test_single_point_no_fill_between(mock_show, single_point_data):
 
 
 # Test plotting with custom parameters applies title, ylabel, figsize, legend location, and date format
-@patch("matplotlib.pyplot.show")
-def test_custom_parameters(mock_show, multi_series_data):
+@patch("matplotlib.pyplot.close", autospec=True)
+@patch("matplotlib.pyplot.savefig", autospec=True)
+@patch("matplotlib.pyplot.show", autospec=True)
+def test_custom_parameters(mock_close, mock_show, mock_savefig, multi_series_data, tmp_path):
+    
+    # Prevent figure from being closed so we can inspect it
+    mock_close.side_effect = lambda *args, **kwargs: None    
+    
     dense_water_timeseries(
         multi_series_data,
         title="Custom Title",
         ylabel="Custom Y Label",
         figsize=(8, 4),
         legend_loc="upper left",
-        date_format="%Y/%m/%d"
+        date_format="%Y/%m/%d",
+        output_path=str(tmp_path)
     )
 
     assert mock_show.call_count == 1
@@ -584,8 +605,9 @@ def test_custom_parameters(mock_show, multi_series_data):
 
 
 # Test that conversion from km3/month to Sverdrup is reflected correctly on twin y-axis
-@patch("matplotlib.pyplot.show")
-def test_conversion_km3_to_sv(mock_show):
+@patch("matplotlib.pyplot.savefig", autospec=True)
+@patch("matplotlib.pyplot.show", autospec=True)
+def test_conversion_km3_to_sv(mock_show, mock_savefig, tmp_path):
     data = {
         "Test": [
             {"date": "2022-01-01", "volume_m3": 1e9},  # 1 km3
@@ -593,7 +615,8 @@ def test_conversion_km3_to_sv(mock_show):
         ]
     }
 
-    dense_water_timeseries(data)
+    dense_water_timeseries(data,
+                           output_path=str(tmp_path))
 
     fig = plt.gcf()
     axes = fig.get_axes()
