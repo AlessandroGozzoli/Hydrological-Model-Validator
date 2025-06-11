@@ -1,11 +1,12 @@
 import numpy as np
-from typing import Tuple, Union, Dict
+from typing import Tuple, Union, Dict, Optional, List
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import xarray as xr
 from scipy.signal import detrend
 import pandas as pd
 from scipy.fft import fft, fftfreq
+from scipy.stats import linregress
 
 import logging
 from eliot import start_action, log_message
@@ -53,15 +54,24 @@ def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, n
     if mod_data.size == 0:
         raise ValueError("Input arrays must not be empty.")
 
-    # === FITTING HUBER REGRESSOR ===
-    huber = HuberRegressor()
-    huber.fit(mod_data[:, None], sat_data)
+    with Timer('fit_huber function'):
+        with start_action(action_type='fit_huber', mod_data_size=mod_data.size, sat_data_size=sat_data.size):
+            log_message('Starting Huber regression fitting')
+            logging.info('Starting Huber regression fitting')
 
-    # === GENERATING PREDICTED LINE ===
-    x_vals = np.linspace(mod_data.min(), mod_data.max(), 100)
-    y_vals = huber.predict(x_vals[:, None])
+            # === FITTING HUBER REGRESSOR ===
+            huber = HuberRegressor()
+            huber.fit(mod_data[:, None], sat_data)
+            log_message('Huber regression fitted')
+            logging.info('Huber regression fitted')
 
-    return x_vals, y_vals
+            # === GENERATING PREDICTED LINE ===
+            x_vals = np.linspace(mod_data.min(), mod_data.max(), 100)
+            y_vals = huber.predict(x_vals[:, None])
+            log_message('Predicted Huber regression line generated')
+            logging.info('Predicted Huber regression line generated')
+
+            return x_vals, y_vals
 ###############################################################################
 
 ###############################################################################
@@ -115,14 +125,22 @@ def fit_lowess(
     if not (0 < frac <= 1):
         raise ValueError("Parameter 'frac' must be in the interval (0, 1].")
 
-    # === SORT AND APPLY LOWESS ===
-    order = np.argsort(mod_data)
-    mod_sorted = mod_data[order]
-    sat_sorted = sat_data[order]
+    with Timer('fit_lowess function'):
+        with start_action(action_type='fit_lowess', mod_data_size=mod_data.size, sat_data_size=sat_data.size, frac=frac):
+            log_message('Starting LOWESS smoothing')
+            logging.info('Starting LOWESS smoothing')
 
-    smoothed = lowess(sat_sorted, mod_sorted, frac=frac, return_sorted=True)
+            # === SORT AND APPLY LOWESS ===
+            order = np.argsort(mod_data)
+            mod_sorted = mod_data[order]
+            sat_sorted = sat_data[order]
 
-    return smoothed
+            smoothed = lowess(sat_sorted, mod_sorted, frac=frac, return_sorted=True)
+
+            log_message('LOWESS smoothing completed', points=len(smoothed))
+            logging.info(f'LOWESS smoothing completed, points={len(smoothed)}')
+
+            return smoothed
 ###############################################################################
     
 ###############################################################################    
@@ -160,9 +178,14 @@ def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
         # Prevent invalid operation — rounding to a non-positive base is undefined
         raise ValueError("Base must be positive.")
     
-    # Divide x by base to scale the problem, apply ceiling to ensure rounding *up*, 
-    # then scale back by multiplying with base to get the nearest upper multiple
-    return base * np.ceil(x / base)
+    with Timer('round_up_to_nearest function'):
+        with start_action(action_type='round_up_to_nearest', x=x, base=base):
+            # Divide x by base to scale the problem, apply ceiling to ensure rounding *up*, 
+            # then scale back by multiplying with base to get the nearest upper multiple
+            result = base * np.ceil(x / base)
+            log_message('Rounded value computed', result=result)
+            logging.info(f'Rounded value computed: {result}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -209,31 +232,38 @@ def compute_coverage_stats(
     if Mmask.shape != data.shape[1:]:
         # Spatial dimensions of the mask must match those of the data
         raise ValueError(f"Shape of Mmask {Mmask.shape} does not match data spatial dims {data.shape[1:]}.")
-
+    
     # Ensure Mmask is boolean without copying unless necessary
     Mmask = Mmask.astype(bool, copy=False)
 
-    # Apply mask to spatial dimensions, reduces each 2D frame to a 1D vector of masked values
-    masked_data = data[:, Mmask]  # shape: (time, masked_points)
+    with Timer('compute_coverage_stats function'):
+        with start_action(action_type='compute_coverage_stats', data_shape=data.shape, Mmask_shape=Mmask.shape):
+            # Apply mask to spatial dimensions, reduces each 2D frame to a 1D vector of masked values
+            masked_data = data[:, Mmask]  # shape: (time, masked_points)
 
-    total_points = masked_data.shape[1]
-    if total_points == 0:
-        # If the mask selects zero points, return NaNs for all time steps
-        n_time = data.shape[0]
-        return np.full(n_time, np.nan), np.full(n_time, np.nan)
+            total_points = masked_data.shape[1]
+            if total_points == 0:
+                # If the mask selects zero points, return NaNs for all time steps
+                n_time = data.shape[0]
+                log_message('Mask has zero selected points, returning NaNs', n_time=n_time)
+                logging.info(f'Mask has zero selected points, returning NaNs for {n_time} time steps.')
+                return np.full(n_time, np.nan), np.full(n_time, np.nan)
 
-    # ===== COUNTING =====
-    # Count valid (non-NaN) values per time step
-    valid_counts = np.count_nonzero(~np.isnan(masked_data), axis=1)
+            # ===== COUNTING =====
+            # Count valid (non-NaN) values per time step
+            valid_counts = np.count_nonzero(~np.isnan(masked_data), axis=1)
 
-    # Remaining points are assumed to be cloud-covered (i.e., NaNs)
-    cloud_counts = total_points - valid_counts
+            # Remaining points are assumed to be cloud-covered (i.e., NaNs)
+            cloud_counts = total_points - valid_counts
 
-    # Convert counts to percentage relative to total masked points
-    data_available_percent = 100 * valid_counts / total_points
-    cloud_coverage_percent = 100 * cloud_counts / total_points
+            # Convert counts to percentage relative to total masked points
+            data_available_percent = 100 * valid_counts / total_points
+            cloud_coverage_percent = 100 * cloud_counts / total_points
 
-    return data_available_percent, cloud_coverage_percent
+            log_message('Coverage stats computed', total_points=total_points)
+            logging.info(f'Coverage stats computed: total masked points = {total_points}')
+            
+            return data_available_percent, cloud_coverage_percent
 ###############################################################################
 
 ###############################################################################
@@ -267,7 +297,6 @@ def detrend_dim(
     if mask is not None:
         da = da.where(mask)
 
-    # ===== FUNCTION TO DETREND 1D =====
     def detrend_1d(x):
         # Ensure float dtype to support NaNs
         x = x.astype(float)
@@ -303,17 +332,26 @@ def detrend_dim(
 
         return detrended
 
-    # ===== DETRENDING PROCESS =====
-    detrended = xr.apply_ufunc(
-        detrend_1d,
-        da,
-        input_core_dims=[[dim]],
-        output_core_dims=[[dim]],
-        vectorize=True,
-        dask='parallelized',
-        output_dtypes=[da.dtype],
-    )
-    return detrended
+    with Timer('detrend_dim function'):
+        with start_action(action_type='detrend_dim', dim=dim, min_valid_points=min_valid_points):
+            log_message('Starting detrending process')
+            logging.info(f'Starting detrending along dimension "{dim}" with min_valid_points={min_valid_points}')
+
+            # ===== DETRENDING PROCESS =====
+            detrended = xr.apply_ufunc(
+                detrend_1d,
+                da,
+                input_core_dims=[[dim]],
+                output_core_dims=[[dim]],
+                vectorize=True,
+                dask='parallelized',
+                output_dtypes=[da.dtype],
+            )
+
+            log_message('Detrending completed')
+            logging.info(f'Detrending completed along dimension "{dim}"')
+
+            return detrended
 ###############################################################################
 
 ###############################################################################
@@ -346,13 +384,21 @@ def mean_bias(
     >>> mean_bias(m, o)
     0.19999999999999973
     """
-    # If input is not an xarray with the specified time dimension,
-    # compute global mean bias using np.nanmean to ignore NaNs
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in m.dims:
-        return np.nanmean(m) - np.nanmean(o)
+    with Timer('mean_bias function'):
+        with start_action(action_type='mean_bias', time_dim=time_dim):
+            # If input is not an xarray with the specified time dimension,
+            # compute global mean bias using np.nanmean to ignore NaNs
+            if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+                result = np.nanmean(m) - np.nanmean(o)
+                log_message('Computed global mean bias', result=result)
+                logging.info(f'Global mean bias computed: {result}')
+                return result
 
-    # Compute bias along the specified time dimension (works for xarray DataArray)
-    return m.mean(dim=time_dim) - o.mean(dim=time_dim)
+            # Compute bias along the specified time dimension (works for xarray DataArray)
+            result = m.mean(dim=time_dim) - o.mean(dim=time_dim)
+            log_message('Computed mean bias over time_dim', time_dim=time_dim)
+            logging.info(f'Mean bias computed over dimension "{time_dim}"')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -390,7 +436,7 @@ def standard_deviation_error(
     >>> standard_deviation_error(m, o)
     0.0
     """
-    # --- Validate input lengths based on input type ---
+    # ===== INPUT VALIDATION =====
     if isinstance(m, (pd.Series, np.ndarray)) and isinstance(o, (pd.Series, np.ndarray)):
         # For array-like inputs, check length directly
         if len(m) != len(o):
@@ -400,17 +446,22 @@ def standard_deviation_error(
         if m.sizes[time_dim] != o.sizes[time_dim]:
             raise ValueError(f"Inputs 'm' and 'o' must have the same length along dimension '{time_dim}'.")
 
-    # --- Compute std dev difference based on type ---
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
-        # Fallback to global std dev using np.nanstd to ignore NaNs
-        sdm = np.nanstd(m)
-        sdo = np.nanstd(o)
-    else:
-        # Compute std dev along specified dimension for xarray
-        sdm = m.std(dim=time_dim)
-        sdo = o.std(dim=time_dim)
+    with Timer('standard_deviation_error function'):
+        with start_action(action_type='standard_deviation_error', time_dim=time_dim):
+            # ===== COMPUTE STD =====
+            if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+                # Fallback to global std dev using np.nanstd to ignore NaNs
+                sdm = np.nanstd(m)
+                sdo = np.nanstd(o)
+            else:
+                # Compute std dev along specified dimension for xarray
+                sdm = m.std(dim=time_dim)
+                sdo = o.std(dim=time_dim)
 
-    return sdm - sdo
+            result = sdm - sdo
+            log_message('Computed std deviation error (model - obs)', result=result)
+            logging.info(f'Standard deviation error computed: {result}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -443,35 +494,39 @@ def cross_correlation(
     >>> cross_correlation(m, o)
     0.9981908926857269
     """
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
-        # Fallback for array-like input or when time_dim is missing: compute global correlation
-        m_mean = np.nanmean(m)
-        o_mean = np.nanmean(o)
+    with Timer('cross_correlation function'):
+        with start_action(action_type='cross_correlation', time_dim=time_dim):
+            if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+                # Fallback for array-like input or when time_dim is missing: compute global correlation
+                m_mean = np.nanmean(m)
+                o_mean = np.nanmean(o)
 
-        # Compute anomalies by removing the mean
-        m_anom = m - m_mean
-        o_anom = o - o_mean
+                # Compute anomalies by removing the mean
+                m_anom = m - m_mean
+                o_anom = o - o_mean
 
-        # Covariance is mean of product of anomalies
-        cov = np.nanmean(m_anom * o_anom)
+                # Covariance is mean of product of anomalies
+                cov = np.nanmean(m_anom * o_anom)
 
-        # Standard deviations from variance of anomalies
-        std_m = np.sqrt(np.nanmean(m_anom ** 2))
-        std_o = np.sqrt(np.nanmean(o_anom ** 2))
-    else:
-        # For xarray, compute along the specified dimension
-        m_mean = m.mean(dim=time_dim)
-        o_mean = o.mean(dim=time_dim)
+                # Standard deviations from variance of anomalies
+                std_m = np.sqrt(np.nanmean(m_anom ** 2))
+                std_o = np.sqrt(np.nanmean(o_anom ** 2))
+            else:
+                # For xarray, compute along the specified dimension
+                m_mean = m.mean(dim=time_dim)
+                o_mean = o.mean(dim=time_dim)
 
-        m_anom = m - m_mean
-        o_anom = o - o_mean
+                m_anom = m - m_mean
+                o_anom = o - o_mean
 
-        cov = (m_anom * o_anom).mean(dim=time_dim)
-        std_m = np.sqrt((m_anom ** 2).mean(dim=time_dim))
-        std_o = np.sqrt((o_anom ** 2).mean(dim=time_dim))
+                cov = (m_anom * o_anom).mean(dim=time_dim)
+                std_m = np.sqrt((m_anom ** 2).mean(dim=time_dim))
+                std_o = np.sqrt((o_anom ** 2).mean(dim=time_dim))
 
-    # Pearson correlation: covariance divided by product of std devs
-    return cov / (std_m * std_o)
+            result = cov / (std_m * std_o)
+            log_message('Computed Pearson correlation coefficient', result=result)
+            logging.info(f'Pearson correlation coefficient computed: {result}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -501,11 +556,16 @@ def corr_no_nan(
     >>> corr_no_nan(s1, s2)
     0.9819805060619657
     """
-    # Concatenate series column-wise and drop rows with any NaNs to get valid pairs
-    combined = pd.concat([series1, series2], axis=1).dropna()
+    with Timer('corr_no_nan function'):
+        with start_action(action_type='corr_no_nan'):
+            # Concatenate series column-wise and drop rows with any NaNs to get valid pairs
+            combined = pd.concat([series1, series2], axis=1).dropna()
 
-    # Compute correlation between the two columns of the cleaned DataFrame
-    return combined.iloc[:, 0].corr(combined.iloc[:, 1])
+            # Compute correlation between the two columns of the cleaned DataFrame
+            result = combined.iloc[:, 0].corr(combined.iloc[:, 1])
+            log_message('Computed Pearson correlation ignoring NaNs', result=result)
+            logging.info(f'Correlation computed ignoring NaNs: {result}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -535,16 +595,24 @@ def std_dev(
     >>> std_dev(data)
     1.118033988749895
     """
-    if isinstance(da, (pd.Series, np.ndarray)) or time_dim not in getattr(da, 'dims', []):
-        # For array-like input or missing time_dim, compute global std ignoring NaNs
-        mean = np.nanmean(da)
-        return np.sqrt(np.nanmean((da - mean) ** 2))
-    
-    # For xarray DataArray, compute mean along time_dim
-    mean = da.mean(dim=time_dim)
+    with Timer('std_dev function'):
+        with start_action(action_type='std_dev'):
+            if isinstance(da, (pd.Series, np.ndarray)) or time_dim not in getattr(da, 'dims', []):
+                # For array-like input or missing time_dim, compute global std ignoring NaNs
+                mean = np.nanmean(da)
+                result = np.sqrt(np.nanmean((da - mean) ** 2))
+                log_message('Computed global std dev ignoring NaNs', result=result)
+                logging.info(f'Global std dev computed: {result}')
+                return result
+            
+            # For xarray DataArray, compute mean along time_dim
+            mean = da.mean(dim=time_dim)
 
-    # Compute sqrt of mean squared deviations along time_dim (std dev)
-    return ((da - mean) ** 2).mean(dim=time_dim) ** 0.5
+            # Compute sqrt of mean squared deviations along time_dim (std dev)
+            result = ((da - mean) ** 2).mean(dim=time_dim) ** 0.5
+            log_message('Computed std dev along dimension', dim=time_dim)
+            logging.info(f'Std dev computed along dimension {time_dim}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -577,22 +645,30 @@ def unbiased_rmse(
     >>> unbiased_rmse(m, o)
     0.10000000000000009
     """
-    if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
-        # For array-like or missing time dimension, compute global unbiased RMSE ignoring NaNs
-        m_mean = np.nanmean(m)
-        o_mean = np.nanmean(o)
-        m_anom = m - m_mean
-        o_anom = o - o_mean
-        return np.sqrt(np.nanmean((m_anom - o_anom) ** 2))
+    with Timer('unbiased_rmse function'):
+        with start_action(action_type='unbiased_rmse', time_dim=time_dim):
+            if isinstance(m, (pd.Series, np.ndarray)) or time_dim not in getattr(m, 'dims', []):
+                # For array-like or missing time dimension, compute global unbiased RMSE ignoring NaNs
+                m_mean = np.nanmean(m)
+                o_mean = np.nanmean(o)
+                m_anom = m - m_mean
+                o_anom = o - o_mean
+                result = np.sqrt(np.nanmean((m_anom - o_anom) ** 2))
+                log_message('Computed global unbiased RMSE ignoring NaNs', result=result)
+                logging.info(f'Global unbiased RMSE computed: {result}')
+                return result
 
-    # For xarray DataArray, compute means along time_dim
-    m_mean = m.mean(dim=time_dim)
-    o_mean = o.mean(dim=time_dim)
-    m_anom = m - m_mean
-    o_anom = o - o_mean
+            # For xarray DataArray, compute means along time_dim
+            m_mean = m.mean(dim=time_dim)
+            o_mean = o.mean(dim=time_dim)
+            m_anom = m - m_mean
+            o_anom = o - o_mean
 
-    # Compute unbiased RMSE along the time dimension
-    return ((m_anom - o_anom) ** 2).mean(dim=time_dim) ** 0.5
+            # Compute unbiased RMSE along the time dimension
+            result = ((m_anom - o_anom) ** 2).mean(dim=time_dim) ** 0.5
+            log_message('Computed unbiased RMSE along dimension', dim=time_dim)
+            logging.info(f'Unbiased RMSE computed along dimension {time_dim}')
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -629,11 +705,20 @@ def spatial_mean(
     <xarray.DataArray ()>
     array(0.5267)
     """
-    # Apply mask to keep only valid spatial points
-    masked_data = data_array.where(mask)
+    with Timer('spatial_mean function'):
+        with start_action(action_type='spatial_mean', dims=data_array.dims):
 
-    # Compute mean over spatial dims lat and lon, skipping NaNs caused by masking
-    return masked_data.mean(dim=['lat', 'lon'], skipna=True)
+            # Apply mask to keep only valid spatial points
+            masked_data = data_array.where(mask)
+            log_message('Mask applied to data_array', mask_shape=mask.shape, data_shape=data_array.shape)
+            logging.info(f"Mask applied: mask shape {mask.shape}, data shape {data_array.shape}")
+
+            # Compute mean over spatial dims lat and lon, skipping NaNs caused by masking
+            result = masked_data.mean(dim=['lat', 'lon'], skipna=True)
+            log_message('Computed spatial mean with mask applied', result=result.values if hasattr(result, 'values') else result)
+            logging.info(f"Computed spatial mean result: {result.values if hasattr(result, 'values') else result}")
+
+            return result
 ###############################################################################
 
 ###############################################################################
@@ -671,17 +756,21 @@ def compute_lagged_correlations(
      2   -0.5
     dtype: float64
     """
-    lags = range(-max_lag, max_lag + 1)
-    results = {}
+    with Timer('compute_lagged_correlations function'):
+        with start_action(action_type='compute_lagged_correlations'):
+            lags = range(-max_lag, max_lag + 1)
+            results = {}
 
-    for lag in lags:
-        # Shift series2 by lag (positive lag shifts forward, negative backward)
-        shifted = series2.shift(lag)
+            for lag in lags:
+                # Shift series2 by lag (positive lag shifts forward, negative backward)
+                shifted = series2.shift(lag)
 
-        # Compute correlation ignoring NaNs between series1 and shifted series2
-        results[lag] = corr_no_nan(series1, shifted)
+                # Compute correlation ignoring NaNs between series1 and shifted series2
+                results[lag] = corr_no_nan(series1, shifted)
 
-    return pd.Series(results)
+            log_message(f'Computed lagged correlations for lags -{max_lag} to {max_lag}')
+            logging.info(f'Computed lagged correlations for lags -{max_lag} to {max_lag}')
+            return pd.Series(results)
 ###############################################################################
 
 ###############################################################################
@@ -728,25 +817,535 @@ def compute_fft(
     >>> fft_dict['a']
     array([10.+0.j, -2.+2.j])
     """
-    if isinstance(data, dict):
-        if len(data) == 0:
-            raise ValueError("Input dict is empty; cannot compute FFT.")
+    with Timer('compute_fft function'):
+        with start_action(action_type='compute_fft'):
+            if isinstance(data, dict):
+                if len(data) == 0:
+                    raise ValueError("Input dict is empty; cannot compute FFT.")
 
-        # Assume all arrays have the same length; get length from first array
-        N = len(next(iter(data.values())))
-        freqs = fftfreq(N, dt)[:N // 2]
+                # Assume all arrays have the same length; get length from first array
+                N = len(next(iter(data.values())))
+                freqs = fftfreq(N, dt)[:N // 2]
 
-        # Compute FFT for each array, keeping only positive frequencies
-        fft_result = {
-            key: fft(arr)[:N // 2]
-            for key, arr in data.items()
-        }
-        return freqs, fft_result
+                # Compute FFT for each array, keeping only positive frequencies
+                fft_result = {
+                    key: fft(arr)[:N // 2]
+                    for key, arr in data.items()
+                }
 
-    else:
-        N = len(data)
-        freqs = fftfreq(N, dt)[:N // 2]
+                log_message(f'Computed FFT for dict with keys: {list(data.keys())}')
+                logging.info(f'Computed FFT for dict with keys: {list(data.keys())}')
+                return freqs, fft_result
 
-        # Compute FFT and return positive frequency components
-        fft_result = fft(data)[:N // 2]
-        return freqs, fft_result
+            else:
+                N = len(data)
+                freqs = fftfreq(N, dt)[:N // 2]
+
+                # Compute FFT and return positive frequency components
+                fft_result = fft(data)[:N // 2]
+                log_message('Computed FFT for single array input')
+                logging.info('Computed FFT for single array input')
+                return freqs, fft_result
+###############################################################################
+
+###############################################################################
+def detrend_poly_dim(data_array: xr.DataArray, dim: str, degree: int = 1) -> xr.DataArray:
+    """
+    Remove a polynomial trend of specified degree along a given dimension in an xarray.DataArray.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        Input data array containing the data to detrend.
+    dim : str
+        Dimension name along which the polynomial trend will be fitted and removed.
+    degree : int, optional
+        Degree of the polynomial to fit and remove (default is 1, linear detrend).
+
+    Returns
+    -------
+    xarray.DataArray
+        Detrended data array with the polynomial trend removed along the specified dimension.
+
+    Examples
+    --------
+    >>> import xarray as xr
+    >>> data = xr.DataArray(np.random.rand(10, 5), dims=['time', 'space'])
+    >>> detrended = detrend_dim(data, dim='time', degree=1)
+    """
+    with Timer('detrend_dim'):
+        with start_action(action_type='detrend_dim', dim=dim, degree=degree):
+            # Fit polynomial coefficients along the given dimension (e.g., time)
+            polyfit_params = data_array.polyfit(dim=dim, deg=degree)
+            log_message('polyfit_params computed', params=polyfit_params.polyfit_coefficients.values.tolist())
+            logging.info(f'detrend_dim: polyfit_params computed with coefficients {polyfit_params.polyfit_coefficients.values.tolist()}')
+
+            # Evaluate the polynomial trend at each coordinate along the dimension
+            trend_fit = xr.polyval(data_array[dim], polyfit_params.polyfit_coefficients)
+            log_message('trend_fit calculated')
+            logging.info('detrend_dim: trend_fit calculated')
+
+            # Subtract the polynomial trend from the original data to get detrended data
+            detrended = data_array - trend_fit
+            log_message('detrended data computed')
+            logging.info('detrend_dim: detrended data computed')
+
+            return detrended
+###############################################################################
+
+###############################################################################
+def detrend_linear(data: Union[np.ndarray, List[float], pd.Series]) -> np.ndarray:
+    """
+    Remove a linear trend from 1D numeric data using least squares linear regression.
+
+    Parameters
+    ----------
+    data : np.ndarray or list or pd.Series
+        1D numeric input data from which the linear trend will be removed.
+
+    Returns
+    -------
+    np.ndarray
+        Detrended 1D array with the linear trend removed.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> data = np.arange(10) + np.random.rand(10)
+    >>> detrended = detrend(data)
+    """
+    with Timer('detrend'):
+        with start_action(action_type='detrend', length=len(data)):
+            # Generate time indices as independent variable for regression
+            time_indices = np.arange(len(data))
+
+            # Perform linear regression to find slope and intercept
+            slope, intercept, _, _, _ = linregress(time_indices, data)
+            log_message('linear regression result', slope=slope, intercept=intercept)
+            logging.info(f'detrend_linear: linear regression slope={slope}, intercept={intercept}')
+
+            # Calculate linear trend using slope and intercept
+            linear_trend = slope * time_indices + intercept
+
+            # Subtract the linear trend from the original data
+            detrended_data = np.asarray(data) - linear_trend
+            log_message('detrended data computed', detrended_mean=float(np.mean(detrended_data)))
+            logging.info(f'detrend_linear: detrended data computed, mean={np.mean(detrended_data)}')
+
+            return detrended_data
+###############################################################################
+
+###############################################################################
+def monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
+    """
+    Calculate monthly mean anomalies without detrending by removing the monthly climatology.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        Time series data with a 'time' coordinate, must be monthly or higher frequency.
+
+    Returns
+    -------
+    Tuple[xarray.DataArray, xarray.DataArray]
+        Tuple containing:
+        - anomalies: Monthly anomalies computed by subtracting monthly means.
+        - monthly_climatology: Mean values for each month.
+
+    Examples
+    --------
+    >>> anomalies, climatology = monthly_anomaly(data_array)
+    """
+    with Timer('monthly_anomaly'):
+        with start_action(action_type='monthly_anomaly'):
+            # Compute monthly climatology (mean for each month across all years)
+            monthly_climatology = data_array.groupby('time.month').mean('time')
+            log_message('monthly climatology computed', months=int(monthly_climatology.month.size))
+            logging.info(f'monthly_anomaly: monthly climatology computed for {int(monthly_climatology.month.size)} months')
+
+            # Compute anomalies by subtracting monthly climatology from data
+            anomalies = data_array.groupby('time.month') - monthly_climatology
+            log_message('monthly anomalies computed')
+            logging.info('monthly_anomaly: monthly anomalies computed')
+
+            return anomalies, monthly_climatology
+###############################################################################
+
+###############################################################################
+def yearly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
+    """
+    Calculate yearly mean anomalies without detrending by removing the yearly climatology.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        Time series data with a 'time' coordinate, typically annual or higher frequency.
+
+    Returns
+    -------
+    Tuple[xarray.DataArray, xarray.DataArray]
+        Tuple containing:
+        - anomalies: Yearly anomalies computed by subtracting yearly means.
+        - yearly_climatology: Mean values for each year.
+
+    Examples
+    --------
+    >>> anomalies, climatology = yearly_anomaly(data_array)
+    """
+    with Timer('yearly_anomaly'):
+        with start_action(action_type='yearly_anomaly'):
+            # Compute yearly climatology (mean for each year across all months/days)
+            yearly_climatology = data_array.groupby('time.year').mean('time')
+            log_message('yearly climatology computed', years=int(yearly_climatology.year.size))
+            logging.info(f'yearly_anomaly: yearly climatology computed for {int(yearly_climatology.year.size)} years')
+
+            # Compute anomalies by subtracting yearly climatology from data
+            anomalies = data_array.groupby('time.year') - yearly_climatology
+            log_message('yearly anomalies computed')
+            logging.info('yearly_anomaly: yearly anomalies computed')
+
+            return anomalies, yearly_climatology
+###############################################################################
+
+###############################################################################
+def detrended_monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
+    """
+    Calculate detrended monthly anomalies by removing the linear trend first, then removing the monthly climatology.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        Time series data with a 'time' coordinate, typically monthly.
+
+    Returns
+    -------
+    Tuple[xarray.DataArray, xarray.DataArray]
+        Tuple containing:
+        - anomalies: Detrended monthly anomalies.
+        - monthly_climatology: Monthly climatology of the detrended data.
+
+    Examples
+    --------
+    >>> anomalies, climatology = detrended_monthly_anomaly(data_array)
+    """
+    with Timer('detrended_monthly_anomaly'):
+        with start_action(action_type='detrended_monthly_anomaly'):
+            # Remove linear trend along the time dimension
+            detrended_data = detrend_poly_dim(data_array, 'time', degree=1)
+            log_message('data detrended')
+            logging.info('detrended_monthly_anomaly: data detrended')
+
+            # Calculate monthly climatology from detrended data
+            monthly_climatology = detrended_data.groupby('time.month').mean('time')
+            log_message('monthly climatology computed')
+            logging.info('detrended_monthly_anomaly: monthly climatology computed')
+
+            # Calculate monthly anomalies from detrended data
+            anomalies = detrended_data.groupby('time.month') - monthly_climatology
+            log_message('detrended monthly anomalies computed')
+            logging.info('detrended_monthly_anomaly: detrended monthly anomalies computed')
+
+            return anomalies, monthly_climatology
+###############################################################################
+
+###############################################################################
+def np_covariance(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndarray:
+    """
+    Calculate covariance between a 3D spatial-temporal field and a 1D index time series.
+
+    Parameters
+    ----------
+    field_time_xy : np.ndarray
+        3D array with shape (time, y, x), spatial field over time.
+    index_time : np.ndarray
+        1D array with length equal to time dimension in field_time_xy.
+
+    Returns
+    -------
+    np.ndarray
+        2D covariance map with shape (y, x).
+
+    Examples
+    --------
+    >>> cov = np_covariance(field, index)
+    """
+    with Timer('np_covariance'):
+        with start_action(action_type='np_covariance'):
+            # Calculate anomalies by removing mean along time for spatial field
+            field_anom = field_time_xy - np.mean(field_time_xy, axis=0)
+
+            # Calculate anomalies by removing mean for index time series
+            index_anom = index_time - np.mean(index_time)
+
+            # Compute covariance map as mean of pointwise product of anomalies over time
+            covariance = np.einsum('tij,t->ij', field_anom, index_anom) / len(index_time)
+
+            log_message('covariance computed', shape=covariance.shape)
+            logging.info(f'np_covariance: covariance computed with shape {covariance.shape}')
+            return covariance
+###############################################################################
+
+###############################################################################
+def np_correlation(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndarray:
+    """
+    Calculate Pearson correlation coefficient map between a 3D spatial-temporal field and a 1D index time series.
+
+    Parameters
+    ----------
+    field_time_xy : np.ndarray
+        3D array (time, y, x) representing spatial field over time.
+    index_time : np.ndarray
+        1D array representing time series index.
+
+    Returns
+    -------
+    np.ndarray
+        2D correlation map with shape (y, x).
+
+    Examples
+    --------
+    >>> corr = np_correlation(field, index)
+    """
+    with Timer('np_correlation'):
+        with start_action(action_type='np_correlation'):
+            # Calculate covariance map
+            covariance = np_covariance(field_time_xy, index_time)
+
+            # Calculate correlation by normalizing covariance with std deviations
+            correlation = covariance / (np.std(field_time_xy, axis=0) * np.std(index_time))
+
+            log_message('correlation computed', shape=correlation.shape)
+            logging.info(f'np_correlation: correlation computed with shape {correlation.shape}')
+            return correlation
+###############################################################################
+
+###############################################################################
+def np_regression(field_time_xy: np.ndarray, index_time: np.ndarray, std_units: str = 'yes') -> np.ndarray:
+    """
+    Compute regression coefficients between a 3D spatial-temporal field and a 1D index time series.
+
+    Parameters
+    ----------
+    field_time_xy : np.ndarray
+        3D spatial-temporal field array (time, y, x).
+    index_time : np.ndarray
+        1D index time series.
+    std_units : str, optional
+        If 'yes', normalize regression by standard deviation of index_time.
+
+    Returns
+    -------
+    np.ndarray
+        2D regression coefficients map (y, x).
+
+    Examples
+    --------
+    >>> regression = np_regression(field, index)
+    """
+    with Timer('np_regression'):
+        with start_action(action_type='np_regression', std_units=std_units):
+            # Calculate covariance between field and index time series
+            covariance = np_covariance(field_time_xy, index_time)
+
+            # Calculate variance of index time series
+            variance_index = np.var(index_time)
+
+            # Calculate regression coefficients by dividing covariance by variance
+            regression = covariance / variance_index
+
+            # Optionally normalize regression by std of index time series
+            if std_units == 'yes':
+                regression /= np.std(index_time)
+
+            log_message('regression computed', shape=regression.shape)
+            logging.info(f'np_regression: regression computed with shape {regression.shape} and std_units={std_units}')
+            return regression
+###############################################################################
+
+###############################################################################
+def extract_multidecadal_peak(
+    freqs: np.ndarray,
+    amps: np.ndarray,
+    frequency_threshold: float = 1/10
+) -> Optional[Dict[str, float]]:
+    """
+    Extract amplitude and frequency/period of the largest peak within a frequency threshold region.
+
+    Parameters
+    ----------
+    freqs : np.ndarray
+        Array of frequencies from power spectrum.
+    amps : np.ndarray
+        Corresponding amplitude array from power spectrum.
+    frequency_threshold : float, optional
+        Frequency threshold defining multidecadal region (default 1/10 cycles per year).
+
+    Returns
+    -------
+    dict or None
+        Dictionary with keys 'Peak Amplitude', 'Peak Frequency (cycles/year)', 'Peak Period (years)'
+        for the largest amplitude peak in the multidecadal region,
+        or None if no frequencies below threshold.
+
+    Examples
+    --------
+    >>> peak = extract_multidecadal_peak(freqs, amps)
+    """
+    with Timer('extract_multidecadal_peak'):
+        with start_action(action_type='extract_multidecadal_peak', freq_threshold=frequency_threshold):
+            # Identify frequencies less than the threshold (multidecadal region)
+            multidecadal_indices = np.where(freqs < frequency_threshold)[0]
+
+            if len(multidecadal_indices) == 0:
+                log_message('no multidecadal frequencies found')
+                logging.info('no multidecadal frequencies found')
+                return None
+
+            # Extract the frequencies and amplitudes in the multidecadal region
+            freqs_sub = freqs[multidecadal_indices]
+            amps_sub = amps[multidecadal_indices]
+
+            # Find index of the largest amplitude peak
+            peak_idx = np.argmax(amps_sub)
+
+            # Extract peak frequency and amplitude
+            peak_frequency = freqs_sub[peak_idx]
+            peak_amplitude = amps_sub[peak_idx]
+
+            # Convert frequency to period in years (avoid division by zero)
+            peak_period = 1 / peak_frequency if peak_frequency > 0 else np.inf
+
+            peak_info = {
+                "Peak Amplitude": peak_amplitude,
+                "Peak Frequency (cycles/year)": peak_frequency,
+                "Peak Period (years)": peak_period
+            }
+            log_message('peak extracted', peak=peak_info)
+            logging.info(f"peak extracted: {peak_info}")
+            return peak_info
+###############################################################################
+
+###############################################################################
+def extract_multidecadal_peaks_from_spectra(
+    power_spectra: Dict[str, Tuple[np.ndarray, np.ndarray, ...]],
+    frequency_threshold: float = 1/10
+) -> pd.DataFrame:
+    """
+    Extract multidecadal peak amplitude and frequency information from multiple regions' power spectra.
+
+    Parameters
+    ----------
+    power_spectra : dict
+        Dictionary mapping region names to tuples containing frequency array, amplitude array, and others.
+    frequency_threshold : float, optional
+        Threshold frequency below which frequencies are considered multidecadal (default 1/10 cycles/year).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with peak amplitude, frequency, and period for each region.
+
+    Examples
+    --------
+    >>> df = extract_multidecadal_peaks_from_spectra(power_spectra)
+    """
+    with Timer('extract_multidecadal_peaks_from_spectra'):
+        with start_action(action_type='extract_multidecadal_peaks_from_spectra', freq_threshold=frequency_threshold):
+            results = {}
+            for region, (freqs, amps, *_) in power_spectra.items():
+                # Extract peak info for each region using helper function
+                peak_info = extract_multidecadal_peak(freqs, amps, frequency_threshold)
+                if peak_info:
+                    results[region] = peak_info
+                    log_message('peak info extracted for region', region=region, peak=peak_info)
+                    logging.info(f"peak info extracted for region: {region}, peak: {peak_info}")
+            df = pd.DataFrame.from_dict(results, orient='index')
+            log_message('all peaks extracted', num_regions=len(results))
+            logging.info(f"all peaks extracted, num_regions: {len(results)}")
+            return df
+###############################################################################
+
+###############################################################################
+def identify_extreme_events(
+    time_series: Union[np.ndarray, pd.Series, xr.DataArray],
+    threshold_multiplier: float = 1.5,
+    step: Optional[int] = None,
+    comparison_index: Optional[int] = None
+) -> Dict[str, Union[np.ndarray, List[int]]]:
+    """
+    Identify extreme positive and negative events in a time series using a threshold based on standard deviation.
+    Optionally, sample these extreme events at fixed intervals starting at a given index.
+
+    Parameters
+    ----------
+    time_series : np.ndarray or pd.Series or xarray.DataArray
+        1D time series data.
+    threshold_multiplier : float, optional
+        Multiplier for standard deviation to define extreme events (default 1.5).
+    step : int, optional
+        Step interval to sample the time series for extreme events (e.g., 12 for monthly December events).
+    comparison_index : int, optional
+        Starting index for sampling when step is provided (e.g., 12 to start from December).
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'positive_events_mask': Boolean mask array for extreme positive events.
+        - 'negative_events_mask': Boolean mask array for extreme negative events.
+        - 'sampled_positive_indices': Indices of sampled positive extreme events (if step provided).
+        - 'sampled_negative_indices': Indices of sampled negative extreme events (if step provided).
+
+    Examples
+    --------
+    >>> events = identify_extreme_events(n34_array, threshold_multiplier=1.5, step=12, comparison_index=12)
+    """
+    with Timer('identify_extreme_events'):
+        with start_action(action_type='identify_extreme_events', threshold_multiplier=threshold_multiplier):
+            # Extract raw numeric values if input is xarray or pandas object
+            values = time_series.values if hasattr(time_series, 'values') else np.asarray(time_series)
+
+            # Calculate standard deviation of the time series
+            std_dev = np.std(values)
+            log_message('standard deviation computed', std_dev=float(std_dev))
+            logging.info(f'standard deviation computed: {std_dev}')
+
+            # Identify where values exceed positive threshold (Niño-like events)
+            positive_events_mask = values > std_dev * threshold_multiplier
+            # Identify where values are below negative threshold (Niña-like events)
+            negative_events_mask = values < -std_dev * threshold_multiplier
+            log_message('extreme event masks computed')
+            logging.info('extreme event masks computed')
+
+            if step is not None:
+                if comparison_index is None:
+                    error_msg = "If 'step' is provided, 'comparison_index' must be specified."
+                    log_message('error', message=error_msg)
+                    logging.info(f'error: {error_msg}')
+                    raise ValueError(error_msg)
+
+                # Sample the time series starting at comparison_index every 'step' points
+                sampled_values = values[comparison_index::step]
+
+                # Find indices within the sampled data where extreme positive events occur
+                sampled_positive_indices = np.where(sampled_values >= std_dev * threshold_multiplier)[0]
+                # Find indices within the sampled data where extreme negative events occur
+                sampled_negative_indices = np.where(sampled_values <= -std_dev * threshold_multiplier)[0]
+
+                log_message('sampled extreme events identified',
+                            sampled_positive_count=len(sampled_positive_indices),
+                            sampled_negative_count=len(sampled_negative_indices))
+                logging.info(f'sampled extreme events identified: sampled_positive_count={len(sampled_positive_indices)}, sampled_negative_count={len(sampled_negative_indices)}')
+
+                return {
+                    'positive_events_mask': positive_events_mask,
+                    'negative_events_mask': negative_events_mask,
+                    'sampled_positive_indices': sampled_positive_indices,
+                    'sampled_negative_indices': sampled_negative_indices
+                }
+            else:
+                # If no sampling, just return boolean masks for extremes
+                return {
+                    'positive_events_mask': positive_events_mask,
+                    'negative_events_mask': negative_events_mask
+                }
