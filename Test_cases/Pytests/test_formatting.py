@@ -233,7 +233,7 @@ def test_plot_line_with_series():
     fig, ax = plt.subplots()
     series = pd.Series([1, 2, 3])
     # Using a cycle of colors to allow repeated use of the same palette without exhaustion
-    plot_line("mod", series, ax, {"mod": "Model"}, cycle(["blue"]), 2)
+    plot_line("mod", series, ax, {"mod": "Model"}, cycle(["blue"]), 2, library='sns')
     # Confirm exactly one line was added to the axes after plotting the series data
     assert len(ax.lines) == 1
 
@@ -241,7 +241,7 @@ def test_plot_line_with_series():
 def test_plot_line_with_list_input():
     fig, ax = plt.subplots()
     # Similar to series test, but with a list to verify plot_line handles different data types
-    plot_line("obs", [1, 2, 3], ax, {"obs": "Observation"}, cycle(["green"]), 1.5)
+    plot_line("obs", [1, 2, 3], ax, {"obs": "Observation"}, cycle(["green"]), 1.5, library='plt')
     # Ensure a single line was drawn for the provided list input
     assert len(ax.lines) == 1
 
@@ -250,7 +250,7 @@ def test_invalid_color_palette():
     fig, ax = plt.subplots()
     # Color palette must be iterable (e.g., list or cycle); passing string triggers error
     with pytest.raises(ValueError):
-        plot_line("k", [1, 2], ax, {"k": "Label"}, "not_iterable", 1)
+        plot_line("k", [1, 2], ax, {"k": "Label"}, "not_iterable", 1, library='sns')
 
 # Tests for input validation
 @pytest.mark.parametrize("key", [123, None, ['model']])
@@ -263,7 +263,8 @@ def test_invalid_key(key):
             ax=ax,
             label_lookup={'model': 'Model Output'},
             color_palette=cycle(['blue']),
-            line_width=2
+            line_width=2,
+            library='plt'
         )
 
 
@@ -276,7 +277,8 @@ def test_invalid_ax_line(ax):
             ax=ax,
             label_lookup={'model': 'Model Output'},
             color_palette=cycle(['blue']),
-            line_width=2
+            line_width=2,
+            library='sns'
         )
 
 
@@ -290,7 +292,8 @@ def test_invalid_label_lookup(label_lookup):
             ax=ax,
             label_lookup=label_lookup,
             color_palette=cycle(['blue']),
-            line_width=2
+            line_width=2, 
+            library='sns'
         )
 
 
@@ -304,7 +307,8 @@ def test_invalid_color_palette_line(color_palette):
             ax=ax,
             label_lookup={'model': 'Model Output'},
             color_palette=color_palette,
-            line_width=2
+            line_width=2,
+            library='plt'
         )
 
 
@@ -318,7 +322,8 @@ def test_invalid_line_width(line_width):
             ax=ax,
             label_lookup={'model': 'Model Output'},
             color_palette=cycle(['blue']),
-            line_width=line_width
+            line_width=line_width, 
+            library='sns'
         )
         
         
