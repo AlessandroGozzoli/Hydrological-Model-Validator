@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 from datetime import datetime
 from contextlib import contextmanager
-from eliot import start_action, log_message, to_file
+from eliot import start_action, log_message
 from eliot.stdlib import EliotHandler
 
 ###############################################################################
@@ -455,28 +455,32 @@ def resample_and_compute(model_sst_chunked, sat_sst_chunked):
 ###############################################################################
 # ----- SETUP OF THE LOGGER AND TIMER -----
 
-# Clear existing handlers on root logger 
+# Clear existing handlers on root logger
 root_logger = logging.getLogger()
 if root_logger.hasHandlers():
     root_logger.handlers.clear()
 
-# Create handlers explicitly
+# --- File handler: capture everything (including third-party libs) ---
 file_handler = logging.FileHandler("app.log", mode='a', encoding='utf-8')
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.INFO)  # or DEBUG if you want
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
+# --- Stream handler: only show YOUR logs in console ---
 stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.INFO)
+stream_handler.setLevel(logging.WARNING)  # Filter out INFO/DEBUG logs from chat
 stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
-# Add handlers to root logger
+# Add handlers
 root_logger.addHandler(file_handler)
 root_logger.addHandler(stream_handler)
+root_logger.addHandler(EliotHandler())
+
 root_logger.setLevel(logging.INFO)
 
-# Setup Eliot logging
-to_file(open("eliot.log", "a", encoding="utf-8"))
-root_logger.addHandler(EliotHandler())
+# Optional: raise level for noisy libs to WARNING so they skip stream
+logging.getLogger("xarray").setLevel(logging.INFO)  # still captured in file, but not printed
+logging.getLogger("netCDF4").setLevel(logging.INFO)
+logging.getLogger("h5netcdf").setLevel(logging.INFO)
 
 # --- Timer context manager that logs to both systems ---
 @contextmanager
