@@ -6,9 +6,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.colors as mcolors
 from matplotlib.colors import BoundaryNorm, ListedColormap, LinearSegmentedColormap
-from matplotlib.cm import get_cmap
 import cmocean
 import collections.abc
+import matplotlib.pyplot as plt
 
 ###############################################################################
 def format_unit(unit: str) -> str:
@@ -589,7 +589,7 @@ def swifs_colormap(
         # Chlorophyll uses viridis with fine bins for concentration ranges
         Lticks = np.array([0.04, 0.05, 0.08, 0.12, 0.20, 0.30, 0.50,
                            0.80, 1.30, 2.00, 3.00, 4.00, 9.00, 12.0])
-        base_cmap = get_cmap("viridis")
+        base_cmap = plt.colormaps["viridis"]
 
     elif variable_name in n_vars:
         # Nitrogen-related variables with different bin edges per subtype, use YlGnBu colormap
@@ -603,7 +603,7 @@ def swifs_colormap(
         elif variable_name == 'N4n':
             Lticks = np.array([0.1, 0.2, 0.3, 0.5, 0.8, 1.0, 2.0, 3.0,
                                5.0, 8.0, 10.0, 15.0, 20.0])
-        base_cmap = get_cmap("YlGnBu")
+        base_cmap = plt.colormaps["YlGnBu"]
 
     elif variable_name in p_vars:
         # Phosphorus-related variables use algae colormap from cmocean with specific bins
@@ -747,7 +747,7 @@ def get_benthic_plot_parameters(
                               low=hypoxia_threshold, high=hyperoxia_threshold)
         except NameError:
             # Fallback colormap if custom_oxy not defined
-            cmap = get_cmap('coolwarm')
+            cmap = plt.colormaps['coolwarm']
         use_custom_cmap = False  # Although a special cmap, flag is False here for external use
         return vmin, vmax, levels, num_ticks, cmap, use_custom_cmap, hypoxia_threshold, hyperoxia_threshold
 
