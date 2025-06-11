@@ -1,3 +1,54 @@
+# **Version:** 4.8.8
+**Date:** 11/06/2025  
+
+## Summary
+
+This patch delivers hotfixes to the `dense_water_timeseries` function and its associated tests, along with proactive adjustments for upcoming `matplotlib` changes regarding colormap handling.
+
+## `dense_water_timeseries` Enhancements
+
+The `dense_water_timeseries` function has been enhanced with two key additions:
+- A `savefig` flag to enable conditional plot saving.
+- An `output_path` parameter to define where plots are saved.
+
+These improvements support streamlined figure generation and automation. The associated test suite has been updated accordingly to validate the new behavior.
+
+## Colormap Futureproofing
+
+In preparation for the deprecation of the `cm` submodule in `matplotlib` version **3.11**, colormap access has been refactored from
+
+```python
+cmap = cm.get_cmap("plasma")
+```
+to
+
+```python
+cmap = plt.colormaps["plasma"]
+```
+
+This change ensures compatibility with upcoming versions and affects:
+- `bfm_plots.py`
+- `formatting.py`
+
+## Known Limitations
+
+A few deprecation warnings remain when running the full test suite. These are **not critical** and are due to:
+- Legacy test data usage that will be cleaned up during the final documentation/testing phase.
+- Upcoming `matplotlib` changes with insufficient current documentation.
+
+These warnings will be addressed once clearer upstream documentation is available and regression testing is complete.
+
+## Future Work
+
+- Extend **logging and timing** to remaining modules (`stats_math_utils`, `Data_saver`)
+- Introduce **climate data analysis** tools.
+- Finalize **README.md** overhaul and fix broken image paths
+- Publish a clean, **public test-case dataset** for reproducibility
+
+> **Planned project deadline: June 22, 2025** (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.8.7
 **Date:** 10/06/2025  
 
@@ -19,12 +70,15 @@ Nearly all functions in the `Processing` submodule have been wrapped with the `T
 - `Data_saver`
 
 These will be updated in upcoming patches after:
-- Logging is fully integrated into the `Plotting` submodules.
+- Logging is fully integrated into the remaing computational submodules.
 - Refactors to handle deprecations and new features (e.g., JSON export for model data in `Data_saver` and extended analysis in `stats_math_utils`) are completed.
+
+  > The `Timer` and logging mechanisms are implemented **without decorators**, and instead integrated via **manual indentation within `while` loops** or inline blocks.  
+  > While decorators would have led to **cleaner function definitions**, they do not support **fine-grained logging of internal steps**. This trade-off prioritizes thorough logging over code brevity.
 
 ## Future Work
 
-- **Climate data analysis**: Finalize the new analytical functions (e.g., for Indian Monsoon trends). Due to time constraints, associated large test datasets are unlikely to be uploaded.
+- **Climate data analysis**: Finalize the new analytical functions.
 - **Documentation overhaul**: Complete the `README.md` rework and finalize all documentation elements.
 - **Public test-case datasets**: Ensure reproducibility by uploading a curated set of test data.
 - **Extend logging utilities**: Finalize integration of the logging/timing system across all remaining submodules.
@@ -69,8 +123,7 @@ Associated tests were updated or removed accordingly, resulting in a negligible 
 
 ## Future Work
 
-- **New feature set** for climate data analysis, including potential test cases for the **Indian Monsoons**
-  > While climate-related functions are confirmed, the inclusion of new large-scale test case datasets (e.g., Indian Monsoons) depends on GitHub's file size limitations. Upload tests will be conducted soon for both current and upcoming datasets. Users are advised to ignore these commits if not relevant to their use.
+- **New feature set** for climate data analysis.
 - **Documentation overhaul** including a repaired and updated `README.md`
 - **Public release of full test-case datasets** to ensure reproducibility
 - **Logging and timing utilities** to be added for performance profiling
@@ -108,7 +161,7 @@ With these additions, the project’s coverage has now reached **95.23%**.
 
 ## Future Work
 
-- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Introduce new feature set for **climate data analysis**.
 - Complete a full documentation overhaul and repair the broken `README.md`
 - Upload the full **test-case dataset** to support reproducibility and public testing
 - Begin adding **logging** and **timing utilities** to evaluate and profile performance
@@ -135,7 +188,7 @@ Current overall testing coverage is
 ## Future Work
 
 - Finalize tests for all remaining **plotting scripts** (general plotting functions and bfm specific plots)
-- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Introduce new feature set for **climate data analysis**.
 - Complete a full documentation overhaul and repair the broken `README.md`
 - Upload the full **test-case dataset** to support reproducibility and public testing
 - Begin adding **logging** and **timing utilities** to evaluate and profile performance
@@ -171,7 +224,7 @@ Users are encouraged to validate their data with this function when unsure befor
 ## Future Work
 
 - Finalize tests for all remaining **plotting scripts**
-- Introduce new feature set for **climate data analysis**, including a possible test case on the **Indian Monsoons**
+- Introduce new feature set for **climate data analysis**.
 - Complete a full documentation overhaul and repair the broken `README.md`
 - Upload the full **test-case dataset** to support reproducibility and public testing
 - Begin adding **logging** and **timing utilities** to evaluate and profile performance
@@ -239,7 +292,7 @@ All `Processing` modules that are currently tested have been updated with:
 ## Future Works
 
 - Patch and finalize all remaining untested or partially tested scripts  
-- Introduce a new feature set for **climate data analysis**, potentially including a new test case focused on the **Indian Monsoons**
+- Introduce a new feature set for **climate data analysis**.
 - Complete documentation overhaul and fix the broken `README.md`  
 - Upload the public **test-case dataset** to support reproducibility
 
