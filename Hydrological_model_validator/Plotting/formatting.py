@@ -335,7 +335,9 @@ def plot_line(key: str,
               ax: Axes,
               label_lookup: dict,
               color_palette: Iterator[str],
-              line_width: float) -> None:
+              line_width: float,
+              *,
+              library: str) -> None:
     """
     Plot a single line on a matplotlib Axes using seaborn, with label and color customization.
 
@@ -343,6 +345,9 @@ def plot_line(key: str,
     ----------
     key : str
         Key used to look up a human-readable label in `label_lookup`.
+    
+    library : str
+        Used to decide with which plotting library (sns or plt) to plot
 
     daily_mean : Union[pd.Series, list]
         Time series data to be plotted. If a list is provided, it is converted to a pandas Series.
@@ -415,8 +420,12 @@ def plot_line(key: str,
     # Get the next color from the color palette iterator for consistent coloring
     color = next(color_palette)
 
-    # Use seaborn lineplot to plot daily_mean on ax with specified line width, color, and label
-    sns.lineplot(data=daily_mean, label=label, ax=ax, lw=line_width, color=color)
+    if library == 'sns':
+        # Use seaborn lineplot to plot daily_mean on ax with specified line width, color, and label
+        sns.lineplot(data=daily_mean, label=label, ax=ax, lw=line_width, color=color)
+    elif library == 'plt':
+        # matplotlib alternative
+        ax.plot(daily_mean.index, daily_mean.values, label=label, linewidth=line_width, color=color)
 ###############################################################################
 
 ###############################################################################
