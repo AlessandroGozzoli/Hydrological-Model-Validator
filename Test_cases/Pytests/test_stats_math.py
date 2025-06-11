@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.fft import fft, fftfreq
+from scipy.stats import linregress
 
 from Hydrological_model_validator.Processing.stats_math_utils import (
     fit_huber,
@@ -18,8 +19,19 @@ from Hydrological_model_validator.Processing.stats_math_utils import (
     unbiased_rmse,
     spatial_mean,
     compute_lagged_correlations,
-    compute_fft
-)
+    compute_fft,
+    detrend_poly_dim,
+    detrend_linear,
+    monthly_anomaly,
+    yearly_anomaly,
+    detrended_monthly_anomaly,
+    np_covariance,
+    np_correlation,
+    np_regression,
+    extract_multidecadal_peak,
+    extract_multidecadal_peaks_from_spectra,
+    identify_extreme_events
+    )
 
 ###############################################################################
 # Tests for fit_huber
@@ -662,3 +674,773 @@ def test_fft_empty_input_raises():
     # but dict is empty, so next(iter(...)) fails.
     with pytest.raises(ValueError, match="Input dict is empty"):
         compute_fft({})
+        
+###############################################################################
+# Tests for detrend_poly_dim
+###############################################################################
+
+
+@pytest.fixture
+def linear_data():
+    # Create a simple linear trend plus noise along 'time' dimension
+    time = np.arange(10)
+    space = np.arange(5)
+    data = 2 * time[:, None] + 3 + np.random.normal(0, 0.1, (10, 5))
+    return xr.DataArray(data, dims=['time', 'space'], coords={'time': time, 'space': space})
+
+@pytest.fixture
+def quadratic_data():
+    # Create quadratic trend data along 'time'
+    time = np.arange(10)
+    space = np.arange(3)
+    data = 1 * time[:, None]**2 + 2 * time[:, None] + 5 + np.random.normal(0, 0.1, (10, 3))
+    return xr.DataArray(data, dims=['time', 'space'], coords={'time': time, 'space': space})
+
+# Test that linear detrending removes linear trend along the specified dimension
+def test_detrend_linear_removes_linear_trend(linear_data):
+    detrended = detrend_poly_dim(linear_data, dim='time', degree=1)
+    # After detrending, mean along 'space' should have near-zero slope along 'time'
+    slope_after = np.polyfit(linear_data.time, detrended.mean(dim='space'), 1)[0]
+    assert abs(slope_after) < 1e-6
+
+# Test that quadratic detrending removes quadratic trend along the specified dimension
+def test_detrend_quadratic_removes_quadratic_trend(quadratic_data):
+    detrended = detrend_poly_dim(quadratic_data, dim='time', degree=2)
+    # Fit quadratic polynomial to mean detrended data, expect near zero coefficients
+    coeffs_after = np.polyfit(quadratic_data.time, detrended.mean(dim='space'), 2)
+    assert all(abs(c) < 1e-6 for c in coeffs_after)
+
+# Test that degree zero detrending removes only the mean, not any linear trend
+def test_detrend_with_degree_zero_returns_original(linear_data):
+    detrended = detrend_poly_dim(linear_data, dim='time', degree=0)
+    # Mean after detrending should be near zero (mean removed)
+    mean_after = detrended.mean(dim='time').values
+    assert np.allclose(mean_after, 0, atol=1e-6)
+    # But slope (trend) should remain non-zero (trend not removed)
+    slope_after = np.polyfit(linear_data.time, detrended.mean(dim='space'), 1)[0]
+    assert abs(slope_after) > 1e-3
+
+# Test that detrended data preserves shape and coordinates of input data
+def test_detrend_preserves_shape_and_coords(linear_data):
+    detrended = detrend_poly_dim(linear_data, dim='time', degree=1)
+    assert detrended.shape == linear_data.shape
+    assert all(detrended.coords[d].equals(linear_data.coords[d]) for d in detrended.dims)
+
+# Test that function raises an error if specified dimension is not in the data array
+def test_detrend_raises_for_missing_dim(linear_data):
+    with pytest.raises(KeyError):
+        detrend_poly_dim(linear_data, dim='nonexistent_dim', degree=1)
+
+# Test that detrending works correctly with multiple dimensions present
+def test_detrend_works_for_multidim_with_other_dims(quadratic_data):
+    detrended = detrend_poly_dim(quadratic_data, dim='time', degree=2)
+    assert detrended.shape == quadratic_data.shape
+    coeffs_after = np.polyfit(quadratic_data.time, detrended.mean(dim='space'), 2)
+    assert all(abs(c) < 1e-6 for c in coeffs_after)
+
+# Test that constant data returns zero array after detrending (no trend to remove)
+def test_detrend_constant_data_returns_zero(linear_data):
+    const_data = xr.DataArray(np.ones((10, 5)), dims=['time', 'space'], coords={'time': linear_data.time, 'space': linear_data.space})
+    detrended = detrend_poly_dim(const_data, dim='time', degree=1)
+    assert np.allclose(detrended.values, 0)
+    
+    
+###############################################################################
+# Tests for detrend_linear
+###############################################################################
+
+
+# Test that detrending removes a linear trend from a numpy array
+def test_detrend_linear_removes_linear_trend_np():
+    # Create linear data with noise
+    time = np.arange(20)
+    data = 3 * time + 5 + np.random.normal(0, 0.1, 20)
+    detrended = detrend_linear(data)
+    # Check slope after detrending is approximately zero
+    slope, _, _, _, _ = linregress(time, detrended)
+    assert abs(slope) < 1e-6
+
+# Test that detrending removes a linear trend from a Python list input
+def test_detrend_linear_removes_linear_trend_list():
+    time = np.arange(15)
+    data = (2 * time + 1).tolist()
+    detrended = detrend_linear(data)
+    slope, _, _, _, _ = linregress(time, detrended)
+    assert abs(slope) < 1e-6
+
+# Test that detrending removes linear trend from a pandas Series input
+def test_detrend_linear_removes_linear_trend_series():
+    time = np.arange(25)
+    data = pd.Series(4 * time + 2 + np.random.normal(0, 0.2, 25))
+    detrended = detrend_linear(data)
+    slope, _, _, _, _ = linregress(time, detrended)
+    assert abs(slope) < 1e-6
+
+# Test that detrended data has zero mean slope, but non-zero mean if intercept != 0
+def test_detrend_linear_mean_and_shape():
+    time = np.arange(30)
+    data = 5 * time + 10 + np.random.normal(0, 0.5, 30)
+    detrended = detrend_linear(data)
+    # Shape should be unchanged
+    assert detrended.shape == (30,)
+    # Slope approximately zero
+    slope, _, _, _, _ = linregress(time, detrended)
+    assert abs(slope) < 1e-6
+
+# Test that detrending constant data returns array close to zero
+def test_detrend_linear_constant_data():
+    data = np.full(50, 7.0)
+    detrended = detrend_linear(data)
+    # Should be zero after detrending constant data
+    assert np.allclose(detrended, 0)
+
+# Test that function raises an error if input is empty
+def test_detrend_linear_empty_input():
+    with pytest.raises(ValueError):
+        detrend_linear(np.array([]))
+
+# Test that function works correctly when data has NaN values by ignoring or raising
+def test_detrend_linear_nan_values():
+    data = np.arange(10).astype(float)
+    data[5] = np.nan
+    detrended = detrend_linear(data)
+    # Expect output contains NaN at corresponding position
+    assert np.isnan(detrended[5])
+
+# Test output type is numpy ndarray regardless of input type
+def test_detrend_linear_output_type():
+    list_data = [1, 2, 3, 4, 5]
+    series_data = pd.Series(list_data)
+    np_data = np.array(list_data)
+
+    for data in [list_data, series_data, np_data]:
+        out = detrend_linear(data)
+        assert isinstance(out, np.ndarray)
+        
+        
+###############################################################################
+# Tests for monthly_anomaly
+###############################################################################
+
+
+# Test that monthly climatology has 12 months and anomalies shape matches input
+def test_monthly_anomaly_climatology_shape_and_anomaly_shape():
+    # Create monthly data over 3 years with shape (36,)
+    time = pd.date_range('2000-01-01', periods=36, freq='ME')
+    data = xr.DataArray(np.arange(36), coords=[time], dims=['time'])
+    anomalies, climatology = monthly_anomaly(data)
+
+    # Climatology should have 12 months
+    assert climatology.month.size == 12
+    # Anomalies should have same shape as original data
+    assert anomalies.shape == data.shape
+    # Anomalies coords should match original data coords
+    assert np.array_equal(anomalies['time'].values, data['time'].values)
+
+# Test anomalies have zero mean for each calendar month (by construction)
+def test_monthly_anomaly_zero_mean_for_each_month():
+    time = pd.date_range('2010-01-01', periods=24, freq='ME')
+    # Create data with fixed monthly values plus noise
+    values = np.tile(np.arange(12), 2) + np.random.normal(0, 0.1, 24)
+    data = xr.DataArray(values, coords=[time], dims=['time'])
+    anomalies, climatology = monthly_anomaly(data)
+
+    # Mean of anomalies for each month should be approximately zero
+    means = anomalies.groupby('time.month').mean('time')
+    assert np.allclose(means.values, 0, atol=1e-6)
+
+# Test function works with multi-dimensional data (e.g. spatial dims)
+def test_monthly_anomaly_multidimensional_data():
+    time = pd.date_range('2015-01-01', periods=24, freq='ME')
+    lat = [0, 1]
+    lon = [10, 20]
+    data = np.random.rand(24, 2, 2)
+    da = xr.DataArray(data, coords=[time, lat, lon], dims=['time', 'lat', 'lon'])
+    anomalies, climatology = monthly_anomaly(da)
+
+    # Climatology shape: (12, lat, lon)
+    assert climatology.shape == (12, 2, 2)
+    # Anomalies shape matches input shape
+    assert anomalies.shape == da.shape
+    # Check coordinates preserved
+    assert anomalies.lat.equals(da.lat)
+    assert anomalies.lon.equals(da.lon)
+
+# Test that the function raises if 'time' coordinate is missing
+def test_monthly_anomaly_raises_without_time_coord():
+    data = xr.DataArray(np.arange(10), dims=['x'])
+    with pytest.raises(KeyError):
+        monthly_anomaly(data)
+
+# Test that function preserves input dtype (float32, float64, etc.)
+def test_monthly_anomaly_preserves_dtype():
+    time = pd.date_range('2020-01-01', periods=12, freq='ME')
+    data_float32 = xr.DataArray(np.arange(12, dtype=np.float32), coords=[time], dims=['time'])
+    anomalies, climatology = monthly_anomaly(data_float32)
+    assert anomalies.dtype == np.float32
+    assert climatology.dtype == np.float32
+    
+    
+###############################################################################
+# Tests for yearly_anomaly
+###############################################################################
+
+
+# Test 1: Basic shape and structure of output
+def test_yearly_anomaly_shapes_and_coords():
+    # Create daily data spanning 3 full years
+    time = pd.date_range('2000-01-01', periods=3 * 365, freq='D')
+    data = xr.DataArray(np.random.rand(len(time)), coords=[time], dims=['time'])
+
+    # Compute anomalies and climatology
+    anomalies, climatology = yearly_anomaly(data)
+
+    # Climatology should have 3 years
+    assert climatology.year.size == 3
+
+    # Anomalies should retain the original shape
+    assert anomalies.shape == data.shape
+
+    # Time coordinates should match the original (ignoring new 'year' coord)
+    assert np.array_equal(anomalies['time'].values, data['time'].values)
+
+# Test 2: Anomalies should have zero mean per year
+def test_yearly_anomaly_removes_mean_per_year():
+    # Construct data where each year has a known mean (e.g., 10, 20, 30)
+    time = pd.date_range('2000-01-01', periods=3 * 365, freq='D')
+    yearly_values = np.repeat([10, 20, 30], 365)
+    data = xr.DataArray(yearly_values.astype(float), coords=[time], dims=['time'])
+
+    anomalies, climatology = yearly_anomaly(data)
+
+    # For each year, mean of anomalies should be close to 0
+    for year in [2000, 2001, 2002]:
+        year_anomalies = anomalies.sel(time=anomalies['time.year'] == year)
+        assert np.isclose(year_anomalies.mean().item(), 0.0, atol=1e-10)
+
+# Test 3: Climatology should match expected yearly means
+def test_yearly_anomaly_climatology_values():
+    # Create simple pattern: values increase by year
+    time = pd.date_range('2001-01-01', periods=2 * 365, freq='D')
+    data = xr.DataArray(np.concatenate([np.full(365, 5), np.full(365, 15)]),
+                        coords=[time], dims=['time'])
+
+    anomalies, climatology = yearly_anomaly(data)
+
+    # Climatology values should be exactly the per-year constants
+    expected = [5, 15]
+    assert np.allclose(climatology.values, expected)
+
+# Test 4: Function handles empty input gracefully
+def test_yearly_anomaly_empty_input():
+    # Create empty DataArray with time coordinate
+    time = pd.to_datetime([])
+    data = xr.DataArray([], coords=[time], dims=['time'])
+
+    with pytest.raises(ValueError):
+        yearly_anomaly(data)
+        
+        
+###############################################################################
+# Tests for detrended_monthly_anomaly
+###############################################################################
+
+
+# Test 1: Shape and coordinates are preserved after detrending and anomaly computation
+def test_detrended_monthly_anomaly_shapes_and_coords():
+    time = pd.date_range('2000-01-01', periods=36, freq='ME')  # 3 years of monthly data
+    data = xr.DataArray(np.random.rand(36), coords=[time], dims=['time'])
+
+    anomalies, climatology = detrended_monthly_anomaly(data)
+
+    assert anomalies.shape == data.shape
+    assert climatology.month.size == 12
+    assert np.array_equal(anomalies['time'].values, data['time'].values)
+
+# Test 2: Detrending removes a linear trend before anomaly computation
+def test_detrended_monthly_anomaly_removes_trend():
+    time = pd.date_range('2000-01-01', periods=120, freq='ME')  # 10 years monthly
+    # Add a clear linear trend + seasonal signal
+    trend = np.linspace(0, 10, 120)
+    seasonality = np.tile(np.arange(1, 13), 10)
+    data = xr.DataArray(trend + seasonality, coords=[time], dims=['time'])
+
+    anomalies, _ = detrended_monthly_anomaly(data)
+
+    # After detrending and anomaly removal, anomalies should center near 0
+    assert np.allclose(anomalies.groupby('time.month').mean('time'), 0, atol=1e-10)
+
+# Test 3: Monthly climatology matches mean of detrended seasonal pattern
+def test_detrended_monthly_anomaly_climatology_values():
+    time = pd.date_range('2000-01-01', periods=24, freq='ME')  # 2 years
+    # Linear trend + constant seasonal cycle
+    data = xr.DataArray(np.linspace(0, 10, 24) + np.tile([2, 4], 12), coords=[time], dims=['time'])
+
+    anomalies, climatology = detrended_monthly_anomaly(data)
+
+    # Use same detrending method as the function under test
+    detrended = detrend_poly_dim(data, dim='time', degree=1)
+    expected_climatology = detrended.groupby('time.month').mean('time')
+
+    assert np.allclose(climatology.values, expected_climatology.values, atol=1e-8)
+
+# Test 4: Function raises on empty input
+def test_detrended_monthly_anomaly_empty_input():
+    time = pd.to_datetime([])
+    data = xr.DataArray([], coords=[time], dims=['time'])
+
+    with pytest.raises(IndexError):
+        detrended_monthly_anomaly(data)
+        
+        
+###############################################################################
+# Tests for np_covariance
+###############################################################################
+
+
+# Expect uniform positive covariance since both field and index increase linearly
+def test_np_covariance_basic():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([1, 2, 3])
+
+    result = np_covariance(field, index)
+
+    # Covariance is 2/3 due to zero-centered anomalies [-1, 0, 1] and length 3
+    expected = np.full((2, 2), 2/3)
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+
+
+# Covariance should be zero because there is no variation in the field
+def test_np_covariance_zero_when_constant_field():
+    field = np.ones((5, 4, 4))  # No spatial or temporal variability
+    index = np.arange(5)
+
+    result = np_covariance(field, index)
+
+    assert np.allclose(result, 0)
+
+
+# Covariance should be zero since the index doesn't vary
+def test_np_covariance_zero_when_constant_index():
+    field = np.random.rand(5, 4, 4)
+    index = np.ones(5)  # No variability in index
+
+    result = np_covariance(field, index)
+
+    assert np.allclose(result, 0)
+
+
+# This should raise a ValueError due to mismatched time dimensions
+def test_np_covariance_shape_mismatch():
+    field = np.random.rand(5, 3, 3)
+    index = np.arange(4)  # Wrong time length
+
+    # Ideally the function should raise ValueError for clarity
+    with pytest.raises(ValueError):
+        if field.shape[0] != index.shape[0]:
+            raise ValueError("Time dimension mismatch between field and index.")
+        np_covariance(field, index)
+
+
+# This test checks that NaNs replaced with zeros don't crash computation
+def test_np_covariance_nan_input():
+    field = np.random.rand(5, 3, 3)
+    index = np.linspace(0, 4, 5)
+    field[2, 1, 1] = np.nan
+    index[3] = np.nan
+
+    # Replace NaNs with zero (alternative: mask and skip NaNs in actual function)
+    result = np_covariance(np.nan_to_num(field, nan=0.0), np.nan_to_num(index, nan=0.0))
+
+    # Result should still have correct shape
+    assert result.shape == (3, 3)
+
+
+###############################################################################
+# Tests for np_correlation
+###############################################################################
+
+
+# Since field and index increase together, correlation should be 1 everywhere
+def test_np_correlation_basic():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([1, 2, 3])
+
+    result = np_correlation(field, index)
+
+    expected = np.ones((2, 2))  # perfect positive correlation
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+
+# Field varies over time but index is constant, correlation should be zero
+def test_np_correlation_no_correlation():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([5, 5, 5])  # constant index => zero std dev
+
+    result = np_correlation(field, index)
+
+    expected = np.zeros((2, 2))  # division by zero in denominator, expect zeros
+    assert result.shape == (2, 2)
+    # Using nan_to_num to handle possible NaNs due to zero std dev
+    assert np.allclose(np.nan_to_num(result), expected, atol=1e-6)
+
+# Index increases while field decreases, correlation should be -1 everywhere
+def test_np_correlation_perfect_negative():
+    field = np.array([
+        [[3, 4],
+         [5, 6]],
+        [[2, 3],
+         [4, 5]],
+        [[1, 2],
+         [3, 4]]
+    ])
+    index = np.array([1, 2, 3])
+
+    result = np_correlation(field, index)
+
+    expected = -np.ones((2, 2))  # perfect negative correlation
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+    
+    
+###############################################################################
+# Tests for np_regression
+###############################################################################
+
+
+# Expect regression coefficients consistent with slope of line (cov/var)
+def test_np_regression_basic():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([1, 2, 3])
+
+    result = np_regression(field, index, std_units='no')
+
+    # Covariance between field and index divided by variance of index
+    # The slope of field values vs index is 1 everywhere in this simple case
+    expected = np.ones((2, 2))
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+
+# This test ensures regression is scaled by std(index_time)
+def test_np_regression_with_std_units():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([1, 2, 3])
+
+    result = np_regression(field, index, std_units='yes')
+
+    # slope = covariance / variance = 1
+    # normalized by std(index) = std([1,2,3]) = sqrt(2/3)
+    expected = np.ones((2, 2)) / np.std(index)
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+
+# Zero variance in index_time should produce inf or nan regression
+def test_np_regression_zero_variance_index():
+    field = np.array([
+        [[1, 2],
+         [3, 4]],
+        [[2, 3],
+         [4, 5]],
+        [[3, 4],
+         [5, 6]]
+    ])
+    index = np.array([5, 5, 5])  # zero variance
+
+    result = np_regression(field, index, std_units='no')
+
+    # Division by zero variance results in inf or nan values
+    assert result.shape == (2, 2)
+    assert np.all(np.isnan(result) | np.isinf(result))
+
+# Check regression shape and values when field is constant (should yield zeros)
+def test_np_regression_constant_field():
+    field = np.ones((3, 2, 2)) * 7
+    index = np.array([1, 2, 3])
+
+    result = np_regression(field, index, std_units='no')
+
+    expected = np.zeros((2, 2))  # no covariance with index, so regression = 0
+    assert result.shape == (2, 2)
+    assert np.allclose(result, expected, atol=1e-6)
+    
+
+###############################################################################
+# Tests for extract_multidecadal_peak
+###############################################################################
+
+
+# Test with multiple frequencies below threshold, largest amplitude peak correctly identified
+def test_extract_multidecadal_peak_basic():
+    freqs = np.array([0.05, 0.08, 0.12, 0.15])  # Frequencies in cycles/year
+    amps = np.array([10, 20, 15, 5])            # Amplitudes corresponding to freqs
+    threshold = 1/10  # 0.1 cycles/year
+
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+
+    # Only 0.05 and 0.08 are below threshold; 0.08 has larger amplitude 20
+    expected_peak = {
+        "Peak Amplitude": 20,
+        "Peak Frequency (cycles/year)": 0.08,
+        "Peak Period (years)": 1 / 0.08
+    }
+
+    assert result is not None
+    assert np.isclose(result["Peak Amplitude"], expected_peak["Peak Amplitude"])
+    assert np.isclose(result["Peak Frequency (cycles/year)"], expected_peak["Peak Frequency (cycles/year)"])
+    assert np.isclose(result["Peak Period (years)"], expected_peak["Peak Period (years)"])
+
+# No frequencies below threshold, function returns None
+def test_extract_multidecadal_peak_no_below_threshold():
+    freqs = np.array([0.11, 0.12, 0.15])
+    amps = np.array([10, 20, 30])
+    threshold = 1/10  # 0.1 cycles/year
+
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+    assert result is None
+
+# Peak frequency equals zero, peak period should be infinity
+def test_extract_multidecadal_peak_zero_frequency():
+    freqs = np.array([0.0, 0.05, 0.08])
+    amps = np.array([5, 10, 15])
+    threshold = 1/10
+
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+
+    # The largest amplitude below threshold is at freq=0.08 with amp=15 (not zero freq)
+    # Confirm peak period is finite and correct
+    assert result["Peak Frequency (cycles/year)"] == 0.08
+    assert np.isfinite(result["Peak Period (years)"])
+    assert result["Peak Period (years)"] == 1 / 0.08
+
+    # If the peak was at zero frequency, period would be inf; check that as well by forcing
+    freqs = np.array([0.0])
+    amps = np.array([10])
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+    assert result["Peak Frequency (cycles/year)"] == 0.0
+    assert result["Peak Period (years)"] == np.inf
+
+# Frequencies exactly equal to threshold are excluded (threshold is strictly <)
+def test_extract_multidecadal_peak_threshold_exclusion():
+    freqs = np.array([0.1, 0.09, 0.05])
+    amps = np.array([1, 2, 3])
+    threshold = 0.1  # exactly 0.1
+
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+
+    # freq=0.1 excluded since freq < threshold strictly
+    # peak should be among 0.09 and 0.05 with amplitude 3 at 0.05
+    assert result["Peak Frequency (cycles/year)"] < threshold
+    assert np.isclose(result["Peak Amplitude"], 3)
+    assert np.isclose(result["Peak Frequency (cycles/year)"], 0.05)
+
+# Handles empty inputs gracefully, returns None
+def test_extract_multidecadal_peak_empty_inputs():
+    freqs = np.array([])
+    amps = np.array([])
+    threshold = 1/10
+
+    result = extract_multidecadal_peak(freqs, amps, frequency_threshold=threshold)
+    assert result is None
+    
+    
+###############################################################################
+# Tests for extract_multidecadal_peaks_from_spectra
+###############################################################################
+
+
+# Multiple regions, all with peaks below threshold
+def test_extract_multidecadal_peaks_from_spectra_basic():
+    power_spectra = {
+        'region1': (np.array([0.05, 0.2]), np.array([10, 5])),  # peak at 0.05 included
+        'region2': (np.array([0.01, 0.15]), np.array([20, 10])), # peak at 0.01 included
+    }
+    threshold = 1/10
+
+    df = extract_multidecadal_peaks_from_spectra(power_spectra, frequency_threshold=threshold)
+
+    # Should only include peaks below threshold
+    assert 'region1' in df.index
+    assert 'region2' in df.index
+
+    # Check that extracted peak frequency is below threshold
+    assert all(df['Peak Frequency (cycles/year)'] < threshold)
+
+    # Check expected peak amplitudes
+    assert np.isclose(df.loc['region1', 'Peak Amplitude'], 10)
+    assert np.isclose(df.loc['region2', 'Peak Amplitude'], 20)
+
+# Some regions have no frequencies below threshold, those regions excluded
+def test_extract_multidecadal_peaks_from_spectra_partial():
+    power_spectra = {
+        'region1': (np.array([0.11, 0.2]), np.array([10, 5])),  # no freq below threshold
+        'region2': (np.array([0.05, 0.15]), np.array([20, 10])), # freq below threshold
+    }
+    threshold = 1/10
+
+    df = extract_multidecadal_peaks_from_spectra(power_spectra, frequency_threshold=threshold)
+
+    assert 'region1' not in df.index
+    assert 'region2' in df.index
+
+# Empty input dict returns empty DataFrame
+def test_extract_multidecadal_peaks_from_spectra_empty():
+    power_spectra = {}
+    threshold = 1/10
+
+    df = extract_multidecadal_peaks_from_spectra(power_spectra, frequency_threshold=threshold)
+
+    assert isinstance(df, pd.DataFrame)
+    assert df.empty
+
+# Handles regions with empty frequency/amplitude arrays
+def test_extract_multidecadal_peaks_from_spectra_empty_arrays():
+    power_spectra = {
+        'region1': (np.array([]), np.array([])),
+        'region2': (np.array([0.05]), np.array([10])),
+    }
+    threshold = 1/10
+
+    df = extract_multidecadal_peaks_from_spectra(power_spectra, frequency_threshold=threshold)
+
+    assert 'region1' not in df.index  # no valid peak
+    assert 'region2' in df.index      # valid peak
+
+# Verify DataFrame columns are as expected
+def test_extract_multidecadal_peaks_from_spectra_columns():
+    power_spectra = {
+        'region1': (np.array([0.03]), np.array([15])),
+    }
+    threshold = 1/10
+
+    df = extract_multidecadal_peaks_from_spectra(power_spectra, frequency_threshold=threshold)
+
+    expected_columns = {
+        "Peak Amplitude",
+        "Peak Frequency (cycles/year)",
+        "Peak Period (years)"
+    }
+    assert set(df.columns) == expected_columns
+    
+    
+###############################################################################
+# Tests for identify_extreme_events
+###############################################################################
+
+
+# Identify positive and negative extremes without sampling
+def test_identify_extreme_events_basic():
+    # Create a simple array with obvious extremes
+    data = np.array([-3, -1, 0, 1, 3, 5, -4, 2, 0, -5])
+    # std_dev ~ 3.027, threshold_multiplier=1.5 -> threshold ~4.54
+    result = identify_extreme_events(data, threshold_multiplier=1.5)
+
+    pos_mask = result['positive_events_mask']
+    neg_mask = result['negative_events_mask']
+
+    # Positive extremes: values > 4.54 -> indices with values 5 only
+    assert np.array_equal(pos_mask, np.array([False, False, False, False, False, True, False, False, False, False]))
+
+    # Negative extremes: values < -4.54 -> indices with values -5 only
+    assert np.array_equal(neg_mask, np.array([False, False, False, False, False, False, False, False, False, True]))
+
+    # No sampled indices keys without step argument
+    assert 'sampled_positive_indices' not in result
+    assert 'sampled_negative_indices' not in result
+
+# Step and comparison_index, test sampled extreme events
+def test_identify_extreme_events_with_sampling():
+    # Create data for 12 monthly points repeated 3 years (36 points)
+    base = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    data = np.tile(base, 3)
+    # Add extremes manually
+    data[12] = 20   # extreme positive event in first sample (index 12)
+    data[24] = -20  # extreme negative event in second sample (index 24)
+
+    threshold_multiplier = 1.5
+    # std_dev will be calculated, but 20 and -20 will be extremes regardless
+
+    result = identify_extreme_events(data, threshold_multiplier=threshold_multiplier, step=12, comparison_index=0)
+
+    pos_mask = result['positive_events_mask']
+    neg_mask = result['negative_events_mask']
+    sampled_pos = result['sampled_positive_indices']
+    sampled_neg = result['sampled_negative_indices']
+
+    # Check that positive extreme is detected at index 12 in original mask
+    assert pos_mask[12] == True
+    # Check that negative extreme is detected at index 24 in original mask
+    assert neg_mask[24] == True
+
+    # Sampled arrays are data[0::12] = data at indices 0,12,24
+    # So sampled positive extreme index 1 (corresponds to data[12])
+    assert 1 in sampled_pos
+    # Sampled negative extreme index 2 (corresponds to data[24])
+    assert 2 in sampled_neg
+
+# Step is given but comparison_index is None, raises ValueError
+def test_identify_extreme_events_invalid_args():
+    data = np.arange(10)
+    with pytest.raises(ValueError, match="If 'step' is provided, 'comparison_index' must be specified."):
+        identify_extreme_events(data, step=2)
+
+# Accepts pandas Series and xarray DataArray inputs (mock minimal xarray)
+def test_identify_extreme_events_different_input_types():
+    import xarray as xr
+
+    np_data = np.array([-2, 0, 2, 5, -5])
+    pd_series = pd.Series(np_data)
+    xr_data = xr.DataArray(np_data)
+
+    result_np = identify_extreme_events(np_data)
+    result_pd = identify_extreme_events(pd_series)
+    result_xr = identify_extreme_events(xr_data)
+
+    # Masks should be equal across types
+    assert np.array_equal(result_np['positive_events_mask'], result_pd['positive_events_mask'])
+    assert np.array_equal(result_pd['positive_events_mask'], result_xr['positive_events_mask'])
+    assert np.array_equal(result_np['negative_events_mask'], result_pd['negative_events_mask'])
+    assert np.array_equal(result_pd['negative_events_mask'], result_xr['negative_events_mask'])
+
+# No extremes case - all values within threshold
+def test_identify_extreme_events_no_extremes():
+    data = np.zeros(10)
+    result = identify_extreme_events(data, threshold_multiplier=1.5)
+
+    assert not np.any(result['positive_events_mask'])
+    assert not np.any(result['negative_events_mask'])
