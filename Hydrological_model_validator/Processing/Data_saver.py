@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 import json
+
 ###############################################################################
 
 ###############################################################################
@@ -204,11 +205,17 @@ def save_model_data(output_path, ModData_complete):
     print("1. MAT-File (.mat)")
     print("2. NetCDF (.nc)")
     print("3. Both MAT and NetCDF")
+    print("4. JSON (.json)")
+    print("5. All formats")
     choice = input("Enter the number corresponding to your choice: ").strip()
     print('-' * 45)
 
+    # Convert to NumPy array if xarray provided
+    if isinstance(ModData_complete, xr.DataArray):
+        ModData_complete = ModData_complete.values
+
     # Save as .mat file if chosen or if both formats chosen
-    if choice == "1" or choice == "3":
+    if choice in {"1", "3", "5"}:
         print("Saving data as a .mat file...")
         # Save the 3D array under the variable name "ModData_complete"
         scipy.io.savemat(str(output_path / "ModData_complete.mat"), {"ModData_complete": ModData_complete})
@@ -216,18 +223,29 @@ def save_model_data(output_path, ModData_complete):
         print("-" * 45)
 
     # Save as NetCDF if chosen or if both formats chosen
-    if choice == "2" or choice == "3":
+    if choice in {"2", "3", "5"}:
         print("Saving ModData_complete as a .nc file...")
         # Convert to xarray DataArray for easy NetCDF saving, preserving structure
         xr.DataArray(ModData_complete).to_netcdf(str(output_path / "ModData_complete.nc"))
         print("ModData_complete saved as ModData_complete.nc")
         print("-" * 45)
 
-    # If user enters an invalid option, notify and advise to rerun
-    if choice not in {"1", "2", "3"}:
-        print("❌ Invalid choice. Please run the script again and select a valid option. ❌")
+    # Save as JSON if chosen or if all formats selected
+    if choice in {"4", "5"}:
+        print("Saving data as a JSON file (flattened)...")
+        # Flatten the NumPy array into a nested list for JSON serialization
+        data_json = {"ModData_complete": ModData_complete.tolist()}
+        json_path = output_path / "ModData_complete.json"
+        with open(json_path, 'w') as f:
+            json.dump(data_json, f)
+        print("Data saved as ModData_complete.json")
+        print("-" * 45)
 
-    # Confirm completion of saving with colored output for visibility
+    # If user enters an invalid option, notify and advise to rerun
+    if choice not in {"1", "2", "3", "4", "5"}:
+        print("❌ Invalid choice. Please run the script again and select a valid option. ❌")
+        return
+
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*" * 45)
 ###############################################################################
@@ -307,7 +325,6 @@ def convert_to_serializable(obj):
     Converts NumPy arrays, pandas DataFrames/Series, and xarray DataArrays/Datasets to JSON-friendly types.
     Fallbacks to string representation for unsupported objects.
     """
-
     # Directly return JSON-native types
     if isinstance(obj, (str, int, float, bool, type(None))):
         return obj
