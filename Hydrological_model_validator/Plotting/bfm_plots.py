@@ -10,7 +10,6 @@ import pandas as pd
 import itertools
 import plotly.graph_objects as go
 import plotly.io as pio
-import matplotlib.cm as cm
 import cmocean
 import matplotlib.dates as mdates
 import seaborn as sns
@@ -261,7 +260,7 @@ def plot_benthic_3d_mesh(Bmost,
 
         # ----- COLOR NORMALIZATION -----
         norm = mcolors.Normalize(vmin=np.min(z), vmax=np.max(z))
-        colormap = cm.get_cmap('viridis')
+        colormap = plt.colormaps['viridis']
 
         # ----- VERTEX COLORS -----
         vertex_colors = []
@@ -441,7 +440,7 @@ def Benthic_physical_plot(var_dataframe: dict,
         ax.set_title(f"{description} | {year} - {month_name}", fontsize=title_fontsize, fontweight=title_fontweight)
 
         # ----- COLORBAR -----
-        cmap_obj = plt.get_cmap(cmap) if isinstance(cmap, str) else cmap
+        cmap_obj = plt.colormaps[cmap] if isinstance(cmap, str) else cmap
         norm = BoundaryNorm(levels, ncolors=cmap_obj.N)
         mappable = ScalarMappable(norm=norm, cmap=cmap_obj)
 
@@ -566,7 +565,7 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
                     levels=ticks, cmap=cmap_obj, norm=norm, extend='both', transform=ccrs.PlateCarree()
                 )
             else:
-                cmap_obj = plt.get_cmap(cmap_name)
+                cmap_obj = plt.colormaps[cmap_name]
                 cs = ax.contourf(
                     lonp + 0.4 * epsilon, latp + 0.2 * epsilon, data2D,
                     levels=levels, cmap=cmap_obj, vmin=vmin, vmax=vmax, extend='both', transform=ccrs.PlateCarree()
@@ -644,7 +643,8 @@ def dense_water_timeseries(
     ylabel: str = "Dense Water Volume (km³)",
     figsize: tuple = (14, 6),
     legend_loc: str = "best",
-    date_format: str = "%Y-%m"
+    date_format: str = "%Y-%m",
+    output_path = None
 ):
     """
     Plots a time series of dense water volumes for multiple data series.
@@ -737,6 +737,13 @@ def dense_water_timeseries(
     plt.gcf().autofmt_xdate()
     plt.tight_layout()
 
+    # ----- SAVE -----
+    save_dir = Path(output_path)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_dir / "Dense_water_timeseries")
+
     # ----- SHOW -----
-    plt.show()
+    plt.show(block=False)
+    plt.pause(2)
+    plt.close()
 ###############################################################################
