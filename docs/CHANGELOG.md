@@ -1,3 +1,48 @@
+# **Version:** 4.9.1  
+**Date:** 13/06/2025  
+
+## Summary
+
+Test case scripts have been updated to function as proper `entrypoints`, improving general usability.
+
+Addition of `flake8` lining.
+
+## New Entrypoints
+
+One of the final steps toward full project modularization has been completed:  
+The test case scripts — which illustrate example usages — have been refactored into callable **entrypoints**.
+
+The updated names are as follows:
+  - `sst-analyze` to call `SST_data_analyzer.py`
+  - `chl-analyze` to call `CHL_data_analyzer.py`
+  - `bfm-analyze` to call `Benthic_Layer.py`
+  - `data-setupper` to call `Data_reader_setupper.py`
+
+The installation of these new entrypoints in handled by the `setup.py` script and the `pyproject.toml`
+
+Key changes:
+
+- Each script is now wrapped in a `main()` function, called explicitly at runtime
+- File paths are now relative to `__file__` rather than the working directory (`cwd`), ensuring portability and reducing errors
+- Additional verbosity has been added to clarify script behavior and improve interpretability for users and contributors
+
+## Flake8
+
+At an attempt to further ensure correct code sintax a lining for `flake8` has been added in the `ci.yml` file.
+
+## Future Work
+
+Next steps before final release:
+
+- Integrate `argparse` and build a `__main__.py` controller for the two primary modules
+- Fully refactor the `README.md` with diagrams and working image links
+- Publish the **public test-case dataset**
+- Final pass of module and import cleanup
+
+> **Planned project deadline:** June 22, 2025 *(subject to change)*
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.9.0  
 **Date:** 11/06/2025  
 
