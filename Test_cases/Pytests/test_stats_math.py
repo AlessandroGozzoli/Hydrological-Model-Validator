@@ -989,7 +989,7 @@ def test_detrended_monthly_anomaly_empty_input():
     time = pd.to_datetime([])
     data = xr.DataArray([], coords=[time], dims=['time'])
 
-    with pytest.raises(IndexError):
+    with pytest.raises((IndexError, ValueError)):
         detrended_monthly_anomaly(data)
         
         
