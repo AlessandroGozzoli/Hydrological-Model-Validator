@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='Hydrological_model_validator',
-    version='4.8.8',
+    version='4.9.1',
     description='Tools for the analysis and validation of Bio-Geo-Hydrological simulations and other climatological data',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -19,7 +19,9 @@ setup(
     author_email='alessandro.gozzoli4@studio.unibo.it',
     url='https://github.com/AlessandroGozzoli/Hydrological-Model-Validator',
     download_url='https://github.com/AlessandroGozzoli/Hydrological-Model-Validator',
-    packages=find_packages(),
+    packages=find_packages(include=["Hydrological_model_validator", 
+                                    "Hydrological_model_validator.*", 
+                                    "Test_cases", "Test_cases.*"]),
     include_package_data=True,
     package_data={
         'Hydrological_model_validator': ['Processing/*.m'],
@@ -59,5 +61,12 @@ setup(
       'Programming Language :: Python :: Implementation :: CPython',
       'Programming Language :: Python :: Implementation :: PyPy'
     ],
-    entry_points={}
+    entry_points={
+        "console_scripts": [
+            "sst-analyze = Test_cases.SST_data_analyzer:main",
+            "chl-analyze = Test_cases.CHL_data_analyzer:main",
+            "bfm-analyze = Test_cases.Benthic_Layer:main",
+            "data-setupper = Test_cases.Data_reader_setupper:main",
+            ]
+        }
 )
