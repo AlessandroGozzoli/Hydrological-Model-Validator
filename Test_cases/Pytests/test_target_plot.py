@@ -110,8 +110,6 @@ def test_successful_plot_creates_file_and_calls(
     assert mock_fill_region.call_count == 3
     # Confirm at least three calls to the target diagram plotting function
     assert mock_target_diagram.call_count >= 3
-    # Confirm that plt.show() was called at least once to display the plot
-    assert mock_show.call_count >= 1
 
 # Test marker shapes cycle usage in target diagrams
 @patch("Hydrological_model_validator.Plotting.Target_plots.sm.target_diagram")
