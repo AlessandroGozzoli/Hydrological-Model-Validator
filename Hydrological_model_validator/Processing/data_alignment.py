@@ -1,12 +1,28 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling libraries
 import numpy as np
 import pandas as pd
 from typing import Tuple, List, Dict, Union
+
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
     """
     Generate a boolean mask identifying elements where both model and satellite data are valid (non-NaN).
@@ -71,6 +87,7 @@ def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
             logging.info(f"Valid mask computed: {np.sum(valid_mask)} valid points out of {valid_mask.size}")
 
             return valid_mask
+        
 ###############################################################################
 
 ###############################################################################
@@ -160,6 +177,7 @@ def get_valid_mask_pandas(mod_series: pd.Series,
 
             # Return the boolean mask Series indexed by the common index
             return mask
+        
 ###############################################################################
 
 ###############################################################################
@@ -243,6 +261,7 @@ def align_pandas_series(mod_series: pd.Series,
 
             # Return the two numpy arrays containing aligned and valid data pairs for analysis.
             return mod_aligned, sat_aligned
+        
 ###############################################################################
 
 ###############################################################################
@@ -317,9 +336,11 @@ def align_numpy_arrays(mod_vals: np.ndarray,
 
             # Apply the mask to both arrays to extract only valid (paired) data points
             return mod_vals[mask], sat_vals[mask]
+        
 ###############################################################################
 
 ###############################################################################
+
 def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> List[Tuple[str, np.ndarray, np.ndarray]]:
     """
     Extract and align model and satellite time series data by year, returning only overlapping data points.
@@ -434,9 +455,11 @@ def get_common_series_by_year(data_dict: Dict[str, Dict[int, pd.Series]]) -> Lis
                 logging.info(f"Appended data for year {year} with {len(combined['mod'].values)} model and {len(combined['sat'].values)} satellite points")
 
             return common_series
+        
 ###############################################################################
 
 ###############################################################################
+
 def get_common_series_by_year_month(
     data_dict: Dict[str, Dict[Union[int, str], List[np.ndarray]]]
 ) -> List[Tuple[int, int, np.ndarray, np.ndarray]]:
@@ -563,9 +586,11 @@ def get_common_series_by_year_month(
                         results.append((int(year), month, mod_filtered, sat_filtered))
 
             return results
+        
 ###############################################################################
 
 ###############################################################################
+
 def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
     """
     Identify and return the keys corresponding to model and satellite data within a dictionary.
@@ -649,9 +674,11 @@ def extract_mod_sat_keys(taylor_dict: Dict) -> Tuple[str, str]:
                 raise ValueError("❌ No suitable satellite key found in the dictionary ❌")
 
             return model_key, satellite_key
+        
 ###############################################################################
 
-###############################################################################     
+############################################################################### 
+    
 def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
                                      key: str,
                                      month_idx: int) -> np.ndarray:
@@ -748,9 +775,11 @@ def gather_monthly_data_across_years(data_dict: Dict[str, Dict[int, List[Union[n
             log_message("Completed data gathering", concatenated_length=len(concatenated), valid_length=len(valid_data))
 
             return valid_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def apply_3d_mask(data: np.ndarray, mask3d: np.ndarray) -> np.ndarray:
     """
     Apply a 3D mask to a data array, setting masked elements to NaN where the mask is zero.
