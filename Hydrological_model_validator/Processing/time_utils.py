@@ -1,16 +1,40 @@
-from typing import Dict, List, Union, Any
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Type hinting
+from typing import Dict, List, Union, Any, Tuple
+
+# Data handling
 import pandas as pd
 import numpy as np
+import xarray as xr
 import itertools
+
+# Parallel processing and diagnostics
 from dask.diagnostics import ProgressBar
 from concurrent.futures import ThreadPoolExecutor
+
+# Logging and tracing
 import logging
-from datetime import datetime
-from contextlib import contextmanager
 from eliot import start_action, log_message
 from eliot.stdlib import EliotHandler
 
+# Date and time handling
+from datetime import datetime
+
+# Context management
+from contextlib import contextmanager
+
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def leapyear(year: int) -> int:
     """
     Check if a given year is a leap year.
@@ -411,7 +435,10 @@ def get_season_mask(
 ###############################################################################
 
 ###############################################################################
-def resample_and_compute(model_sst_chunked, sat_sst_chunked):
+def resample_and_compute(
+    model_sst_chunked: Union[xr.DataArray, xr.Dataset],
+    sat_sst_chunked: Union[xr.DataArray, xr.Dataset]
+) -> Tuple[Union[xr.DataArray, xr.Dataset], Union[xr.DataArray, xr.Dataset]]:
     """
     Resample the input chunked SST datasets to monthly means and compute them concurrently.
 
@@ -450,9 +477,191 @@ def resample_and_compute(model_sst_chunked, sat_sst_chunked):
         log_message("Computed SST datasets", model_computed=True, satellite_computed=True)
 
         return model_sst_monthly, sat_sst_monthly
+    
 ###############################################################################
 
 ###############################################################################
+
+def is_invalid_time_index(
+    time_index: Union[pd.Index, np.ndarray]
+) -> bool:
+    """
+    Check whether a given time index is invalid based on dtype and value range.
+
+    This function validates if the input `time_index` is a valid datetime index.
+    It considers the time index invalid if:
+    - The dtype is not a datetime64 type.
+    - All timestamps fall within a very narrow range starting from the Unix epoch (1970-01-01)
+      and the differences between consecutive timestamps are extremely small (less than 1 millisecond).
+    Such a time index might indicate corrupted or placeholder data.
+
+    Parameters
+    ----------
+    time_index : array-like
+        An array or pandas Index representing time values, expected to be datetime-like.
+
+    Returns
+    -------
+    bool
+        True if the time index is considered invalid, False otherwise.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> # Valid datetime index
+    >>> idx = pd.date_range("2023-01-01", periods=3)
+    >>> is_invalid_time_index(idx)
+    False
+    >>> # Invalid: non-datetime dtype
+    >>> is_invalid_time_index(np.array([1, 2, 3]))
+    True
+    """
+    # Check if the dtype of time_index is a subtype of np.datetime64
+    if not np.issubdtype(time_index.dtype, np.datetime64):
+        return True  # Not datetime, so invalid
+
+    # Convert to pandas DatetimeIndex for easier time operations
+    dt_index = pd.DatetimeIndex(time_index)
+    start = pd.Timestamp("1970-01-01")  # Unix epoch start
+    max_allowed_delta = pd.Timedelta('1 day')  # Max allowed range for invalid detection
+
+    # Check if all times are within one day from the Unix epoch start
+    if (dt_index.min() >= start) and (dt_index.max() <= start + max_allowed_delta):
+        # Calculate differences between consecutive timestamps
+        diffs = dt_index.to_series().diff().dropna()
+        # Only flag as invalid if diffs exist and all are less than 1 millisecond
+        if len(diffs) > 0 and all(diffs < pd.Timedelta(microseconds=1000)):
+            return True
+
+    # Otherwise, the time index is valid
+    return False
+
+###############################################################################
+
+def prompt_for_datetime_index(length: int) -> pd.DatetimeIndex:
+    """
+    Prompt the user to manually enter a valid datetime index for a time series.
+
+    When an invalid or missing time index is detected, this function interacts
+    with the user to obtain a valid start date and frequency. It then generates
+    a pandas DatetimeIndex of the specified length with the given frequency.
+
+    Parameters
+    ----------
+    length : int
+        The desired length of the datetime index to generate.
+
+    Returns
+    -------
+    pd.DatetimeIndex
+        A pandas DatetimeIndex object starting from the user-provided date,
+        with the specified frequency and length.
+
+    Example
+    -------
+    >>> idx = prompt_for_datetime_index(10)
+    Enter the start date for the time series (e.g. 2000-01-01): 2020-01-01
+    Enter the frequency (e.g. 'D' for daily, 'H' for hourly): D
+    Generated datetime index from 2020-01-01 00:00:00 with frequency 'D'.
+    """
+
+    # Notify user about the invalid or missing time index
+    print("⚠️ Detected invalid or missing time index.")
+    
+    border = "#" * 60
+
+    while True:
+        # Prompt for start date input as string
+        start_date_str = input("Enter the start date for the time series (e.g. 2000-01-01): ").strip()
+
+        # Prompt for frequency string, e.g., 'D', 'H', 'M'
+        freq = input("Enter the frequency (e.g. 'D' for daily, 'H' for hourly): ").strip()
+
+        try:
+            # Convert input string to pandas Timestamp
+            start_date = pd.to_datetime(start_date_str)
+
+            # Generate a datetime index with the given start, length, and frequency
+            time_index = pd.date_range(start=start_date, periods=length, freq=freq)
+
+            # Inform user about the generated datetime index
+            print(f"Generated datetime index from {start_date} with frequency '{freq}'.")
+            print("\n" + border + "\n")
+
+            # Return the generated datetime index
+            return time_index
+
+        except Exception as e:
+            # Catch errors (e.g. invalid date format or freq) and prompt again
+            print(f"Invalid input: {e}. Please try again.")
+            print("\n" + border + "\n")
+            
+###############################################################################
+
+###############################################################################
+
+def ensure_datetime_index(series: pd.Series, label: str) -> pd.Series:
+    """
+    Ensure that a pandas Series has a DatetimeIndex. If not, prompt the user to create one.
+
+    This function checks whether the index of the provided pandas Series is a DatetimeIndex.
+    If the index is not datetime-based, it asks the user to input a start date and frequency,
+    then generates and assigns a new DatetimeIndex to the Series accordingly.
+
+    Parameters
+    ----------
+    series : pd.Series
+        The pandas Series whose index is to be checked and possibly converted.
+    label : str
+        A descriptive name for the series, used in prompts and messages.
+
+    Returns
+    -------
+    pd.Series
+        The original Series if it already had a DatetimeIndex, or the Series with a newly
+        created DatetimeIndex based on user input.
+
+    Example
+    -------
+    >>> s = pd.Series([1, 2, 3])
+    >>> s = ensure_datetime_index(s, "Sample Series")
+    Please enter the start date for Sample Series (YYYY-MM-DD): 2020-01-01
+    Please enter the data frequency (e.g. 'D') for Sample Series: D
+    DatetimeIndex created for Sample Series from 2020-01-01 with frequency 'D'.
+    """
+    border = "#" * 60
+
+    # Check if the series index is already a DatetimeIndex
+    if not isinstance(series.index, pd.DatetimeIndex):
+        print(f"{label} has no DatetimeIndex.")
+
+        # Prompt user for the start date string
+        start_date_str = input(f"Please enter the start date for {label} (YYYY-MM-DD): ").strip()
+
+        # Prompt user for frequency string (e.g., 'D' for daily)
+        freq_str = input(f"Please enter the data frequency (e.g. 'D') for {label}: ").strip()
+
+        # Convert input start date string to pandas Timestamp
+        start_date = pd.to_datetime(start_date_str)
+
+        # Generate a new DatetimeIndex based on user inputs, matching series length
+        series.index = pd.date_range(start=start_date, periods=len(series), freq=freq_str)
+
+        print(f"DatetimeIndex created for {label} from {start_date_str} with frequency '{freq_str}'.")
+        print("\n" + border + "\n")
+
+    # Return the series, original or modified
+    return series
+
+
+###############################################################################
+##                                                                           ##
+##                                 TIMER                                     ##
+##                                                                           ##
+###############################################################################
+
+
 # ----- SETUP OF THE LOGGER AND TIMER -----
 
 # Clear existing handlers on root logger
