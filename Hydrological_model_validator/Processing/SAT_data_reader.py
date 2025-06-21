@@ -1,19 +1,35 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import os
 import gzip
+import shutil
+from pathlib import Path
+from typing import Union, Tuple
+
+# Third-party libraries
 from netCDF4 import Dataset as ds
 import numpy as np
-from typing import Union, Tuple
-from pathlib import Path
-import shutil
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
-
 from .utils import find_key_variable
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def sat_data_loader(
     data_level: str,
     D_sat: Union[str, Path],
@@ -76,8 +92,16 @@ def sat_data_loader(
             all_files = sorted(D_sat.glob('*.gz'))
             data_files = [f for f in all_files if data_level in f.name]
 
+            # If no .gz files found, try .nc files instead
             if not data_files:
-                raise FileNotFoundError(f"❌ No .gz data files found in '{D_sat}' for data level '{data_level}'. ❌")
+                all_nc_files = sorted(D_sat.glob('*.nc'))
+                data_files = [f for f in all_nc_files if data_level in f.name]
+
+            # If still no files, raise error
+            if not data_files:
+                raise FileNotFoundError(
+                    f"❌ No .gz or .nc data files found in '{D_sat}' for data level '{data_level}'. ❌"
+                    )
 
             print(f"Reading satellite data for level '{data_level}'...")
             print(f"\033[91m⚠️ Found {len(data_files)} data files ⚠️\033[0m")
