@@ -1,31 +1,49 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import skill_metrics as sm
-from pathlib import Path
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import itertools
 from itertools import cycle
+from pathlib import Path
 
+# Data handling and plotting libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import skill_metrics as sm
+
+# Module formatting and plotting utilities
 from .formatting import fill_annular_region, get_variable_label_unit
+from .default_target_options import (
+    default_target_base_options,
+    default_target_overlay_options,
+    default_target_data_marker_options,
+    default_target_plt_options,
+    default_month_markers,
+    default_target_monthly_plt_options,
+    default_target_monthly_base_options,
+    default_target_monthly_data_marker_options,
+)
 
-from ..Processing.Target_computations import (compute_normalised_target_stats, 
-                                              compute_normalised_target_stats_by_month,
-                                              compute_target_extent_monthly,
-                                              compute_target_extent_yearly)
-
+# Local processing modules
+from ..Processing.Target_computations import (
+    compute_normalised_target_stats,
+    compute_normalised_target_stats_by_month,
+    compute_target_extent_monthly,
+    compute_target_extent_yearly,
+)
 from ..Processing.data_alignment import extract_mod_sat_keys
-
 from ..Processing.utils import extract_options
 
-from .default_target_options import (default_target_base_options,
-                                     default_target_overlay_options,
-                                     default_target_data_marker_options,
-                                     default_target_plt_options,
-                                     default_month_markers,
-                                     default_target_monthly_plt_options,
-                                     default_target_monthly_base_options,
-                                     default_target_monthly_data_marker_options)
-
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
     """
     Generate a comprehensive yearly target diagram using normalized statistics (bias, CRMSD, RMSD).
@@ -157,9 +175,6 @@ def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
     # ----- PRINT THE PLOT AND SAVE -----
     plt.tight_layout()
     plt.savefig(save_path, dpi=plt_opts.get("dpi"))
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
 ###############################################################################
 
@@ -310,12 +325,9 @@ def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
 
     # ----- CHECK EXISTENCE OF SAVE FOLDER -----
     output_path.mkdir(parents=True, exist_ok=True)
-    save_path = output_path / kwargs.get("filename", "Unified_Target_Diagram.png")
+    save_path = output_path / kwargs.get("filename", "Monthly_Target_Diagram.png")
     
     # ----- PRINT AND SAVE THE PLOT -----
     plt.savefig(save_path, dpi=plt_opts.get("dpi"))
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
 ###############################################################################
