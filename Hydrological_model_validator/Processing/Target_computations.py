@@ -1,19 +1,34 @@
-from typing import Tuple, List, Dict, Optional
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 from itertools import starmap, chain
+from typing import Tuple, List, Dict, Optional
+
+# Data handling libraries
 import numpy as np
 import skill_metrics as sm
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities and processing modules
 from .time_utils import Timer
-
-from ..Processing.data_alignment import (get_common_series_by_year, 
-                                         get_common_series_by_year_month)
-from ..Processing.stats_math_utils import round_up_to_nearest 
+from ..Processing.data_alignment import get_common_series_by_year, get_common_series_by_year_month
+from ..Processing.stats_math_utils import round_up_to_nearest
 from .utils import check_numeric_data
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def compute_single_target_stat(year: str, 
                                mod: np.ndarray, 
                                sat: np.ndarray) -> Optional[Tuple[float, float, float, str]]:
@@ -90,9 +105,11 @@ def compute_single_target_stat(year: str,
             log_message("Completed compute_single_target_stat", year=year, result=result)
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_single_month_target_stat(year: int,
                                     month: int,
                                     mod: np.ndarray,
@@ -176,9 +193,11 @@ def compute_single_month_target_stat(year: int,
             log_message("Completed compute_single_month_target_stat", year=year, month=month, result=result)
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
     """
     Compute normalized target statistics (bias, CRMSD, RMSD) for each year
@@ -240,9 +259,11 @@ def compute_normalised_target_stats(data_dict: Dict) -> Tuple[np.ndarray, np.nda
             log_message("Completed compute_normalised_target_stats", labels=list(labels))
 
             return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_normalised_target_stats_by_month(data_dict: Dict,
                                             month_index: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
     """
@@ -311,9 +332,11 @@ def compute_normalised_target_stats_by_month(data_dict: Dict,
             log_message(f"Completed compute_normalised_target_stats_by_month for month {month_index}", labels=list(labels))
 
             return np.array(bias_norm), np.array(crmsd_norm), np.array(rmsd_norm), list(labels)
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_target_extent_monthly(taylor_dict: Dict) -> float:
     """
     Compute the plotting extent (max RMSD rounded up) for a monthly target diagram.
@@ -382,9 +405,11 @@ def compute_target_extent_monthly(taylor_dict: Dict) -> float:
             log_message(f"Completed compute_target_extent_monthly with extent {extent}")
 
             return extent
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_target_extent_yearly(data_dict: Dict) -> float:
     """
     Compute the plotting extent (max RMSD rounded up) for a yearly target diagram.
@@ -443,4 +468,3 @@ def compute_target_extent_yearly(data_dict: Dict) -> float:
             log_message(f"Completed compute_target_extent_yearly with extent {extent}")
 
             return extent
-###############################################################################

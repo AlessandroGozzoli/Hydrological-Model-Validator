@@ -1,16 +1,30 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling libraries
 import skill_metrics as sm
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Union, Tuple, Optional
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
-
 from .data_alignment import get_common_series_by_year, get_valid_mask, extract_mod_sat_keys
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def compute_taylor_stat_tuple(mod_values: np.ndarray, 
                               sat_values: np.ndarray, 
                               label: str) -> Tuple[str, float, float, float]:
@@ -84,9 +98,11 @@ def compute_taylor_stat_tuple(mod_values: np.ndarray,
             log_message(f"Completed compute_taylor_stat_tuple for label {label}")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_std_reference(sat_data_by_year: Dict[Union[int, str], List[Union[np.ndarray, list]]],
                           years: List[Union[int, str]],
                           month_index: int) -> float:
@@ -173,9 +189,11 @@ def compute_std_reference(sat_data_by_year: Dict[Union[int, str], List[Union[np.
             log_message(f"Completed compute_std_reference with std {std_value} for month_index {month_index}")
 
             return std_value
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_norm_taylor_stats(mod_vals: np.ndarray, 
                                sat_vals: np.ndarray, 
                                std_ref: float) -> Optional[Dict[str, float]]:
@@ -247,9 +265,11 @@ def compute_norm_taylor_stats(mod_vals: np.ndarray,
             log_message(f"Completed compute_norm_taylor_stats with result {result}")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def build_all_points(
     data_dict: Dict[Union[str, int], Dict[int, List[Union[np.ndarray, list]]]]
 ) -> Tuple[pd.DataFrame, List[Union[str, int]]]:
@@ -372,9 +392,11 @@ def build_all_points(
             logging.info(f"build_all_points completed: {len(df)} points, years={years}, months={list(std_refs.keys())}")
 
             return df, years
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_yearly_taylor_stats(
     data_dict: Dict[Union[str, int], Dict[int, List[Union[np.ndarray, list]]]]
 ) -> Tuple[List[Tuple[str, float, float, float]], float]:
@@ -458,4 +480,3 @@ def compute_yearly_taylor_stats(
 
             # =====RETURN THE LIST OF YEARLY STATS AND GLOBAL STD REF=====
             return yearly_stats, std_ref
-###############################################################################
