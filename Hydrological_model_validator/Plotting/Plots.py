@@ -1426,7 +1426,11 @@ def plot_spectral(
             raise ValueError("freqs and fft_components must be provided for PSD plot")
 
         for col, fft_vals in fft_components.items():
-            plt.plot(freqs, np.abs(fft_vals), label=col)
+            if np.all(np.abs(fft_vals) == 0):
+                continue
+                continue
+            with np.errstate(divide='ignore', invalid='ignore'):
+                plt.plot(freqs, np.abs(fft_vals), label=col)
 
         plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
         plt.ylabel('Aplitude', fontsize=options['ylabel_fontsize'])
@@ -1448,8 +1452,13 @@ def plot_spectral(
         for i, (cloud_cover, label) in enumerate(cloud_covers):
             linestyle = '-' if i == 0 else next(additional_styles)
             for col in columns:
-                f, Pxy = csd(error_comp[col], cloud_cover, fs=fs, nperseg=nperseg)
-                plt.semilogy(f, np.abs(Pxy), linestyle=linestyle, color=var_colors[col], label=f'{col} vs {label}')
+                try:
+                    f, Pxy = csd(error_comp[col], cloud_cover, fs=fs, nperseg=nperseg)
+                    if np.all(np.abs(Pxy) == 0):
+                        continue
+                    plt.semilogy(f, np.abs(Pxy), linestyle=linestyle, color=var_colors[col], label=f'{col} vs {label}')
+                except ZeroDivisionError:
+                    continue
 
         plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
         plt.ylabel('Cross Power', fontsize=options['ylabel_fontsize'])
