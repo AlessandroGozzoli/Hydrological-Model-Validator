@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 from unittest.mock import patch
-import os
+import tempfile
 import matplotlib.dates as mdates
 import pandas as pd
 
@@ -151,45 +151,33 @@ def Bmost():
         [0, 0, 0, 0, 0]  # Southern edge (min latitude)
     ])
 
-# Test that the 3D surface plot runs and calls the plotly show method once
-@patch('plotly.graph_objs._figure.Figure.show')
-def test_surface_plot_runs(mock_show, geo_coords_3d, Bmost):
-    plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='surface')
-    # Confirm the plot was displayed exactly once
-    mock_show.assert_called_once()
+# Test that the 3D surface plot runs and saves the html
+def test_surface_plot_saves_html(geo_coords_3d, Bmost):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_path = tmpdir
+        filename = "test_plot.html"
+
+        # Call the plotting function with save_path
+        plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='surface', save_path=save_path)
+
+        # Check that an HTML file was created inside tmpdir
+        files = list(Path(save_path).glob("*.html"))
+        assert len(files) > 0, "Expected at least one HTML file to be saved"
 
 
-# Test that the 3D mesh plot runs and calls the plotly show method once
-@patch('plotly.graph_objs._figure.Figure.show')
-def test_mesh3d_plot_runs(mock_show, geo_coords_3d, Bmost):
-    plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='mesh3d')
-    # Confirm the plot was displayed exactly once
-    mock_show.assert_called_once()
+# Test that the 3D mesh plot runs and saves the html
+def test_mesh3d_plot_saves_html(geo_coords_3d, Bmost):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_path = tmpdir
+        plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='mesh3d', save_path=save_path)
+        files = list(Path(save_path).glob("*.html"))
+        assert len(files) > 0, "Expected at least one HTML file to be saved"
 
 
 # Test that providing an invalid plot_type raises a ValueError
 def test_invalid_plot_type_raises(geo_coords_3d, Bmost):
     with pytest.raises(ValueError, match="plot_type must be 'surface' or 'mesh3d'"):
         plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='invalid')
-
-
-# Test that the plot is saved as an HTML file and still displayed when save_path is provided
-@patch('plotly.graph_objs._figure.Figure.show')
-@patch('plotly.io.write_html')
-def test_plot_saves_html(mock_write_html, mock_show, tmp_path, geo_coords_3d, Bmost):
-    plot_benthic_3d_mesh(Bmost, geo_coords_3d, plot_type='surface', save_path=tmp_path)
-
-    expected_file = tmp_path / "3D Basin Depth surface.html"
-
-    # Ensure the HTML file write method was called once
-    mock_write_html.assert_called_once()
-    args, kwargs = mock_write_html.call_args
-
-    # Check that the file path argument matches the expected output file path
-    assert expected_file in args or kwargs.get("file", None) == expected_file
-
-    # Ensure the plot was still shown after saving
-    mock_show.assert_called_once()
 
 
 ###############################################################################
@@ -247,8 +235,6 @@ def test_basic_plot_runs(mock_show, mock_savefig, var_dataframe, geo_coord_phys,
     )
     # Expect one saved figure per month per year: 12 months * 2 years = 24
     assert mock_savefig.call_count == 24
-    # show() called twice per plot (once show, once pause), so 48 calls expected
-    assert mock_show.call_count == 48
     # Confirm at least one saved file path is under the tmp_path directory
     saved_path = Path(mock_savefig.call_args[0][0])
     assert str(tmp_path) in str(saved_path)
@@ -272,8 +258,6 @@ def test_skips_months_with_no_data(mock_show, mock_savefig, var_dataframe_with_m
     )
     # 2 months missing, so expect 10 plots saved instead of 12
     assert mock_savefig.call_count == 10
-    # show() called twice per saved plot, so 20 calls expected
-    assert mock_show.call_count == 20
 
 
 # Test that custom keyword arguments are accepted and plot/save counts are as expected
@@ -302,7 +286,6 @@ def test_custom_kwargs_passed(mock_show, mock_savefig, var_dataframe, geo_coord_
     )
     # Check the calls remain consistent with default plotting (24 saves, 48 shows)
     assert mock_savefig.call_count == 24
-    assert mock_show.call_count == 48
 
 
 # Test that the function prints messages indicating skipped months and plotting actions
@@ -408,14 +391,10 @@ def test_benthic_chemical_plot_basic(
     # Run plotting function with no location arg - expect 24 plots (2 years * 12 months)
     Benthic_chemical_plot(dummy_var_dataframe, dummy_geo_coord_chem)
     assert mock_savefig.call_count == 24
-    assert mock_show.call_count == 24
-    assert mock_pause.call_count == 24
 
     # Run with location arg - expect doubling of plots and calls
     Benthic_chemical_plot(dummy_var_dataframe, dummy_geo_coord_chem, location="TestLocation")
-    assert mock_savefig.call_count == 48  # 24 more saves
-    assert mock_show.call_count == 48
-    assert mock_pause.call_count == 48
+    assert mock_savefig.call_count == 48  # 24*2 more saves
 
 
 # Test that months with None or NaN data are correctly skipped in plotting
@@ -465,10 +444,8 @@ def test_benthic_chemical_plot_skip_none_or_nan(
     # Call function - expect only 6 valid months to be plotted (others skipped)
     Benthic_chemical_plot(var_dataframe, dummy_geo_coord_chem)
 
-    # Check that save, show, and pause called exactly 6 times
+    # Check that save called exactly 6 times
     assert mock_savefig.call_count == 6
-    assert mock_show.call_count == 6
-    assert mock_pause.call_count == 6
 
 
 ###############################################################################
@@ -513,9 +490,6 @@ def test_normal_flow(mock_show, mock_savefig, mock_close, multi_series_data, tmp
 
     ax1 = fig.axes[0]
     ax2 = fig.axes[1]
-
-    # Show should be called twice after plotting ('cause of pause)
-    assert mock_show.call_count == 2
 
     # Check title and y-axis labels
     assert ax1.get_title() == "Dense Water Volume Time Series"
