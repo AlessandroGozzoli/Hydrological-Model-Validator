@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 import xarray as xr
 import gzip
-from pathlib import Path
 from unittest.mock import patch
 
 # ====== EARLY MOCK TO FAKE matlab.engine BEFORE ANY IMPORTS ======
@@ -44,6 +43,8 @@ from Hydrological_model_validator.Processing.file_io import (
     read_nc_variable_from_unzipped_file,
     read_nc_variable_from_gz_in_memory,
     call_interpolator,
+    select_3d_variable,
+    find_file_with_keywords
 )
 
 ###############################################################################
@@ -425,3 +426,151 @@ def test_call_interpolator_input_validation():
     # mask_file invalid type
     with pytest.raises(TypeError):
         call_interpolator(valid_str, valid_lev, valid_path_str, valid_path_str, 123)
+        
+
+###############################################################################
+# --- find_file_with_keywords tests ---
+###############################################################################
+
+
+# Dummy file-like class to simulate files with a .name attribute
+class DummyFile:
+    def __init__(self, name):
+        self.name = name
+
+# Test that the function returns the only file matching keywords without prompting the user
+def test_single_match_returns_file():
+    files = [DummyFile("data_obs.nc"), DummyFile("data_sim.nc"), DummyFile("readme.txt")]
+    keywords = ["obs", "observed"]
+    # Only "data_obs.nc" contains 'obs' → function should return it directly
+    result = find_file_with_keywords(files, keywords, "observed data")
+    assert result.name == "data_obs.nc"
+
+# Test that when multiple files match keywords,
+# the function prompts the user and returns the file matching user's exact input
+@patch("builtins.input", return_value="data_obs.nc")
+@patch("builtins.print")
+def test_multiple_matches_user_selects_valid(mock_print, mock_input):
+    files = [
+        DummyFile("data_obs.nc"),
+        DummyFile("data_observed_2023.nc"),
+        DummyFile("data_sim.nc"),
+    ]
+    keywords = ["obs", "observed"]
+    # Two files match: "data_obs.nc", "data_observed_2023.nc"
+    # User inputs "data_obs.nc", so it should be returned
+    result = find_file_with_keywords(files, keywords, "observed data")
+    
+    # Confirm the multiple matches prompt was printed
+    mock_print.assert_called()
+    assert result.name == "data_obs.nc"
+
+# Test that when multiple files match but user inputs a filename not in matches,
+# the function raises FileNotFoundError
+@patch("builtins.input", return_value="not_existing_file.nc")
+@patch("builtins.print")
+def test_multiple_matches_user_selects_invalid_raises(mock_print, mock_input):
+    files = [
+        DummyFile("data_obs.nc"),
+        DummyFile("data_observed_2023.nc"),
+        DummyFile("data_sim.nc"),
+    ]
+    keywords = ["obs", "observed"]
+    # User input filename not in matched files → should raise error
+    with pytest.raises(FileNotFoundError):
+        find_file_with_keywords(files, keywords, "observed data")
+
+# Test that if no files match keywords,
+# user is prompted and entering a valid filename from full file list returns that file
+@patch("builtins.input", return_value="data_sim.nc")
+@patch("builtins.print")
+def test_no_matches_user_selects_valid(mock_print, mock_input):
+    files = [DummyFile("data_obs.nc"), DummyFile("data_sim.nc"), DummyFile("readme.txt")]
+    keywords = ["nonexistentkeyword"]  # no matches expected
+
+    # User inputs "data_sim.nc" which exists → should be returned
+    result = find_file_with_keywords(files, keywords, "some data")
+
+    # input() should be called with the correct prompt string (verify prompt includes "No files matching keywords")
+    mock_input.assert_called()
+    prompt_arg = mock_input.call_args[0][0]
+    assert "No files matching keywords" in prompt_arg
+
+    assert result.name == "data_sim.nc"
+
+# Test that if no files match keywords,
+# user inputs a filename not in the full list and function raises FileNotFoundError
+@patch("builtins.input", return_value="not_existing_file.nc")
+@patch("builtins.print")
+def test_no_matches_user_selects_invalid_raises(mock_print, mock_input):
+    files = [DummyFile("data_obs.nc"), DummyFile("data_sim.nc"), DummyFile("readme.txt")]
+    keywords = ["nonexistentkeyword"]  # no matches expected
+    
+    # User inputs invalid filename → should raise FileNotFoundError
+    with pytest.raises(FileNotFoundError):
+        find_file_with_keywords(files, keywords, "some data")
+        
+
+###############################################################################
+# --- find_file_with_keywords tests ---
+###############################################################################
+
+
+# Helper to create an xarray Dataset with variables of specified names and shapes
+# Each variable contains zeros and dims are named dim0, dim1, ...
+def create_dataset_with_vars(vars_dims: dict[str, tuple[int, ...]]) -> xr.Dataset:
+    data_vars = {}
+    for varname, shape in vars_dims.items():
+        # Create unique dim names per variable to avoid conflicts
+        dims = tuple(f"{varname}_dim{i}" for i in range(len(shape)))
+        data = np.zeros(shape)
+        data_vars[varname] = (dims, data)
+    return xr.Dataset(data_vars)
+
+# Test that ValueError is raised when no 3D variables are present
+def test_no_3d_variables_raises():
+    # Create dataset with a 2D and a 4D variable (but distinct dims for each)
+    ds = create_dataset_with_vars({"var2d": (5, 5), "var4d": (2, 3, 4, 5)})
+    with pytest.raises(ValueError):
+        select_3d_variable(ds, "test dataset")
+
+# Test that when exactly one 3D variable is present, it is returned directly
+def test_single_3d_variable_returns_it():
+    ds = create_dataset_with_vars({"var3d": (2, 3, 4), "var2d": (5, 5)})
+    result = select_3d_variable(ds, "Test dataset")
+    assert result.name == "var3d"
+    assert result.ndim == 3
+
+# Test that when multiple 3D variables are present, user input selects the correct variable
+@patch("builtins.input", return_value="1")
+@patch("builtins.print")
+def test_multiple_3d_variables_user_selects_valid(mock_print, mock_input):
+    ds = create_dataset_with_vars({"varA": (2, 3, 4), "varB": (5, 6, 7), "var2d": (5, 5)})
+    result = select_3d_variable(ds, "Test dataset")
+
+    mock_print.assert_any_call("⚠️ Multiple 3D variables found in Test dataset: ['varA', 'varB']")
+    mock_print.assert_any_call("1: varA (shape: (2, 3, 4))")
+    mock_print.assert_any_call("2: varB (shape: (5, 6, 7))")
+
+    assert result.name == "varA"
+    assert result.ndim == 3
+
+# Test that invalid numeric input triggers prompt again, then valid selection is accepted
+@patch("builtins.input", side_effect=["10", "2"])
+@patch("builtins.print")
+def test_multiple_3d_variables_invalid_then_valid_selection(mock_print, mock_input):
+    ds = create_dataset_with_vars({"varA": (2, 3, 4), "varB": (5, 6, 7)})
+    result = select_3d_variable(ds, "Test dataset")
+
+    mock_print.assert_any_call("Invalid selection.")
+    assert result.name == "varB"
+
+# Test that non-integer input triggers prompt again, then valid numeric selection is accepted
+@patch("builtins.input", side_effect=["notanumber", "1"])
+@patch("builtins.print")
+def test_multiple_3d_variables_nonint_then_valid_selection(mock_print, mock_input):
+    ds = create_dataset_with_vars({"varA": (2, 3, 4), "varB": (5, 6, 7)})
+    result = select_3d_variable(ds, "Test dataset")
+
+    mock_print.assert_any_call("Please enter a valid number.")
+    assert result.name == "varA"
