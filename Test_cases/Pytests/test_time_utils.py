@@ -2,6 +2,8 @@ import pytest
 import numpy as np
 import pandas as pd
 import xarray as xr
+from unittest.mock import patch
+
 from Hydrological_model_validator.Processing.time_utils import (
     leapyear,
     true_time_series_length,
@@ -10,6 +12,9 @@ from Hydrological_model_validator.Processing.time_utils import (
     get_common_years,
     get_season_mask,
     resample_and_compute,
+    is_invalid_time_index,
+    prompt_for_datetime_index,
+    ensure_datetime_index
 )
 
 ###############################################################################
@@ -318,3 +323,210 @@ def test_resample_and_compute_dask_computed():
     # Assert that output arrays are fully computed (no lazy dask compute method present)
     assert not hasattr(model_monthly.data, 'compute')
     assert not hasattr(sat_monthly.data, 'compute')
+
+
+###############################################################################
+# is_invalid_time_index tests
+###############################################################################
+
+
+# Test that a valid datetime index spanning multiple days is NOT considered invalid.
+def test_valid_datetime_index():
+    # Create a datetime index with 5 daily timestamps
+    idx = pd.date_range("2023-01-01", periods=5, freq='D')
+    # Should return False because it is a valid, properly spaced datetime index
+    assert not is_invalid_time_index(idx), "Valid datetime index flagged as invalid"
+
+# Test that a non-datetime numpy array is considered invalid.
+def test_non_datetime_dtype():
+    # Create a simple integer numpy array (not datetime)
+    arr = np.array([1, 2, 3, 4])
+    # Should return True since dtype is not datetime64
+    assert is_invalid_time_index(arr), "Non-datetime array not flagged invalid"
+
+# Test that times all within one day but with large time differences are NOT invalid.
+def test_all_within_one_day_but_large_diffs():
+    # Timestamps all on 1970-01-01 but spaced by several seconds and minutes
+    times = pd.to_datetime([
+        "1970-01-01 00:00:00",
+        "1970-01-01 00:00:10",
+        "1970-01-01 00:01:00",
+    ])
+    # Differences are large (> 1 ms), so time index should be valid
+    assert not is_invalid_time_index(times), "Large diffs within 1 day flagged invalid"
+
+# Test that times all within one day with very small differences are considered invalid.
+def test_all_within_one_day_and_small_diffs():
+    # Timestamps are all within 1 ms differences, likely dummy data
+    times = pd.to_datetime([
+        "1970-01-01 00:00:00.000000",
+        "1970-01-01 00:00:00.000500",
+        "1970-01-01 00:00:00.000900",
+    ])
+    # This should return True, flagged as invalid (dummy/corrupted data)
+    assert is_invalid_time_index(times), "Small diffs within 1 day not flagged invalid"
+
+# Test that an empty time index is NOT considered invalid.
+def test_empty_time_index():
+    # Create an empty datetime index
+    idx = pd.DatetimeIndex([])
+    # Should return False; empty indexes aren't invalid per the function logic
+    assert not is_invalid_time_index(idx), "Empty index incorrectly flagged invalid"
+
+# Test that a single timestamp (no differences) is NOT considered invalid.
+def test_single_timestamp():
+    # Single timestamp at Unix epoch
+    idx = pd.DatetimeIndex(["1970-01-01"])
+    # Since no differences exist, it should be considered valid
+    assert not is_invalid_time_index(idx), "Single timestamp incorrectly flagged invalid"
+    
+    
+###############################################################################
+# prompt_for_datetime_index tests
+###############################################################################
+
+
+# Test that valid user inputs generate a correct DatetimeIndex of requested length and freq
+@patch("builtins.input", side_effect=["2020-01-01", "D"])
+def test_valid_inputs_generate_correct_index(mock_input):
+    """
+    Aim: Confirm function returns correct DatetimeIndex with valid date and frequency inputs.
+    """
+    length = 4
+    result = prompt_for_datetime_index(length)
+    
+    # Assert returned object is DatetimeIndex of requested length
+    assert isinstance(result, pd.DatetimeIndex)
+    assert len(result) == length
+    
+    # Assert first date and frequency match user input
+    assert result[0] == pd.Timestamp("2020-01-01")
+    assert result.freqstr == "D"
+
+# Test that invalid start date input triggers error and reprompt until valid inputs entered
+@patch("builtins.input", side_effect=[
+    "not-a-date", "D",  # invalid date then daily freq
+    "2021-02-01", "D"   # valid date and freq on second try
+])
+@patch("builtins.print")
+def test_invalid_date_input_prompts_again(mock_print, mock_input):
+    """
+    Aim: Verify function handles invalid date input by reprompting until valid date provided.
+    """
+    length = 3
+    result = prompt_for_datetime_index(length)
+
+    # Check print called at least once for invalid input message
+    assert any("Invalid input" in call.args[0] for call in mock_print.call_args_list)
+
+    # Confirm valid result after retry
+    assert isinstance(result, pd.DatetimeIndex)
+    assert len(result) == length
+    assert result[0] == pd.Timestamp("2021-02-01")
+
+# Test that invalid frequency input triggers error and reprompt until valid frequency entered
+@patch("builtins.input", side_effect=[
+    "2022-03-01", "invalid-freq",  # invalid freq
+    "2022-03-01", "H"              # valid freq on second try
+])
+@patch("builtins.print")
+def test_invalid_frequency_prompts_again(mock_print, mock_input):
+    """
+    Aim: Ensure function handles invalid frequency input by reprompting until valid frequency provided.
+    """
+    length = 2
+    result = prompt_for_datetime_index(length)
+    
+    # Check error message printed for invalid freq
+    assert any("Invalid input" in call.args[0] for call in mock_print.call_args_list)
+    
+    # Confirm valid DatetimeIndex returned after correction
+    assert isinstance(result, pd.DatetimeIndex)
+    assert len(result) == length
+    assert result[0] == pd.Timestamp("2022-03-01")
+    assert result.freqstr == "h"
+
+# Test multiple invalid inputs before finally entering valid date and frequency
+@patch("builtins.input", side_effect=[
+    "bad-date", "bad-freq",        # both invalid first try
+    "2020-12-31", "wrong-freq",    # invalid freq second try
+    "2020-12-31", "D"              # valid on third try
+])
+@patch("builtins.print")
+def test_multiple_invalid_inputs_then_valid(mock_print, mock_input):
+    """
+    Aim: Confirm function can handle multiple rounds of invalid input before success.
+    """
+    length = 1
+    result = prompt_for_datetime_index(length)
+    
+    # At least two error messages expected
+    error_msgs = [call.args[0] for call in mock_print.call_args_list if "Invalid input" in call.args[0]]
+    assert len(error_msgs) >= 2
+    
+    # Final valid result returned
+    assert isinstance(result, pd.DatetimeIndex)
+    assert len(result) == length
+    assert result[0] == pd.Timestamp("2020-12-31")
+    assert result.freqstr == "D"
+    
+
+###############################################################################
+# ensure_datetime_index tests
+###############################################################################
+
+
+# Test that if Series already has a DatetimeIndex, it is returned unchanged without prompts
+def test_series_with_datetime_index_returns_unchanged():
+    """
+    Aim: Confirm function returns the original Series unchanged if index is already DatetimeIndex.
+    """
+    dates = pd.date_range("2023-01-01", periods=3)
+    s = pd.Series([10, 20, 30], index=dates)
+    result = ensure_datetime_index(s, "Test Series")
+    
+    # The index should be unchanged and identical
+    assert isinstance(result.index, pd.DatetimeIndex)
+    assert all(result.index == dates)
+
+# Test that non-datetime index triggers user prompts and creates new DatetimeIndex with given inputs
+@patch("builtins.input", side_effect=["2020-05-01", "D"])
+@patch("builtins.print")
+def test_non_datetime_index_prompts_and_creates_index(mock_print, mock_input):
+    """
+    Aim: Check that non-datetime index triggers input prompts and creates a proper DatetimeIndex.
+    """
+    s = pd.Series([1, 2, 3], index=[0, 1, 2])  # non-datetime index
+    
+    result = ensure_datetime_index(s, "Sample Series")
+    
+    # Confirm index is now DatetimeIndex of correct length
+    assert isinstance(result.index, pd.DatetimeIndex)
+    assert len(result.index) == len(s)
+    assert result.index[0] == pd.Timestamp("2020-05-01")
+    assert result.index.freqstr == "D"
+    
+    # Confirm appropriate print statements were made (including creation message)
+    printed_messages = [call.args[0] for call in mock_print.call_args_list]
+    assert any("has no DatetimeIndex" in msg for msg in printed_messages)
+    assert any("DatetimeIndex created for Sample Series" in msg for msg in printed_messages)
+
+# Test invalid date input should raise error (since ensure_datetime_index does not catch exceptions)
+@patch("builtins.input", side_effect=["invalid-date", "D"])
+def test_invalid_date_input_raises(monkeypatch):
+    """
+    Aim: Ensure invalid date input raises an exception since no internal error handling exists.
+    """
+    s = pd.Series([1, 2], index=[0, 1])
+    with pytest.raises(Exception):
+        ensure_datetime_index(s, "Bad Date Series")
+
+# Test invalid frequency input raises error (no internal error handling)
+@patch("builtins.input", side_effect=["2020-01-01", "invalid-freq"])
+def test_invalid_frequency_input_raises(monkeypatch):
+    """
+    Aim: Ensure invalid frequency input raises an exception (no try/except in function).
+    """
+    s = pd.Series([1, 2], index=[0, 1])
+    with pytest.raises(Exception):
+        ensure_datetime_index(s, "Bad Freq Series")
