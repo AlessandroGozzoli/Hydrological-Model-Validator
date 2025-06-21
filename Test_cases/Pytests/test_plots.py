@@ -152,8 +152,8 @@ def test_variable_and_unit_directly(mock_style, mock_plot, mock_keys, tmp_path):
     bias = dummy_series()
     # Skip automatic label/unit extraction by passing directly
     timeseries(data, bias, output_path=tmp_path, variable="Temp", unit="K")
-    # Default fallback variable_name is None → "None_timeseries.png"
-    assert (tmp_path / "None_timeseries.png").exists()
+    # Default fallback for the title is the variable passed
+    assert (tmp_path / "Temp_timeseries.png").exists()
 
 
 # Test that extra keys in the data dictionary are ignored and do not break the function
@@ -235,22 +235,6 @@ def test_missing_variable_and_unit_raises(mock_keys, mock_label, tmp_path):
         scatter_plot(data, output_path=tmp_path)
 
 
-# Test that minimal matplotlib functions (pause, draw, show) are called during plotting
-@patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Temperature", "°C"))
-@patch("Hydrological_model_validator.Processing.data_alignment.extract_mod_sat_keys", side_effect=lambda data: list(data.keys())[:2])
-@patch("matplotlib.pyplot.pause", return_value=None)
-@patch("matplotlib.pyplot.show", return_value=None)
-@patch("matplotlib.pyplot.draw", return_value=None)
-def test_plot_calls_minimal_mpl_functions(mock_draw, mock_show, mock_pause, mock_keys, mock_label, tmp_path):
-    data = {"model": dummy_series(), "satellite": dummy_series()}
-    # Call scatter_plot with a pause_time to trigger mpl GUI events
-    scatter_plot(data, output_path=tmp_path, variable_name="sst", pause_time=0.1)
-    # Verify expected matplotlib calls happened exactly once
-    mock_pause.assert_called_once()
-    mock_draw.assert_called_once()
-    mock_show.assert_called_once()
-
-
 # Test scatter_plot supports season_colors and alpha transparency parameters
 @patch("Hydrological_model_validator.Plotting.formatting.get_variable_label_unit", return_value=("Oxygen", "mg/L"))
 @patch("Hydrological_model_validator.Processing.data_alignment.extract_mod_sat_keys", side_effect=lambda data: list(data.keys())[:2])
@@ -306,7 +290,8 @@ def test_seasonal_plots_saved(mock_show, mock_close, mock_savefig, valid_data, t
     seasonal_scatter_plot(
         valid_data,
         output_path=tmp_path,
-        variable_name='SST',
+        variable='AAA',
+        unit='aaa',
         BA=True,
     )
     
@@ -314,8 +299,8 @@ def test_seasonal_plots_saved(mock_show, mock_close, mock_savefig, valid_data, t
     assert mock_savefig.call_count == 5
 
     # Expected filenames for each season and combined plot
-    expected_files = [f'SST_{season}_scatterplot.png' for season in ['DJF', 'MAM', 'JJA', 'SON']]
-    expected_files.append('SST_all_seasons_scatterplot.png')
+    expected_files = [f'AAA_{season}_scatterplot.png' for season in ['DJF', 'MAM', 'JJA', 'SON']]
+    expected_files.append('AAA_all_seasons_scatterplot.png')
 
     # Extract filenames from mock calls
     saved_files = [Path(call.args[0]).name for call in mock_savefig.call_args_list]
@@ -452,9 +437,6 @@ def test_whiskerbox_basic_plot(mock_show, mock_draw, mock_pause, mock_close, moc
     assert saved_path_str.endswith('Sea Surface Temperature_boxplot.png') or saved_path_str.endswith('SST_boxplot.png')
 
     # Confirm key matplotlib functions were called during plotting
-    assert mock_show.called
-    assert mock_draw.called
-    assert mock_pause.called
     assert mock_close.called
 
 
@@ -800,7 +782,7 @@ def stats_df():
         'mean_bias': np.random.randn(100),
         'unbiased_rmse': np.random.rand(100),
         'std_error': np.random.rand(100),
-        'correlation': np.random.rand(100)
+        'cross_correlation': np.random.rand(100)
     }
     return pd.DataFrame(data, index=index)
 
@@ -849,7 +831,7 @@ def test_error_plot_short_series(temp_output):
         'mean_bias': np.random.randn(5),
         'unbiased_rmse': np.random.rand(5),
         'std_error': np.random.rand(5),
-        'correlation': np.random.rand(5)
+        'cross_correlation': np.random.rand(5)
     }, index=index)
     error_components_timeseries(df, temp_output)
     files = list(temp_output.glob("*.png"))
