@@ -1,13 +1,28 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling libraries
 import numpy as np
 from datetime import datetime
 from typing import Tuple, List
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def check_missing_days(
     T_orig: np.ndarray, 
     data_orig: np.ndarray,
@@ -160,9 +175,11 @@ def check_missing_days(
             logging.info("✅ Time series gaps filled successfully.")
 
             return Ttrue, data_complete
+        
 ###############################################################################
 
 ###############################################################################
+
 def find_missing_observations(data_complete: np.ndarray) -> Tuple[int, List[int]]:
     """
     Identify days with no satellite observations (all NaN or zero).
@@ -223,9 +240,11 @@ def find_missing_observations(data_complete: np.ndarray) -> Tuple[int, List[int]
             print('*' * 45)
 
             return cnan, satnan
+        
 ###############################################################################
 
 ###############################################################################
+
 def eliminate_empty_fields(data_complete: np.ndarray) -> np.ndarray:
     """
     Replace empty chlorophyll fields (days where all values are NaN or zero) with NaNs.
