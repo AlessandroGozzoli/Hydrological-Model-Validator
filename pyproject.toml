@@ -49,7 +49,11 @@ dependencies = [
   "seaborn",
   "SkillMetrics",
   "statsmodels",
-  "xarray"
+  "xarray",
+  "eliot",
+  "eliot-tree",
+  "rasterio",
+  "reportlab",
 ]
 
 [project.scripts]
@@ -57,6 +61,7 @@ sst-analyze = "Test_cases.SST_data_analyzer:main"
 chl-analyze = "Test_cases.CHL_data_analyzer:main"
 bfm-analyze = "Test_cases.Benthic_Layer:main"
 data-setupper = "Test_cases.Data_reader_setupper:main"
+GenerateReport = "Hydrological_model_validator.__main__:main"
 
 [project.optional-dependencies]
 dev = [
