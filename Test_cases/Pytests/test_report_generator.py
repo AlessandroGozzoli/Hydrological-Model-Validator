@@ -340,7 +340,7 @@ def test_generate_full_report_uses_default_output_dir_on_yes(tmp_path, monkeypat
     }
 
     # Patch input to simulate user confirmation as 'yes' (or defaulting to yes)
-    monkeypatch.setattr("builtins.input", lambda _: "yes")
+    monkeypatch.setattr("builtins.input", input_mock)
 
     # Run the report generation, letting it use the default output directory
     generate_full_report(
