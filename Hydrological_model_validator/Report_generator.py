@@ -11,6 +11,62 @@ def generate_full_report(
     unit = None,
     open_report = False
 ):
+    """
+    Generate a comprehensive report from spatial and timeseries data inputs.
+
+    This function processes input datasets (spatial and time series) along with a mask,
+    validates and aligns data, computes statistical analyses, and generates plots and
+    reports summarizing the model vs observed comparisons. It supports saving outputs
+    to a specified directory, optionally generating a PDF report, and can run in a
+    check-only mode to validate inputs without producing outputs.
+
+    Parameters
+    ----------
+    data_folder : dict or str
+        Dictionary of file paths or a folder path containing required input files:
+        observed spatial data, simulated spatial data, observed timeseries, simulated timeseries,
+        and mask file. If a folder path, the function will locate files within it.
+    output_dir : str or None, optional
+        Directory where the report, plots, and data outputs will be saved.
+        Defaults to None, which prompts the user or uses a default folder.
+    check_only : bool, optional
+        If True, only validate inputs and exit without generating any report or plots.
+    generate_pdf : bool, optional
+        Whether to generate a PDF report including plots and summary tables.
+    verbose : bool, optional
+        Enable verbose logging and console output for progress tracking.
+    variable : str or None, optional
+        Name of the variable for labeling plots and outputs (e.g., 'Chlorophyll-a').
+        If None, the user may be prompted to provide it during execution.
+    unit : str or None, optional
+        Unit string for the variable (e.g., 'mg/L', 'm3/s') shown in plot labels and legends.
+        If None, the user may be prompted to provide it during execution.
+    open_report : bool, optional
+        If True, automatically open the generated PDF report after creation.
+
+    Returns
+    -------
+    None
+        Saves outputs (pdf, plots and dataframes) to disk and modifies
+        internal state. The files are saved to `output_dir` if specified.
+
+    Raises
+    ------
+    ValueError
+        If required inputs are missing or incompatible.
+    TypeError
+        If input types are invalid.
+
+    Example
+    -------
+    >>> generate_full_report(
+    ...     data_folder="input_data",
+    ...     output_dir="reports/2023-06",
+    ...     generate_pdf=True,
+    ...     variable="Temperature",
+    ...     unit="°C"
+    ... )
+    """
     # ===== LIBRARIES =====
     # General utility libraries
     import pandas as pd
