@@ -1,20 +1,35 @@
-import numpy as np
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import os
 import gzip
 import shutil
-from netCDF4 import Dataset
 from pathlib import Path
 from typing import Union, Tuple
 
+# Third-party libraries
+import numpy as np
+from netCDF4 import Dataset
+
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
-from .time_utils import Timer
-
-from .time_utils import leapyear
+# Module utilities
+from .time_utils import Timer, leapyear
 from .utils import infer_years_from_path
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def read_model_data(
     Dmod: Union[str, Path],
     Mfsm: Tuple[np.ndarray, np.ndarray],
