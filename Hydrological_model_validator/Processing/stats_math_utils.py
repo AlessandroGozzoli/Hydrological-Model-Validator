@@ -1,19 +1,36 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling libraries
 import numpy as np
+import pandas as pd
+import xarray as xr
 from typing import Tuple, Union, Dict, Optional, List
+
+# Statistical and signal processing libraries
 from sklearn.linear_model import HuberRegressor
 from statsmodels.nonparametric.smoothers_lowess import lowess
-import xarray as xr
 from scipy.signal import detrend
-import pandas as pd
 from scipy.fft import fft, fftfreq
 from scipy.stats import linregress
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Fit a robust linear regression (Huber) model to 1D predictor and response arrays.
@@ -72,9 +89,11 @@ def fit_huber(mod_data: np.ndarray, sat_data: np.ndarray) -> Tuple[np.ndarray, n
             logging.info('Predicted Huber regression line generated')
 
             return x_vals, y_vals
+        
 ###############################################################################
 
 ###############################################################################
+
 def fit_lowess(
     mod_data: np.ndarray,
     sat_data: np.ndarray,
@@ -141,9 +160,11 @@ def fit_lowess(
             logging.info(f'LOWESS smoothing completed, points={len(smoothed)}')
 
             return smoothed
+        
 ###############################################################################
     
-###############################################################################    
+###############################################################################   
+ 
 def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
     """
     Round up the given number to the nearest multiple of the specified base.
@@ -186,9 +207,11 @@ def round_up_to_nearest(x: Union[float, int], base: float = 1.0) -> float:
             log_message('Rounded value computed', result=result)
             logging.info(f'Rounded value computed: {result}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_coverage_stats(
     data: np.ndarray,
     Mmask: np.ndarray,
@@ -264,9 +287,11 @@ def compute_coverage_stats(
             logging.info(f'Coverage stats computed: total masked points = {total_points}')
             
             return data_available_percent, cloud_coverage_percent
+        
 ###############################################################################
 
 ###############################################################################
+
 def detrend_dim(
     da: xr.DataArray,
     dim: str,
@@ -352,9 +377,11 @@ def detrend_dim(
             logging.info(f'Detrending completed along dimension "{dim}"')
 
             return detrended
+        
 ###############################################################################
 
 ###############################################################################
+
 def mean_bias(
     m: Union[np.ndarray, pd.Series, xr.DataArray],
     o: Union[np.ndarray, pd.Series, xr.DataArray],
@@ -399,9 +426,11 @@ def mean_bias(
             log_message('Computed mean bias over time_dim', time_dim=time_dim)
             logging.info(f'Mean bias computed over dimension "{time_dim}"')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def standard_deviation_error(
     m: Union[np.ndarray, pd.Series, xr.DataArray],
     o: Union[np.ndarray, pd.Series, xr.DataArray],
@@ -462,9 +491,11 @@ def standard_deviation_error(
             log_message('Computed std deviation error (model - obs)', result=result)
             logging.info(f'Standard deviation error computed: {result}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def cross_correlation(
     m: Union[np.ndarray, pd.Series, xr.DataArray],
     o: Union[np.ndarray, pd.Series, xr.DataArray],
@@ -527,9 +558,11 @@ def cross_correlation(
             log_message('Computed Pearson correlation coefficient', result=result)
             logging.info(f'Pearson correlation coefficient computed: {result}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def corr_no_nan(
     series1: pd.Series,
     series2: pd.Series
@@ -566,9 +599,11 @@ def corr_no_nan(
             log_message('Computed Pearson correlation ignoring NaNs', result=result)
             logging.info(f'Correlation computed ignoring NaNs: {result}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def std_dev(
     da: Union[np.ndarray, pd.Series, xr.DataArray],
     time_dim: str = 'time'
@@ -613,9 +648,11 @@ def std_dev(
             log_message('Computed std dev along dimension', dim=time_dim)
             logging.info(f'Std dev computed along dimension {time_dim}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def unbiased_rmse(
     m: Union[np.ndarray, pd.Series, xr.DataArray],
     o: Union[np.ndarray, pd.Series, xr.DataArray],
@@ -669,9 +706,11 @@ def unbiased_rmse(
             log_message('Computed unbiased RMSE along dimension', dim=time_dim)
             logging.info(f'Unbiased RMSE computed along dimension {time_dim}')
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def spatial_mean(
     data_array: xr.DataArray,
     mask: Union[xr.DataArray, np.ndarray]
@@ -719,9 +758,11 @@ def spatial_mean(
             logging.info(f"Computed spatial mean result: {result.values if hasattr(result, 'values') else result}")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_lagged_correlations(
     series1: pd.Series,
     series2: pd.Series,
@@ -771,9 +812,11 @@ def compute_lagged_correlations(
             log_message(f'Computed lagged correlations for lags -{max_lag} to {max_lag}')
             logging.info(f'Computed lagged correlations for lags -{max_lag} to {max_lag}')
             return pd.Series(results)
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_fft(
     data: Union[np.ndarray, np.ndarray, Dict[str, Union[np.ndarray, np.generic]]],
     dt: float = 1.0
@@ -846,9 +889,11 @@ def compute_fft(
                 log_message('Computed FFT for single array input')
                 logging.info('Computed FFT for single array input')
                 return freqs, fft_result
+            
 ###############################################################################
 
 ###############################################################################
+
 def detrend_poly_dim(data_array: xr.DataArray, dim: str, degree: int = 1) -> xr.DataArray:
     """
     Remove a polynomial trend of specified degree along a given dimension in an xarray.DataArray.
@@ -891,9 +936,11 @@ def detrend_poly_dim(data_array: xr.DataArray, dim: str, degree: int = 1) -> xr.
             logging.info('detrend_dim: detrended data computed')
 
             return detrended
+        
 ###############################################################################
 
 ###############################################################################
+
 def detrend_linear(data: Union[np.ndarray, List[float], pd.Series]) -> np.ndarray:
     """
     Remove a linear trend from 1D numeric data using least squares linear regression.
@@ -933,9 +980,11 @@ def detrend_linear(data: Union[np.ndarray, List[float], pd.Series]) -> np.ndarra
             logging.info(f'detrend_linear: detrended data computed, mean={np.mean(detrended_data)}')
 
             return detrended_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Calculate monthly mean anomalies without detrending by removing the monthly climatology.
@@ -969,9 +1018,11 @@ def monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArra
             logging.info('monthly_anomaly: monthly anomalies computed')
 
             return anomalies, monthly_climatology
+        
 ###############################################################################
 
 ###############################################################################
+
 def yearly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Calculate yearly mean anomalies without detrending by removing the yearly climatology.
@@ -1005,9 +1056,11 @@ def yearly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray
             logging.info('yearly_anomaly: yearly anomalies computed')
 
             return anomalies, yearly_climatology
+        
 ###############################################################################
 
 ###############################################################################
+
 def detrended_monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Calculate detrended monthly anomalies by removing the linear trend first, then removing the monthly climatology.
@@ -1046,9 +1099,11 @@ def detrended_monthly_anomaly(data_array: xr.DataArray) -> Tuple[xr.DataArray, x
             logging.info('detrended_monthly_anomaly: detrended monthly anomalies computed')
 
             return anomalies, monthly_climatology
+        
 ###############################################################################
 
 ###############################################################################
+
 def np_covariance(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndarray:
     """
     Calculate covariance between a 3D spatial-temporal field and a 1D index time series.
@@ -1083,9 +1138,11 @@ def np_covariance(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndarr
             log_message('covariance computed', shape=covariance.shape)
             logging.info(f'np_covariance: covariance computed with shape {covariance.shape}')
             return covariance
+        
 ###############################################################################
 
 ###############################################################################
+
 def np_correlation(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndarray:
     """
     Calculate Pearson correlation coefficient map between a 3D spatial-temporal field and a 1D index time series.
@@ -1117,9 +1174,11 @@ def np_correlation(field_time_xy: np.ndarray, index_time: np.ndarray) -> np.ndar
             log_message('correlation computed', shape=correlation.shape)
             logging.info(f'np_correlation: correlation computed with shape {correlation.shape}')
             return correlation
+        
 ###############################################################################
 
 ###############################################################################
+
 def np_regression(field_time_xy: np.ndarray, index_time: np.ndarray, std_units: str = 'yes') -> np.ndarray:
     """
     Compute regression coefficients between a 3D spatial-temporal field and a 1D index time series.
@@ -1160,9 +1219,11 @@ def np_regression(field_time_xy: np.ndarray, index_time: np.ndarray, std_units: 
             log_message('regression computed', shape=regression.shape)
             logging.info(f'np_regression: regression computed with shape {regression.shape} and std_units={std_units}')
             return regression
+        
 ###############################################################################
 
 ###############################################################################
+
 def extract_multidecadal_peak(
     freqs: np.ndarray,
     amps: np.ndarray,
@@ -1223,9 +1284,11 @@ def extract_multidecadal_peak(
             log_message('peak extracted', peak=peak_info)
             logging.info(f"peak extracted: {peak_info}")
             return peak_info
+        
 ###############################################################################
 
 ###############################################################################
+
 def extract_multidecadal_peaks_from_spectra(
         power_spectra: Dict[str, Tuple[np.ndarray, ...]],
     frequency_threshold: float = 1/10
@@ -1263,9 +1326,11 @@ def extract_multidecadal_peaks_from_spectra(
             log_message('all peaks extracted', num_regions=len(results))
             logging.info(f"all peaks extracted, num_regions: {len(results)}")
             return df
+        
 ###############################################################################
 
 ###############################################################################
+
 def identify_extreme_events(
     time_series: Union[np.ndarray, pd.Series, xr.DataArray],
     threshold_multiplier: float = 1.5,
