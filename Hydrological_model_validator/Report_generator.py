@@ -753,6 +753,13 @@ def generate_full_report(
             month=obs_monthly.time.dt.month,
             year=obs_monthly.time.dt.year,
             )
+        
+        # Mask using an expanded mask, the regular one does not work for the 2D plotting
+        mask_da = xr.DataArray(Mfsm)
+        mask_expanded = mask_da.expand_dims(time=sim_monthly.time)
+        obs_monthly = obs_monthly.where(mask_expanded)
+        sim_monthly = sim_monthly.where(mask_expanded)
+        
         vprint("Data ready!", verbose=verbose)
         
         vprint("\n" + border + "\n", verbose=verbose)
@@ -828,8 +835,7 @@ def generate_full_report(
         vprint("\n" + border + "\n", verbose=verbose)
         
     else:
-        vprint("Invalid choice", verbose=verbose)
-        exit()
+        raise ValueError(f"Invalid resampling method selected: {method}")
         
     # ===== SPATIAL ERROR / EFFICIENCY =====
     vprint("Computing the metrics from the raw data...", verbose=verbose)
