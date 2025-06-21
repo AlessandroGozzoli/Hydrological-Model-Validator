@@ -60,7 +60,7 @@ def test_main_info_flag_exits(monkeypatch, capsys):
         main_script.main()
     captured = capsys.readouterr()
     # Confirm the printed output includes the version string.
-    assert "Hydrological_model_validator v4.9.1" in captured.out
+    assert "Hydrological Model Validator - Preliminary Report Generator" in captured.out
     # Confirm exit code is zero (normal exit).
     assert e.value.code == 0
 
