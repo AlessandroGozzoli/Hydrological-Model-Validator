@@ -1,26 +1,39 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import gzip
-import numpy as np
-import xarray as xr
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from typing import Dict, List, Union, Tuple, Optional
 import io
 import os
+from pathlib import Path
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Union, Tuple, Optional
 
+# Data handling libraries
+import numpy as np
+import xarray as xr
+
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities and modules
 from .time_utils import Timer
-
-from .utils import (infer_years_from_path, build_bfm_filename, 
-                    temp_threshold, hal_threshold)
-
+from .utils import infer_years_from_path, build_bfm_filename, temp_threshold, hal_threshold
 from .file_io import unzip_gz_to_file, read_nc_variable_from_unzipped_file
-
 from .data_alignment import apply_3d_mask
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> list[np.ndarray]:
     """
     Extract the bottom layer data from a 4D array using provided bottom layer indices.
@@ -129,9 +142,11 @@ def extract_bottom_layer(data: np.ndarray, Bmost: np.ndarray) -> list[np.ndarray
 
             # ===== RETURN AS LIST OF 2D ARRAYS =====
             return [bottom_data[t] for t in range(time_len)]
+        
 ###############################################################################
 
 ###############################################################################
+
 def extract_and_filter_benthic_data(data_4d: np.ndarray,
                                     Bmost: np.ndarray,
                                     dz: float = 2.0,
@@ -287,9 +302,11 @@ def extract_and_filter_benthic_data(data_4d: np.ndarray,
                 logging.info(f"Filtering applied: total invalid data points set to NaN = {np.sum(invalid_mask)}.")
 
             return benthic_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def process_year(year: int,
                  IDIR: Union[str, Path],
                  mask3d: np.ndarray,
@@ -450,9 +467,11 @@ def process_year(year: int,
             print(f"\033[92m✅ Year {year} processed.\033[0m")
 
             return year, benthic_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def read_benthic_parameter(IDIR: Union[str, Path],
                            mask3d: np.ndarray,
                            Bmost: np.ndarray,
@@ -574,9 +593,11 @@ def read_benthic_parameter(IDIR: Union[str, Path],
 
             # Sort results by year to provide ordered output
             return dict(sorted(parameter_data.items()))
+        
 ###############################################################################
 
 ###############################################################################
+
 def read_bfm_chemical(
     IDIR: Union[str, Path],
     mask3d: np.ndarray,
