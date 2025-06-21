@@ -1,38 +1,57 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling and utilities
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from pathlib import Path
-from datetime import datetime
-from matplotlib.colors import BoundaryNorm
-from matplotlib.cm import ScalarMappable
-from typing import Any, Dict, List
 import pandas as pd
 import itertools
+from typing import Any, Dict, List
+from pathlib import Path
+from datetime import datetime
+import os
+
+# Plotting libraries and visualization
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.colors import BoundaryNorm
+from matplotlib.cm import ScalarMappable
+import matplotlib.dates as mdates
+import seaborn as sns
 import plotly.graph_objects as go
 import plotly.io as pio
 import cmocean
-import matplotlib.dates as mdates
-import seaborn as sns
-import os
 
-# Cartopy (for map projections and geospatial features)
+# Geospatial plotting
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
-from .formatting import (swifs_colormap,
-                         format_unit,
-                         style_axes_spines,
-                         get_benthic_plot_parameters,
-                         cmocean_to_plotly,
-                         invert_colorscale)
-
-from .default_bfm_plot_options import (DEFAULT_BENTHIC_PLOT_OPTIONS,
-                                       DEFAULT_BENTHIC_PHYSICAL_PLOT_OPTIONS,
-                                       DEFAULT_BENTHIC_CHEMICAL_PLOT_OPTIONS)
-
+# Module imports: formatting utilities and default plot options
+from .formatting import (
+    swifs_colormap,
+    format_unit,
+    style_axes_spines,
+    get_benthic_plot_parameters,
+    cmocean_to_plotly,
+    invert_colorscale,
+)
+from .default_bfm_plot_options import (
+    DEFAULT_BENTHIC_PLOT_OPTIONS,
+    DEFAULT_BENTHIC_PHYSICAL_PLOT_OPTIONS,
+    DEFAULT_BENTHIC_CHEMICAL_PLOT_OPTIONS,
+)
 from ..Processing.utils import extract_options
 
+
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def Benthic_depth(Bmost: np.ndarray,
                   geo_coords: dict,
                   output_path: Path,
@@ -169,11 +188,6 @@ def Benthic_depth(Bmost: np.ndarray,
     filename = "NA - Benthic Depth.png"
     save_path = Path(output_path, filename)
     plt.savefig(save_path)
-
-    # ----- SHOW FIGURE -----
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(2)
     plt.close()
 ###############################################################################
 
@@ -296,9 +310,6 @@ def plot_benthic_3d_mesh(Bmost,
     # ----- INVALID TYPE -----
     else:
         raise ValueError("plot_type must be 'surface' or 'mesh3d'")
-
-    # ----- DISPLAY FIGURE -----
-    fig.show()
 
     # ----- SAVE HTML FILE -----
     filename = f"3D Basin Depth {plot_type}.html"
@@ -463,11 +474,7 @@ def Benthic_physical_plot(var_dataframe: dict,
         save_dir.mkdir(parents=True, exist_ok=True)
         filename = f"Benthic_{bfm2plot}_{year}_{month_name}.png"
         plt.savefig(save_dir / filename, bbox_inches="tight", dpi=dpi)
-
-        # ----- SHOW & CLOSE -----
-        plt.show(block=False)
-        plt.pause(2)
-        plt.close(fig)
+        plt.close()
 
     print('-' * 45)
 ###############################################################################    
@@ -565,7 +572,7 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
                     levels=ticks, cmap=cmap_obj, norm=norm, extend='both', transform=ccrs.PlateCarree()
                 )
             else:
-                cmap_obj = plt.colormaps[cmap_name]
+                cmap_obj = plt.get_cmap(cmap_name)
                 cs = ax.contourf(
                     lonp + 0.4 * epsilon, latp + 0.2 * epsilon, data2D,
                     levels=levels, cmap=cmap_obj, vmin=vmin, vmax=vmax, extend='both', transform=ccrs.PlateCarree()
@@ -628,11 +635,7 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
             save_dir = output_path / timestamp / str(year)
             save_dir.mkdir(parents=True, exist_ok=True)
             plt.savefig(save_dir / f"Benthic_{bfm2plot}_{year}_{month_name}.png", bbox_inches='tight', dpi=dpi)
-
-            # ----- SHOW -----
-            plt.show(block=False)
-            plt.pause(2)
-            plt.close(fig)
+            plt.close()
 ###############################################################################    
 
 ###############################################################################    
@@ -741,9 +744,5 @@ def dense_water_timeseries(
     save_dir = Path(output_path)
     save_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(save_dir / "Dense_water_timeseries")
-
-    # ----- SHOW -----
-    plt.show(block=False)
-    plt.pause(2)
     plt.close()
 ###############################################################################
