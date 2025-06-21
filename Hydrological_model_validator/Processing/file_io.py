@@ -1,20 +1,37 @@
-import numpy as np
-from typing import Tuple, Union, Optional
-import netCDF4 as nc
-from pathlib import Path
-import xarray as xr
-import shutil
-import gzip
-from netCDF4 import Dataset
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import io
 import os
+import shutil
+import gzip
+from pathlib import Path
+from typing import Tuple, Union, Optional, List, Any
 
+# Third-party libraries
+import numpy as np
+import xarray as xr
+import netCDF4 as nc
+from netCDF4 import Dataset
+
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray, ...], Tuple[np.ndarray, ...], np.ndarray, np.ndarray]:
     """
     Load the land-sea mask and associated latitude/longitude fields from a NEMO 'mesh_mask.nc' file.
@@ -48,7 +65,13 @@ def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray
 
             # ===== GETTING THE MASK =====
             BaseDIR = Path(BaseDIR)
-            mask_file = BaseDIR / 'mesh_mask.nc'
+
+            # --- Handle both folder or file input
+            if BaseDIR.is_dir():
+                mask_file = BaseDIR / 'mesh_mask.nc'
+            else:
+                mask_file = BaseDIR
+
             if not mask_file.exists():
                 raise FileNotFoundError(f"❌ Mask file not found at {mask_file} ❌")
 
@@ -96,9 +119,11 @@ def mask_reader(BaseDIR: Union[str, Path]) -> Tuple[np.ndarray, Tuple[np.ndarray
                              f"2D land points={len(Mfsm[0])}, 3D land points={len(Mfsm_3d[0])}")
 
     return Mmask, Mfsm, Mfsm_3d, Mlat, Mlon
+
 ###############################################################################
 
 ###############################################################################
+
 def load_dataset(
     year: Union[int, str], 
     IDIR: Union[str, Path]
@@ -176,10 +201,12 @@ def load_dataset(
                 log_message("Dataset file not found", filename=file_path.name)
                 logging.warning(f"Dataset file not found: {file_path}")
                 return year, None
+            
 ###############################################################################
 
 ###############################################################################
 def unzip_gz_to_file(file_gz: Path, target_file: Path) -> None:
+    
     """
     Decompress a .gz compressed file to a specified target file.
 
@@ -230,9 +257,11 @@ def unzip_gz_to_file(file_gz: Path, target_file: Path) -> None:
 
             log_message("Decompression completed", output_file=str(target_file))
             logging.info(f"Decompression completed: {target_file}")
+            
 ###############################################################################
 
 ###############################################################################
+
 def read_nc_variable_from_unzipped_file(
     file_nc: Path,
     variable_key: str
@@ -292,9 +321,11 @@ def read_nc_variable_from_unzipped_file(
                 logging.info(f"Read variable '{variable_key}' with shape {data.shape} from {file_nc}")
 
             return data
+        
 ###############################################################################
 
 ###############################################################################
+
 def read_nc_variable_from_gz_in_memory(
     file_gz: Path,
     variable_key: str
@@ -364,9 +395,11 @@ def read_nc_variable_from_gz_in_memory(
                 logging.info(f"Read variable '{variable_key}' with shape {data.shape} from gzipped file {file_gz}")
 
             return data
+        
 ###############################################################################
 
 ###############################################################################
+
 def call_interpolator(
     varname: str,
     data_level: int,
@@ -451,4 +484,152 @@ def call_interpolator(
     finally:
         # Ensure MATLAB engine quits to free resources
         eng.quit()
+        
 ###############################################################################
+
+###############################################################################
+
+def find_file_with_keywords(
+    files: List[Any],
+    keywords: List[str],
+    description: str
+) -> Any:
+    """
+    Search for a file among a list whose name contains any of the specified keywords.
+
+    This function filters a list of file-like objects to find those whose filenames include
+    any of the provided keywords (case-insensitive). If exactly one match is found, it is returned.
+    If multiple matches are found, the user is prompted to select the exact filename.
+    If no matches are found, the user is prompted to input the filename manually.
+
+    Parameters
+    ----------
+    files : list of file-like objects
+        List of objects with a `.name` attribute representing the filename.
+    keywords : list of str
+        List of keywords to search for in filenames (case-insensitive).
+    description : str
+        Description of the file purpose, used in prompts to the user.
+
+    Returns
+    -------
+    file-like object
+        The selected file object matching the keywords or user input.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if the user-input filename does not exist among the candidate files or in the folder.
+
+    Example
+    -------
+    >>> files = [Path("data_obs.nc"), Path("data_sim.nc"), Path("readme.txt")]
+    >>> keywords = ["obs", "observed"]
+    >>> selected_file = find_file_with_keywords(files, keywords, "observed data")
+    >>> print(selected_file.name)
+    data_obs.nc
+    """
+    # Filter files whose names contain any keyword (case-insensitive)
+    matches = [f for f in files if any(k in f.name.lower() for k in keywords)]
+
+    # If exactly one match, return it directly
+    if len(matches) == 1:
+        return matches[0]
+
+    # If multiple matches, ask user to specify the exact filename
+    elif len(matches) > 1:
+        print(f"Multiple candidate files found for {description}: {[f.name for f in matches]}")
+        chosen = input(f"Please enter the exact filename to use for {description}: ").strip()
+        
+        # Check if user's choice is among the matches
+        chosen_path = [f for f in matches if f.name == chosen]
+        if chosen_path:
+            return chosen_path[0]
+            # Note: unreachable code after return - print is redundant here
+        else:
+            # Raise error if chosen file is not found among candidates
+            raise FileNotFoundError(f"File named '{chosen}' not found among candidates.")
+
+    # If no matches found, ask user to input filename directly from all files
+    else:
+        chosen = input(f"No files matching keywords for {description} found.\nPlease enter the filename for {description}: ").strip()
+        chosen_path = [f for f in files if f.name == chosen]
+        if chosen_path:
+            return chosen_path[0]
+            # Note: unreachable code after return - print is redundant here
+        else:
+            # Raise error if chosen file is not found in the entire folder
+            raise FileNotFoundError(f"File named '{chosen}' not found in the folder.")
+
+###############################################################################
+
+###############################################################################
+
+def select_3d_variable(ds: xr.Dataset, label: str) -> xr.DataArray:
+    """
+    Select a 3D variable from an xarray Dataset, prompting the user if multiple candidates exist.
+
+    This function searches for variables within the given Dataset that have exactly
+    three dimensions. If none are found, it raises an error. If multiple 3D variables
+    are found, it prompts the user to select one by displaying the variable names and shapes.
+    If only one 3D variable exists, it is selected automatically.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The xarray Dataset containing the variables to search.
+    label : str
+        A descriptive label for the Dataset, used in prompts and error messages.
+
+    Returns
+    -------
+    xr.DataArray
+        The selected 3D variable as an xarray DataArray.
+
+    Raises
+    ------
+    ValueError
+        If no 3D variables are found in the Dataset.
+
+    Example
+    -------
+    >>> var = select_3d_variable(my_dataset, "Observed data")
+    ⚠️ Multiple 3D variables found in Observed data: ['temp', 'salinity']
+    1: temp (shape: (time, depth, lat, lon))
+    2: salinity (shape: (time, depth, lat, lon))
+    Select variable number: 1
+    """
+
+    # Filter dataset variables to those that have exactly 3 dimensions
+    candidate_vars = [v for v in ds.data_vars if ds[v].ndim == 3]
+
+    # Raise error if no 3D variables found
+    if not candidate_vars:
+        raise ValueError(f"❌ No 3D variables found in {label}.")
+
+    # If multiple 3D variables found, prompt user to select one
+    elif len(candidate_vars) > 1:
+        print(f"⚠️ Multiple 3D variables found in {label}: {candidate_vars}")
+
+        # Display each candidate variable with its index and shape for user reference
+        for i, v in enumerate(candidate_vars):
+            print(f"{i+1}: {v} (shape: {ds[v].shape})")
+
+        # Loop until user inputs a valid selection index
+        while True:
+            try:
+                idx = int(input("Select variable number: ")) - 1
+                if 0 <= idx < len(candidate_vars):
+                    var = candidate_vars[idx]
+                    break
+                else:
+                    print("Invalid selection.")
+            except ValueError:
+                print("Please enter a valid number.")
+
+    # If exactly one candidate, select it automatically
+    else:
+        var = candidate_vars[0]
+
+    # Return the selected DataArray
+    return ds[var]
