@@ -1,20 +1,36 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Data handling libraries
 import numpy as np
 import xarray as xr
 import pandas as pd
 from typing import Literal, Tuple, Dict, Union, List, Sequence
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities and stats functions
 from .time_utils import Timer
-
-from .stats_math_utils import (mean_bias, 
-                               standard_deviation_error, 
-                               std_dev,
-                               cross_correlation,
-                               unbiased_rmse)
+from .stats_math_utils import (
+    mean_bias,
+    standard_deviation_error,
+    std_dev,
+    cross_correlation,
+    unbiased_rmse,
+)
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def r_squared(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
     Calculate the coefficient of determination (r²) between observed and predicted data.
@@ -92,9 +108,11 @@ def r_squared(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, S
             logging.info(f"[Done] r_squared computed: {r2}")
 
             return r2
+        
 ###############################################################################
 
 ###############################################################################
+
 def monthly_r_squared(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute monthly R² values between model and satellite datasets over multiple years.
@@ -141,8 +159,13 @@ def monthly_r_squared(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, List
         raise TypeError("❌ Input must be a dictionary.")
 
     # Find keys for model and satellite data by searching for 'mod' and 'sat' substrings
-    model_key = next((k for k in data_dict if 'mod' in k.lower()), None)
-    sat_key = next((k for k in data_dict if 'sat' in k.lower()), None)
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
+
+    # Try to find keys that match each group
+    model_key = next((k for k in data_dict if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in data_dict if any(kw in k.lower() for kw in sat_keywords)), None)
 
     # Raise error if keys are not found to avoid silent failures
     if model_key is None or sat_key is None:
@@ -211,9 +234,11 @@ def monthly_r_squared(data_dict: Dict[str, Dict[int, List[Union[np.ndarray, List
             log_message("Completed monthly_r_squared", total_months=len(r2_monthly))
 
             return r2_monthly
+        
 ###############################################################################
 
 ###############################################################################
+
 def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, list]) -> float:
     """
     Compute weighted coefficient of determination (weighted R²) between observed and predicted data.
@@ -309,9 +334,11 @@ def weighted_r_squared(obs: Union[np.ndarray, list], pred: Union[np.ndarray, lis
             log_message("Completed weighted_r_squared")
 
             return weighted_r2
+        
 ###############################################################################
 
-###############################################################################    
+###############################################################################   
+ 
 def monthly_weighted_r_squared(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute weighted coefficient of determination (weighted R²) for each calendar month across multiple years,
@@ -366,14 +393,19 @@ def monthly_weighted_r_squared(dictionary: Dict[str, Dict[int, List[Union[np.nda
     if not isinstance(dictionary, dict):
         raise ValueError("❌ Input must be a dictionary. ❌")
 
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    if not model_keys or not sat_keys:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     if not isinstance(mod_monthly, dict) or not isinstance(sat_monthly, dict):
         raise ValueError("❌ Model and satellite data must be dictionaries keyed by year. ❌")
@@ -418,9 +450,11 @@ def monthly_weighted_r_squared(dictionary: Dict[str, Dict[int, List[Union[np.nda
             log_message("Completed monthly_weighted_r_squared", total_months=len(wr2_monthly))
 
             return wr2_monthly
+        
 ###############################################################################
 
-############################################################################### 
+###############################################################################
+ 
 def nse(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
     Compute Nash–Sutcliffe Efficiency (NSE) between observed and predicted data.
@@ -502,9 +536,11 @@ def nse(obs: Union[np.ndarray, Sequence[float]], pred: Union[np.ndarray, Sequenc
             logging.info(f"[Done] NSE computation: {nse_value}")
 
             return nse_value
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_nse(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]) -> List[float]:
     """
     Compute monthly Nash–Sutcliffe Efficiency (NSE) between model and satellite datasets.
@@ -555,17 +591,19 @@ def monthly_nse(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[floa
     if not isinstance(dictionary, dict):
         raise TypeError("❌ Input must be a dictionary containing model and satellite data keys. ❌")
 
-    # Identify keys in the dictionary that correspond to model and satellite data
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    # Ensure that both model and satellite keys are found; raise error otherwise
-    if not model_keys or not sat_keys:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    # Extract nested yearly-monthly data dictionaries for model and satellite
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     # List all years present in the data (assumed same for model and satellite)
     years = list(mod_monthly.keys())
@@ -608,9 +646,11 @@ def monthly_nse(dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[floa
             log_message("Completed monthly_nse", total_months=len(nse_monthly))
 
             return nse_monthly
+        
 ###############################################################################
 
 ############################################################################### 
+
 def index_of_agreement(obs: Union[np.ndarray, Sequence[float]], 
                        pred: Union[np.ndarray, Sequence[float]]) -> float:
     """
@@ -692,9 +732,11 @@ def index_of_agreement(obs: Union[np.ndarray, Sequence[float]],
             logging.info(f"[Done] Index of Agreement computation: {index_value}")
 
             return index_value
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_index_of_agreement(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, List[float]]]]]
 ) -> List[float]:
@@ -744,17 +786,22 @@ def monthly_index_of_agreement(
         raise TypeError("❌ Input must be a dictionary. ❌")
 
     # Find keys that likely correspond to model and satellite data (case-insensitive)
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
+
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
 
     # ===== INPUT VALIDATION =====
     # Raise error if either model or satellite keys are missing
-    if not model_keys or not sat_keys:
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary ❌")
 
     # Extract dictionaries of monthly data by year for model and satellite
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     # Check that both have the same years
     years_mod = set(mod_monthly.keys())
@@ -808,9 +855,11 @@ def monthly_index_of_agreement(
             log_message("Completed monthly_index_of_agreement", total_months=len(d_monthly))
 
             return d_monthly
+        
 ###############################################################################
 
 ############################################################################### 
+
 def ln_nse(
     obs: Union[Sequence[float], np.ndarray], 
     pred: Union[Sequence[float], np.ndarray]
@@ -900,9 +949,11 @@ def ln_nse(
             logging.info(f"[Done] Logarithmic NSE computation: {ln_nse_value}")
 
             return ln_nse_value
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_ln_nse(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
 ) -> List[float]:
@@ -946,17 +997,20 @@ def monthly_ln_nse(
     from .Efficiency_metrics import ln_nse
 
     # Identify keys in the dictionary corresponding to model and satellite data (case-insensitive)
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    # ===== INPUT VALIDATIONS =====
-    # Raise an error if expected keys are missing
-    if not model_keys or not sat_keys:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    # Extract the model and satellite data dictionaries keyed by years
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    # Extract dictionaries of monthly data by year for model and satellite
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     # Get years present in both model and satellite dictionaries
     years = list(set(mod_monthly.keys()) & set(sat_monthly.keys()))
@@ -1005,9 +1059,11 @@ def monthly_ln_nse(
             log_message("Completed monthly_ln_nse", total_months=len(ln_nse_monthly))
 
             return ln_nse_monthly
+        
 ###############################################################################
 
 ############################################################################### 
+
 def nse_j(
     obs: Union[Sequence[float], np.ndarray], 
     pred: Union[Sequence[float], np.ndarray], 
@@ -1088,9 +1144,11 @@ def nse_j(
             logging.info(f"[Done] Modified NSE computation: {modified_nse}")
 
             return modified_nse
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_nse_j(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
     j: float = 1
@@ -1138,15 +1196,20 @@ def monthly_nse_j(
     from .Efficiency_metrics import nse_j
 
     # Find keys corresponding to model and satellite data (case-insensitive)
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    # ===== INPUT VALIDATION =====
-    if not model_keys or not sat_keys:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    # Extract dictionaries of monthly data by year for model and satellite
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     years = list(mod_monthly.keys())
 
@@ -1182,9 +1245,11 @@ def monthly_nse_j(
             log_message("Completed monthly_nse_j", total_months=len(nse_j_monthly))
 
             return nse_j_monthly
+        
 ###############################################################################
 
-############################################################################### 
+###############################################################################
+ 
 def index_of_agreement_j(
     obs: Union[Sequence[float], np.ndarray], 
     pred: Union[Sequence[float], np.ndarray], 
@@ -1264,7 +1329,11 @@ def index_of_agreement_j(
             logging.info(f"[Done] Modified Index of Agreement computation: {modified_index}")
 
             return modified_index
+        
 ############################################################################### 
+
+############################################################################### 
+
 def monthly_index_of_agreement_j(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]],
     j: float = 1
@@ -1313,17 +1382,20 @@ def monthly_index_of_agreement_j(
     from .Efficiency_metrics import index_of_agreement_j
 
     # Identify keys containing model and satellite data
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    # ===== INPUT VALIDATION =====
-    # Check keys exist in input dictionary
-    if not model_keys or not sat_keys:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    # Extract monthly data dictionaries for model and satellite
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    # Extract dictionaries of monthly data by year for model and satellite
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     # List all years available in the dataset
     years = list(mod_monthly.keys())
@@ -1366,9 +1438,11 @@ def monthly_index_of_agreement_j(
             log_message("Completed monthly_index_of_agreement_j", total_months=len(d_j_monthly))
 
             return d_j_monthly
+        
 ###############################################################################
 
 ############################################################################### 
+
 def relative_nse(
     obs: Union[Sequence[float], np.ndarray], 
     pred: Union[Sequence[float], np.ndarray]
@@ -1444,9 +1518,11 @@ def relative_nse(
             logging.info(f"[Done] Relative NSE computation: {rel_nse_value}")
 
             return rel_nse_value
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_relative_nse(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
 ) -> List[float]:
@@ -1503,16 +1579,20 @@ def monthly_relative_nse(
         raise TypeError("❌ Input must be a dictionary ❌")
 
     # Identify model and satellite keys (case-insensitive)
-    model_keys = [k for k in dictionary if 'mod' in k.lower()]
-    sat_keys = [k for k in dictionary if 'sat' in k.lower()]
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    if not model_keys:
-        raise KeyError("❌ Model key containing 'mod' not found in the dictionary ❌")
-    if not sat_keys:
-        raise KeyError("❌ Satellite key containing 'sat' not found in the dictionary ❌")
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
 
-    mod_monthly = dictionary[model_keys[0]]
-    sat_monthly = dictionary[sat_keys[0]]
+    if not model_key or not sat_key:
+        raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
+
+    # Extract dictionaries of monthly data by year for model and satellite
+    mod_monthly = dictionary[model_key]
+    sat_monthly = dictionary[sat_key]
 
     # Validate that mod_monthly and sat_monthly are dicts
     if not isinstance(mod_monthly, dict):
@@ -1576,9 +1656,11 @@ def monthly_relative_nse(
             log_message("Completed monthly_relative_nse", total_months=len(e_rel_monthly))
 
             return e_rel_monthly
+        
 ###############################################################################
 
 ############################################################################### 
+
 def relative_index_of_agreement(
     obs: Union[Sequence[float], np.ndarray], 
     pred: Union[Sequence[float], np.ndarray]
@@ -1666,9 +1748,11 @@ def relative_index_of_agreement(
             logging.info(f"[Done] Relative Index of Agreement computation: {ria_value}")
 
             return ria_value
+        
 ###############################################################################
 
 ############################################################################### 
+
 def monthly_relative_index_of_agreement(
     dictionary: Dict[str, Dict[int, List[Union[np.ndarray, list]]]]
 ) -> List[float]:
@@ -1722,15 +1806,18 @@ def monthly_relative_index_of_agreement(
     from .Efficiency_metrics import relative_index_of_agreement
 
     # Find dictionary keys corresponding to model and satellite data
-    model_key = next((k for k in dictionary if 'mod' in k.lower()), None)
-    sat_key = next((k for k in dictionary if 'sat' in k.lower()), None)
+    # Define keyword groups for matching
+    model_keywords = ['sim', 'simulated', 'model', 'mod']
+    sat_keywords = ['obs', 'observed', 'sat', 'satellite']
 
-    # ===== INPUT VALIDATION =====
-    # Raise error if model or satellite keys are missing
-    if model_key is None or sat_key is None:
+    # Try to find keys that match each group
+    model_key = next((k for k in dictionary if any(kw in k.lower() for kw in model_keywords)), None)
+    sat_key = next((k for k in dictionary if any(kw in k.lower() for kw in sat_keywords)), None)
+
+    if not model_key or not sat_key:
         raise KeyError("❌ Model or satellite key not found in the dictionary. ❌")
 
-    # Extract monthly data for model and satellite
+    # Extract dictionaries of monthly data by year for model and satellite
     mod_monthly = dictionary[model_key]
     sat_monthly = dictionary[sat_key]
 
@@ -1775,9 +1862,11 @@ def monthly_relative_index_of_agreement(
             log_message("Completed monthly_relative_index_of_agreement", total_months=len(d_rel_monthly))
 
             return d_rel_monthly
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_spatial_efficiency(
     model_da: xr.DataArray, 
     sat_da: xr.DataArray, 
@@ -1897,9 +1986,11 @@ def compute_spatial_efficiency(
 
             # Return the full set of spatial efficiency metrics
             return mb_all, sde_all, cc_all, rm_all, ro_all, urmse_all
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.DataArray, ocean_mask: xr.DataArray) -> pd.DataFrame:
     """
     Compute daily error statistics between model and satellite SST data within a specified basin mask.
@@ -2019,9 +2110,11 @@ def compute_error_timeseries(model_sst_data: xr.DataArray, sat_sst_data: xr.Data
     stats_df = pd.DataFrame(stats_list, index=pd.to_datetime(dates))
 
     return stats_df
+
 ###############################################################################
 
 ###############################################################################
+
 def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) -> dict:
     """
     Compute error statistics between model and satellite data for a single time slice.
@@ -2046,7 +2139,7 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
             Root Mean Square Error after removing mean bias.
         - 'std_error' : float
             Standard deviation of the model-satellite difference.
-        - 'correlation' : float
+        - 'cross_correlation' : float
             Pearson correlation coefficient between model and satellite.
 
         If no valid data pairs exist, all values are returned as np.nan.
@@ -2082,7 +2175,7 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
                 mean_bias=np.nan,
                 unbiased_rmse=np.nan,
                 std_error=np.nan,
-                correlation=np.nan
+                cross_correlation=np.nan
             )
 
         # Extract only the valid model and satellite values
@@ -2094,5 +2187,5 @@ def compute_stats_single_time(model_slice: np.ndarray, sat_slice: np.ndarray) ->
             mean_bias=mean_bias(m_valid, o_valid),
             unbiased_rmse=unbiased_rmse(m_valid, o_valid),
             std_error=standard_deviation_error(m_valid, o_valid),
-            correlation=cross_correlation(m_valid, o_valid)
+            cross_correlation=cross_correlation(m_valid, o_valid)
         )
