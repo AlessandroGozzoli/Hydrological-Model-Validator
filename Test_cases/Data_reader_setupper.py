@@ -276,7 +276,7 @@ days in the timeseries, missing data or empty fields\n""")
     
         print("The cloud coverage data is being saved in the folder user by the data analysis scripts")
         output_path_to_analysis = os.path.join(BaseDIR, "PROCESSING_INPUT")
-        os.makedirs(output_path, exist_ok=True)
+        os.makedirs(output_path_to_analysis, exist_ok=True)
         print(f"The folder is named {output_path_to_analysis}")
     
         print("Saving the available data/cloud coverage data...")
