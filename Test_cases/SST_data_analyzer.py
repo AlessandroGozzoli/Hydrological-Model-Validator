@@ -222,7 +222,7 @@ the necessary dictionaries...""")
 
     # Generate datetime index (Daily from 2000 to 2009 (used only with the full
     # dataset, not provided as test case data due to its size))
-    dates = pd.date_range(start='2000-01-01', end='2009-12-31', freq='D')
+    dates = pd.date_range(start='2000-01-01', end='2000-12-31', freq='D')
 
     # ----- CREATING DATETIME-INDEXED SERIES -----
 
@@ -273,13 +273,12 @@ the necessary dictionaries...""")
 better handle them, the analysis can begin...
           
 \033[91m⚠️ HEADS UP ⚠️
-To ensure that the code runs smoothly the plots will be
-displayed only for 3 seconds. This time can be changed
-in the script. After the plot's window closes it will be
+To ensure that the code runs smoothly the plots will not
+be displayed. After the plot's window closes it will be
 saved in the appropriate folder for further analysis.\033[0m
                                                                     
-This is done to keep the test case running smoothly even as a
-background process while the user does someting else!""")
+This is done to keep the test case running smoothly and to avoid
+memory overload""")
 
     input("Please press any key to confirm and move on: \n")
     print(border)
@@ -539,105 +538,104 @@ Before doing the analysis some pre-processing needs to be done""")
     geo_coords = compute_geolocalized_coords(grid_shape, epsilon, x_start, x_step, y_start, y_step)
     print("\033[92m✅ Geolocalization complete! \033[0m")
     print('*'*45)
-
+    
     # ----- WARNING AND RESAMPLING -----
     print("""\n--- Data Resampling Notice ---
 This dataset must be resampled to obtain *monthly averages*, which are
 required for the subsequent analyses (tailored to monthly/yearly data).
-\n⚠️  Resampling is computationally intensive, especially on the full dataset.
+
+⚠️  Resampling is computationally intensive, especially on the full dataset.
 Three options are available:
 1. Perform in-code resampling using parallel Dask processes.
-2. Save the dataset and use an external tool like CDO for resampling.\n
+2. Save the dataset and use an external tool like CDO for resampling.
 3. Save the dataset to resample using another program.
-\nThe resampling using a CDO is the current fastest method
-but in this test case the already resampled file is already provided!""")
 
-    # ----- GET RESPONSES FROM USER ------
-    resample = input("→ Proceed with in-code resampling? (yes/no): ").strip().lower()
-    do_resample = resample in ["yes", "y"]
+The resampling using CDO is the current fastest method,
+but in this test case the already resampled file is already provided!
+""")
 
-    cdo = input("→ Run the CDO directly? (yes/no): ").strip().lower()
-    do_cdo = cdo in ["yes", "y"]
+    # ----- GET INITIAL USER DECISION -----
+    choice = input("→ Choose a resampling option (in-code / cdo / save / skip): ").strip().lower()
 
-    save = input("→ Save the data to resample in another way? (yes/no): ").strip().lower()
-    do_save = save in ["yes", "y"]
+    if choice in ["in-code", "code", "1"]:
+        # ----- 1ST CHECK -----
+        print("\n✅ Starting parallel resampling using Dask...")
+        
+        # ----- CUTTING DATA IN CHUNKS TO SPEED UP -----
+        model_sst_chunked = model_sst.chunk({'time': 100})
+        sat_sst_chunked = sat_sst.chunk({'time': 100})
+        
+        # ----- PERFORM THE RESAMPLING, TAKES A WHILE -----
+        model_sst_data, sat_sst_data = resample_and_compute(model_sst_chunked, sat_sst_chunked)
+        print("✅ Resampling completed.\n")
+
+    elif choice in ["cdo", "2"]:
+        # ----- 2ND CHECK -----
+        print("Saving daily SST data for external resampling via CDO...")
+        model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
+        sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
+        print("✅ Files saved to:", IDIR, "\n")
+        
+        print("Running the CDO...")
+        print("Firstly the model data...")
+        
+        # ----- BUILD THE PATHS AS LINUX -----
+        input_file = Path("/mnt") / IDIR / "model_sst_daily.nc"
+        output_file = Path("/mnt") / IDIR / "model_sst_monthly.nc"
+        
+        # ----- RUN THE CDO -----
+        subprocess.run(["/usr/bin/cdo", "-v", "monmean", input_file, output_file], check=True)
+        print("The model data has been resampled!")
+        
+        # ----- REDO THE SAME FOR THE SATELLITE -----
+        print("Onto the satellite data...")
+        input_file_sat = os.path.join(IDIR, "sat_sst_daily.nc")
+        output_file_sat = os.path.join(IDIR, "sat_sst_monthly.nc")
+        
+        subprocess.run(["cdo", "-v", "monmean", input_file_sat, output_file_sat], check=True)
+        print("The satellite data has been resampled!")
+
+    elif choice in ["save", "3"]:
+        # ----- 3RD CHECK -----
+        print("Saving daily SST data for external resampling via another tool...")
+        # ----- ONLY SAVE -----
+        model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
+        sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
+        print("✅ Files saved to:", IDIR, "\n")
 
     # ----- EXTREME SCENARIO, EITHER EXAMPLE DATA OR KILL -----
-    if not do_resample and not do_cdo:
-        check = input("Are you using the monthly resampled datasets provided in the /Data folder? (Yes/No): ")
+    elif choice in ["skip", "4"]:
+        check = input("Are we using the already resampled datasets? (Yes/No): ").strip().lower()
         if check in ["yes", "y"]:
             print("Good! We can move on then!")
-        
-            # ----- LOAD NEW DATASETS -----    
             print("Loading the monthly datasets...")
+
+            # ----- LOAD NEW DATASETS -----   
             model_sst_monthly = xr.open_dataset(IDIR / "model_sst_monthly.nc")
             sat_sst_monthly = xr.open_dataset(IDIR / "sat_sst_monthly.nc")
-            print("The datasets have been loaded!")
-            print('-'*45)
+            print("✅ Datasets loaded!")
 
             print("Fetching the data...")
             model_sst_data = model_sst_monthly["ModData_interp"]
             sat_sst_data = sat_sst_monthly["SatData_complete"]
-        
+
         else:
-            print("\n❌ No action selected. The following analysis cannot progress without resampling.")
+            print("\n❌ No valid resampling path selected. Cannot proceed. ❌")
             exit()
 
-    # ----- 1ST CHECK -----
-    if do_resample:
-        print("\n✅ Starting parallel resampling using Dask...")
-    
-        # ----- CUTTING DATA IN CHUNKS TO SPEED UP -----
-        model_sst_chunked = model_sst.chunk({'time': 100})
-        sat_sst_chunked = sat_sst.chunk({'time': 100})
-
-        # ----- PERFORM THE RESAMPLING, TAKES A WHILE -----
-        model_monthly, sat_monthly = resample_and_compute(model_sst_chunked, sat_sst_chunked)
-        
-        print("✅ Resampling completed.\n")
-    
-    # ----- 2ND CHECK -----
-    if do_save:
-    
-        # ----- ONLY SAVE -----
-        print("Saving daily SST data for external resampling via CDO...")
-        model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
-        sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
-        print("✅ Files saved to:", IDIR, "\n")
-
-    # ----- 3RD CHECK -----
-    if do_cdo:
-        print("Saving daily SST data for external resampling via CDO...")
-        model_sst.to_netcdf(Path(IDIR, "model_sst_daily.nc"))
-        sat_sst.to_netcdf(Path(IDIR, "sat_sst_daily.nc"))
-        print("✅ Files saved to:", IDIR, "\n")
-
-        print("Running the CDO...")
-        print("Firstly the model data...")
-    
-        # ----- BUILD THE PATHS AS LINUX -----
-        input_file = Path("/mnt") / IDIR / "model_sst_daily.nc"
-        output_file = Path('/mnt/', IDIR, "model_sst_monthly.nc")
-
-        # ----- RUN THE CDO -----
-        subprocess.run(["/usr/bin/cdo", "-v", "monmean", input_file, output_file], check=True)
-        print("The model data has been resampled!")
-    
-        # ----- REDO THE SAME FOR THE SATELLITE
-        print("Onto the satellite data...")
-        input_file_sat = os.path.join(IDIR, "sat_sst_daily.nc")
-        output_file_sat = os.path.join(IDIR, "sat_sst_monthly.nc")
-
-        subprocess.run(["cdo", "-v", "monmean", input_file_sat, output_file_sat], check=True)
-        print("The satellite data has been resampled!")
+    else:
+        print("\n❌ Invalid input. Please choose one of the listed options. ❌")
+        exit()
     
     # ----- GET BACK TO THE ANALYSIS -----
 
     # ----- APPLY THE MASK -----
     # ----- REUSES THE SAME FROM THE DATA SETUPPING -----
     print("Masking the datasets...")
-    model_sst_masked = model_sst_data.where(ocean_mask)
-    sat_sst_masked = sat_sst_data.where(ocean_mask)
+    mask_da = xr.DataArray(Mfsm)
+    mask_expanded = mask_da.expand_dims(time=model_sst_data.time)
+    model_sst_masked = model_sst_data.where(mask_expanded)
+    sat_sst_masked = sat_sst_data.where(mask_expanded)
 
     # ----- DROP THE BOUNDS DIMENSION IF IT'S THERE -----
     print("Dropping the time bounds dimension...")
@@ -647,7 +645,7 @@ but in this test case the already resampled file is already provided!""")
 
     # ----- ALIGN AS A FAILSAFE -----
     print("Aligning the data...")
-    model_sst_data, sat_sst_data = xr.align(model_sst_data, sat_sst_data, join="inner")
+    model_sst_data, sat_sst_data = xr.align(model_sst_masked, sat_sst_masked, join="inner")
 
     # ----- ADD MONTH/YEAR -----
     model_sst_masked = model_sst_masked.assign_coords(
@@ -687,8 +685,8 @@ but in this test case the already resampled file is already provided!""")
 
     # ----- DETREND -----
     print("Detrending the data...")
-    model_detrended = detrend_dim(model_sst_data, dim='time', mask=ocean_mask)
-    sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=ocean_mask)
+    model_detrended = detrend_dim(model_sst_data, dim='time', mask=mask_expanded)
+    sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=mask_expanded)
     print("Data detrended!")
 
     # ----- 2ND COMPUTATION, ALSO MONTHLY AVG, DETRENDED DATA -----
@@ -823,7 +821,7 @@ but in this test case the already resampled file is already provided!""")
 
     # ----- COMPUTING THE YEARLY METRCIS -----
     # ----- 1ST METRICS, YEARLY AVG, RAW DATA -----
-    print("MOving onto the yearly data...")
+    print("Moving onto the yearly data...")
     print("Computing the metrics from the raw data...")
     mb_raw, sde_raw, cc_raw, rm_raw, ro_raw, urmse_raw = compute_spatial_efficiency(model_sst_masked, sat_sst_masked, time_group="year")
 
@@ -847,8 +845,8 @@ but in this test case the already resampled file is already provided!""")
 
     # ----- DETREND -----
     print("Detrending the data...")
-    model_detrended = detrend_dim(model_sst_data, dim='time', mask=ocean_mask)
-    sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=ocean_mask)
+    model_detrended = detrend_dim(model_sst_data, dim='time', mask=mask_expanded)
+    sat_detrended = detrend_dim(sat_sst_data, dim='time', mask=mask_expanded)
     print("Data detrended!")
 
     # ----- 2ND COMPUTATION, ALSO YEARLY AVG, DETRENDED DATA -----
