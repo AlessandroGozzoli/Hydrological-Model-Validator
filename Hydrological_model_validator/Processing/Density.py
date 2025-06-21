@@ -1,20 +1,34 @@
-import gsw
-import numpy as np
-from typing import Dict, List, Union
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Union
 
+# Third-party libraries
+import gsw
+import numpy as np
+
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities and file I/O
 from .time_utils import Timer
-
-from .utils import (infer_years_from_path, temp_threshold, 
-                    hal_threshold, build_bfm_filename)
-
+from .utils import infer_years_from_path, temp_threshold, hal_threshold, build_bfm_filename
 from .file_io import read_nc_variable_from_gz_in_memory
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def compute_density_bottom(temperature_data: dict,
                            salinity_data: dict,
                            Bmost: np.ndarray,
@@ -168,9 +182,11 @@ def compute_density_bottom(temperature_data: dict,
             log_message("Completed compute_density_bottom", total_years=len(density_data))
             logging.info("[Done] compute_density_bottom completed successfully")
             return density_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_Bmost(mask3d: np.ndarray) -> np.ndarray:
     """
     Compute a 2D array by summing the 3D mask array along the depth axis.
@@ -223,9 +239,11 @@ def compute_Bmost(mask3d: np.ndarray) -> np.ndarray:
             logging.info(f"[Done] compute_Bmost result shape {result.shape}")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_Bleast(mask3d: np.ndarray) -> np.ndarray:
     """
     Extract the first (top) layer from a 3D mask array along the depth axis.
@@ -273,9 +291,11 @@ def compute_Bleast(mask3d: np.ndarray) -> np.ndarray:
             logging.info(f"[Done] compute_Bleast result shape {result.shape}")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def filter_dense_water_masses(
     density_data: Dict[int, List[np.ndarray]],
     threshold: float = 1029.2
@@ -358,9 +378,11 @@ def filter_dense_water_masses(
             logging.info(f"[Done] Filtering complete for {len(filtered_data)} years")
 
             return filtered_data
+        
 ###############################################################################
 
 ###############################################################################
+
 def calc_density(
     temp_3d: np.ndarray,
     sal_3d: np.ndarray,
@@ -482,9 +504,11 @@ def calc_density(
             logging.info(f"[Done] Density calculation done with method '{density_method}'")
 
             return density
+        
 ###############################################################################
 
 ###############################################################################
+
 def compute_dense_water_volume(
     IDIR: Union[str, Path],
     mask3d: np.ndarray,
