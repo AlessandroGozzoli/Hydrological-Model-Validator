@@ -1321,7 +1321,7 @@ def test_basic_functionality():
     # Ensure the output has a row for each time step in the model data
     assert df.shape[0] == model.sizes['time']
     # Check that the output contains all expected statistical metrics
-    assert all(col in df.columns for col in ["mean_bias", "unbiased_rmse", "std_error", "correlation"])
+    assert all(col in df.columns for col in ["mean_bias", "unbiased_rmse", "std_error", "cross_correlation"])
 
 
 # Test that mean_bias is zero when model and satellite data are all zeros.
@@ -1392,7 +1392,7 @@ def test_normal_case():
     stats = compute_stats_single_time(m, o)
     assert isinstance(stats, dict)
     # Verify all expected statistics keys are present
-    assert all(key in stats for key in ["mean_bias", "unbiased_rmse", "std_error", "correlation"])
+    assert all(key in stats for key in ["mean_bias", "unbiased_rmse", "std_error", "cross_correlation"])
     # mean_bias should match the average difference between model and observation values
     np.testing.assert_almost_equal(stats["mean_bias"], np.mean(m - o))
 
@@ -1408,7 +1408,7 @@ def test_partial_nans():
     # mean_bias should be computed only from valid pairs
     np.testing.assert_almost_equal(stats["mean_bias"], np.mean(expected_m - expected_o))
     # correlation should be perfect because valid points are identical
-    assert np.isclose(stats["correlation"], 1.0)
+    assert np.isclose(stats["cross_correlation"], 1.0)
 
 
 # Test that all returned stats are NaN when all input values are NaN.
@@ -1420,7 +1420,7 @@ def test_all_nans():
     assert np.isnan(stats["mean_bias"])
     assert np.isnan(stats["unbiased_rmse"])
     assert np.isnan(stats["std_error"])
-    assert np.isnan(stats["correlation"])
+    assert np.isnan(stats["cross_correlation"])
 
 
 # Test that stats reflect zero error and correlation NaN on perfectly matching inputs.
@@ -1433,5 +1433,5 @@ def test_perfect_match_single():
     assert np.isclose(stats["unbiased_rmse"], 0)
     assert np.isclose(stats["std_error"], 0)
     # Correlation can be NaN due to zero variance, which is acceptable here
-    assert np.isnan(stats["correlation"]) or np.isclose(stats["correlation"], 1)
+    assert np.isnan(stats["cross_correlation"]) or np.isclose(stats["cross_correlation"], 1)
 
