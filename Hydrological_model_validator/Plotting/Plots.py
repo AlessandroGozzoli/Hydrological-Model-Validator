@@ -30,7 +30,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from scipy.signal import csd
 
-# Custom Imports
+# Module imports
 from .formatting import (plot_line,
                         get_min_max_for_identity_line,
                         get_variable_label_unit,
@@ -63,7 +63,7 @@ from .default_plot_options import (default_plot_options_ts,
 ##                                                                           ##
 ###############################################################################
 
-###############################################################################
+
 def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Series, list, None], **kwargs: Any) -> None:
     """
     Plot time series of daily mean values from multiple datasets along with BIAS.
@@ -138,7 +138,7 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
             raise ValueError("If 'variable_name' is not provided, both 'variable' and 'unit' must be specified.")
 
     # ----- BASIN AVERAGE LABEL -----
-    title = f'Daily Mean Values for {options.variable_name} Datasets'
+    title = f'Daily Mean Values for {options.variable} Datasets'
     if options.BA:
         title += ' (Basin Average)'
 
@@ -183,7 +183,7 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
         ax2 = fig.add_subplot(gs[1])
         ax2.plot(BIAS.index, BIAS.values, color='k')
 
-        ax2.set_title(f'BIAS ({options.variable_name})', fontsize=options.bias_title_fontsize, fontweight='bold')
+        ax2.set_title(f'BIAS ({options.variable})', fontsize=options.bias_title_fontsize, fontweight='bold')
         ax2.set_ylabel(f'BIAS {options.unit}', fontsize=options.label_fontsize)
         ax2.tick_params(width=2)
         ax2.grid(True, linestyle='--')
@@ -195,16 +195,15 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
     output_path = Path(options.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    filename = f'{options.variable_name}_timeseries.png'
+    filename = f'{options.variable}_timeseries.png'
     save_path = output_path / filename
     plt.savefig(save_path, **options.savefig_kwargs)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
+    
 ###############################################################################
     
 ###############################################################################
+
 def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) -> None:
     """
     Generate a scatter plot comparing daily mean values between model and satellite datasets.
@@ -332,13 +331,12 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
     filename = f'{variable_name or options.variable or "scatterplot"}_scatterplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
+    
 ###############################################################################
 
 ###############################################################################    
+
 def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Series]], **kwargs: Any) -> None:
     """
     Generates seasonal scatter plots (DJF, MAM, JJA, SON) and a combined plot of model vs satellite daily means.
@@ -511,11 +509,8 @@ def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Serie
         plt.tight_layout()
 
         # ----- SAVING AND PRINTING THE PLOT -----
-        filename = f"{options.variable_name}_{season_name}_scatterplot.png"
+        filename = f"{options.variable}_{season_name}_scatterplot.png"
         plt.savefig(output_path / filename)
-        plt.show(block=False)
-        plt.draw()
-        plt.pause(3)
         plt.close()
 
         # ----- APPEND THE DATA TO FINAL PLOT DATAFRAME -----
@@ -583,15 +578,14 @@ def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Serie
         plt.tight_layout()
 
         # ----- SAVE AND PLOT -----
-        filename = f"{options.variable_name}_all_seasons_scatterplot.png"
+        filename = f"{options.variable}_all_seasons_scatterplot.png"
         plt.savefig(output_path / filename)
-        plt.show(block=False)
-        plt.draw()
-        plt.pause(3)
         plt.close()
+        
 ###############################################################################
         
 ###############################################################################
+
 def whiskerbox(data_dict, **kwargs):
     """
     Create a boxplot comparing monthly values of model and satellite data.
@@ -710,13 +704,12 @@ def whiskerbox(data_dict, **kwargs):
     filename = f'{variable}_boxplot.png'
     save_path = output_path / filename
     plt.savefig(save_path)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(options.pause_time if hasattr(options, 'pause_time') else 3)
     plt.close()
+    
 ###############################################################################
     
 ###############################################################################
+
 def violinplot(data_dict, **kwargs):
     """
     Plot a violin plot comparing monthly model and satellite values.
@@ -814,13 +807,12 @@ def violinplot(data_dict, **kwargs):
     # ----- PRINT THE PLOT AND SAVE -----
     filename = f'{options.variable}_violinplot.png'
     plt.savefig(output_path / filename)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
+    
 ###############################################################################    
 
 ###############################################################################
+
 def efficiency_plot(total_value, monthly_values, **kwargs):
     """
     Plot efficiency metric (e.g., NSE) for each month with color-coded markers.
@@ -952,13 +944,12 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     output_path.mkdir(parents=True, exist_ok=True)
 
     plt.savefig(output_path / f'{options.metric_name}.png')
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
+    
 ###############################################################################   
 
-###############################################################################   
+###############################################################################
+   
 def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, **kwargs):
     """
     Plot spatial efficiency metric maps (e.g., correlation, NSE) by month or year with Cartopy projection.
@@ -992,7 +983,9 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     - cmap (str or Colormap)           : Colormap to use (e.g., "coolwarm").
     - vmin, vmax (float)               : Min and max values for colorbar.
     - suffix (str)                     : Suffix for plot title and filename.
-    - suptitle_fontsize (int)          : Font size of the super title.
+    - suptitle_fontsize (int)          : Font size of the super title (if the 
+                                            resulting number of columns is 1
+                                            the value will be reduced by 6).
     - suptitle_fontweight (str)        : Font weight of the super title.
     - suptitle_y (float)               : Vertical position of the super title.
     - title_fontsize (int)             : Font size of subplot titles.
@@ -1004,7 +997,7 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     - figsize_per_plot (tuple)         : Size per subplot (width, height).
     - max_cols (int)                   : Max number of columns in subplot grid.
     - epsilon (float)                  : Padding fallback if not in geo_coords.
-    - lat_offset_base (float)          : Latitude offset for label placement.
+    - lat_offset_base (float)          : Extra lat offset if needed.
     - gridline_color (str)             : Color of gridlines.
     - gridline_style (str)             : Line style of gridlines (e.g., "--").
     - gridline_alpha (float)           : Gridline transparency.
@@ -1059,33 +1052,31 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     else:
         raise ValueError("data_array must have either 'month' or 'year' dimension.")
 
-    # ----- SETUP THE PAGE ------
-    max_cols = options["max_cols"]
-    nrows = int(np.ceil(n_plots / max_cols))
-    remainder = n_plots % max_cols
-    full_rows = n_plots // max_cols
+    # ----- COMPUTE OPTIMAL GRID LAYOUT -----
+    nrows = int(np.ceil(np.sqrt(n_plots)))
+    ncols = int(np.ceil(n_plots / nrows))
+
 
     # ----- SETUP THE FIGURE AND SIZE -----
-    figsize = (options["figsize_per_plot"][0] * max_cols,
-               options["figsize_per_plot"][1] * nrows)
+    figsize = ((options["figsize_per_plot"][0] if ncols !=1 else options["figsize_per_plot"][0] + 3) * ncols,
+               (options["figsize_per_plot"][1] if ncols !=1 else options["figsize_per_plot"][1] + 3) * nrows)
     fig = plt.figure(figsize=figsize, dpi=options["dpi"], constrained_layout=True)
-    gs = GridSpec(nrows, max_cols, figure=fig)
+    gs = GridSpec(nrows, ncols, figure=fig)
     axes = []
+    
+    # ----- ADD SUBPLOTS DYNAMICALLY -----
+    for i in range(n_plots):
+        row = i // ncols
+        col = i % ncols
+        ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
+        axes.append(ax)
 
-    # ----- DEFINE CORNER CASES FOR NUMBER NOT CELLS /2 OR /3 -----
-    for row in range(nrows):
-        if row < full_rows:
-            for col in range(max_cols):
-                ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
-                axes.append(ax)
-        else:
-            if remainder == 1:
-                ax = fig.add_subplot(gs[row, 1], projection=getattr(ccrs, options["projection"])())
-                axes.append(ax)
-            elif remainder == 2:
-                ax1 = fig.add_subplot(gs[row, 0], projection=getattr(ccrs, options["projection"])())
-                ax2 = fig.add_subplot(gs[row, 2], projection=getattr(ccrs, options["projection"])())
-                axes.extend([ax1, ax2])
+    # ----- HIDE UNUSED CELLS -----
+    for j in range(n_plots, nrows * ncols):
+        row = j // ncols
+        col = j % ncols
+        ax = fig.add_subplot(gs[row, col])
+        ax.axis("off")
 
     # ---- BUILD ORANGE - GREEEN COLORMAP -----
     cmap = options["cmap"]
@@ -1130,16 +1121,30 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
         formatted_unit = format_unit(unit)[1:-1]
     else:
         formatted_unit = ""
-
-    cbar = fig.colorbar(contour, ax=axes, orientation="horizontal",
-                    shrink=options["cbar_shrink"],
+        
+    if ncols == 1:
+        cbar = fig.colorbar(contour, ax=axes, orientation="horizontal",
+                    shrink=options["cbar_shrink"]+0.1,
                     ticks=np.linspace(vmin, vmax, options["cbar_ticks"]))
-    cbar.ax.tick_params(direction='in', length=32, labelsize=options["cbar_labelsize"])
 
-    if formatted_unit:
-        cbar.set_label(rf'$\left[{formatted_unit}\right]$', fontsize=18, labelpad=options["cbar_labelpad"])
+        if formatted_unit:
+            cbar.set_label(rf'$\left[{formatted_unit}\right]$', fontsize=16, labelpad=options["cbar_labelpad"])
+            cbar.ax.tick_params(labelsize=14)
+        else:
+            cbar.set_label("", fontsize=16, labelpad=options["cbar_labelpad"])
+            cbar.ax.tick_params(labelsize=14)
+    
     else:
-        cbar.set_label("", fontsize=18, labelpad=options["cbar_labelpad"])
+        cbar = fig.colorbar(contour, ax=axes, orientation="horizontal",
+                    shrink=(options["cbar_shrink"]),
+                    ticks=np.linspace(vmin, vmax, options["cbar_ticks"]))
+
+        if formatted_unit:
+            cbar.set_label(rf'$\left[{formatted_unit}\right]$', fontsize=22, labelpad=options["cbar_labelpad"])
+            cbar.ax.tick_params(labelsize=16)
+        else:
+            cbar.set_label("", fontsize=22, labelpad=options["cbar_labelpad"])
+            cbar.ax.tick_params(labelsize=16)
 
     # ----- MAKE THE TITLE -----
     detrended = kwargs.get("detrended", False)
@@ -1148,27 +1153,31 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     # Prepare unit string for title safely:
     unit_title = unit if unit is not None else ""
 
-    plt.suptitle(
-        f"{suptitle_prefix} {title_prefix} {unit_title} ({det_text}) {options['suffix']}",
-        fontsize=options["suptitle_fontsize"],
-        fontweight=options["suptitle_fontweight"],
-        y=options["suptitle_y"]
-        )
+    if ncols == 1:
+        plt.suptitle(
+            f"{suptitle_prefix} {title_prefix} {unit_title} \n ({det_text}) \n {options['suffix']}",
+            fontsize=(options["suptitle_fontsize"]-6),
+            fontweight=options["suptitle_fontweight"],
+            )
+    else :
+        plt.suptitle(
+            f"{suptitle_prefix} {title_prefix} {unit_title} ({det_text}) \n {options['suffix']}",
+            fontsize=options["suptitle_fontsize"],
+            fontweight=options["suptitle_fontweight"],
+            )
 
     # ----- SET OUTPUT PATH -----
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
     safe_title = title_prefix.replace("/", "_").replace("\\", "_")
     filename = f"{filename_prefix} {safe_title} ({det_text}) {options['suffix']}.png"
-    plt.savefig(output_path / filename)
-
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
+    plt.savefig(output_path / filename, bbox_inches='tight', pad_inches=0.2)
     plt.close()
+    
 ###############################################################################   
 
-###############################################################################   
+###############################################################################
+   
 def error_components_timeseries(
     stats_df,
     output_path,
@@ -1263,6 +1272,7 @@ def error_components_timeseries(
     if variable_name:
         title += f" ({variable_name})"
     fig.suptitle(title, fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
+    fig.subplots_adjust(top=0.85)
 
     # ----- GRID STYLE -----
     grid_style = {
@@ -1287,7 +1297,7 @@ def error_components_timeseries(
     axes[2].grid(**grid_style)
 
     # ----- CORRELATION -----
-    stats_df['correlation'].plot(ax=axes[3], color=options['correlation_color'], legend=False)
+    stats_df['cross_correlation'].plot(ax=axes[3], color=options['correlation_color'], legend=False)
     axes[3].set_ylabel('Correlation', fontsize=options['label_fontsize'])
     axes[3].grid(**grid_style)
 
@@ -1320,14 +1330,12 @@ def error_components_timeseries(
     output_path.mkdir(parents=True, exist_ok=True)
     filename = options['filename_template'].format(variable_name=variable_name)
     plt.savefig(output_path / filename)
-
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
+    
 ###############################################################################   
 
-###############################################################################      
+###############################################################################    
+  
 def plot_spectral(
     data=None,
     plot_type='PSD',
@@ -1423,10 +1431,6 @@ def plot_spectral(
         plt.xlabel('Frequency (1/day)', fontsize=options['xlabel_fontsize'])
         plt.ylabel('Aplitude', fontsize=options['ylabel_fontsize'])
         plt.title('Power Spectral Density (PSD)', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
-        plt.legend()
-        plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
-        plt.xlim(*options['freq_xlim'])
-        plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
 
     # ----- CSD -----
     elif plot_type == 'CSD':
@@ -1451,14 +1455,16 @@ def plot_spectral(
         plt.ylabel('Cross Power', fontsize=options['ylabel_fontsize'])
         labels = ', '.join([label for _, label in cloud_covers])
         plt.title(f'Cross-Spectral Density with {labels}', fontsize=options['title_fontsize'], fontweight=options['title_fontweight'])
-        plt.legend()
-        plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
-        plt.xlim(*options['freq_xlim'])
-        plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
 
     # ----- UNKNOWN TYPE -----
     else:
         raise ValueError(f"Unknown plot_type: {plot_type}")
+        
+    # ----- FINAL FORMATTING -----
+    plt.legend()
+    plt.grid(True, color=options['grid_color'], alpha=options['grid_alpha'], linestyle=options['grid_linestyle'])
+    plt.xlim(*options['freq_xlim'])
+    plt.tick_params(axis='both', which='major', labelsize=options['tick_labelsize'])
 
     # ----- SPINES -----
     ax = plt.gca()
@@ -1475,8 +1481,4 @@ def plot_spectral(
     output_path.mkdir(parents=True, exist_ok=True)
     filename = f"Spectral_Plot_{plot_type}_{variable_name}"
     plt.savefig(output_path / filename)
-
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
