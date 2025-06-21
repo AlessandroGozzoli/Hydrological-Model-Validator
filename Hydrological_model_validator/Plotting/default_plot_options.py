@@ -5,8 +5,8 @@ default_plot_options_ts = {
     "BA": False,
     "variable": None,
     "unit": None,
-    "variable_name": None,          # added
-    "output_path": None,            # added, must be specified
+    "variable_name": None,         
+    "output_path": None,           
     "figsize": (20, 8),
     "dpi": 300,
     "color_palette": itertools.cycle(['#BF636B', '#5976A2']),
@@ -41,6 +41,7 @@ default_plot_options_scatter = {
 ###############################################################################
 default_scatter_by_season_options = {
     'output_path': None,
+    "variable_name": None,
     "variable": None,
     "unit": None,
     'BA': False,
@@ -145,14 +146,13 @@ spatial_efficiency_defaults = {
     "vmin": -1.0,
     "vmax": 1.0,
     "suffix": "(Model - Satellite)",
-    "suptitle_fontsize": 20,
+    "suptitle_fontsize": 26,
     "suptitle_fontweight": "bold",
-    "suptitle_y": 1.03,
     "title_fontsize": 16,
     "title_fontweight": "bold",
     "cbar_labelsize": 12,
     "cbar_labelpad": 10,
-    "cbar_shrink": 0.6,
+    "cbar_shrink": 0.5,
     "cbar_ticks": 11,
     "figsize_per_plot": (5, 4),
     "max_cols": 3,

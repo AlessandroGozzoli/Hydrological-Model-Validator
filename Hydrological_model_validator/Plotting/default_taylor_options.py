@@ -1,6 +1,6 @@
 ###############################################################################
 default_taylor_plt_options = {
-    'figsize': (7, 7),
+    'figsize': (12, 10),
     'dpi': 300,
     'title_pad': 45,
     'title_fontsize': 16,
