@@ -868,6 +868,9 @@ def compute_fft(
 
                 # Assume all arrays have the same length; get length from first array
                 N = len(next(iter(data.values())))
+                if N == 0:
+                    raise ValueError("Input arrays have zero length; cannot compute FFT.")
+
                 freqs = fftfreq(N, dt)[:N // 2]
 
                 # Compute FFT for each array, keeping only positive frequencies
@@ -882,6 +885,9 @@ def compute_fft(
 
             else:
                 N = len(data)
+                if N == 0:
+                    raise ValueError("Input array has zero length; cannot compute FFT.")
+
                 freqs = fftfreq(N, dt)[:N // 2]
 
                 # Compute FFT and return positive frequency components
