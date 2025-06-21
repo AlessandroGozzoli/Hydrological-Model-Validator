@@ -1,31 +1,47 @@
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
+import random
+import itertools
+from types import SimpleNamespace
+from pathlib import Path
+
+# Data handling and plotting libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import skill_metrics as sm
-from pathlib import Path
-import random
 from matplotlib.lines import Line2D
-import itertools
-from types import SimpleNamespace
 
-
-from ..Processing.Taylor_computations import (compute_yearly_taylor_stats, 
-                                              build_all_points)
+# Module utils
+from ..Processing.Taylor_computations import compute_yearly_taylor_stats, build_all_points
 from ..Processing.utils import extract_options
 
+# Mosule formatting and default options
 from .formatting import get_variable_label_unit
-
-from .default_taylor_options import (default_taylor_base_options,
-                                   default_taylor_ref_marker_options,
-                                   default_taylor_data_marker_options,
-                                   default_taylor_plt_options,
-                                   default_marker_shapes,
-                                   default_monthly_taylor_base_options,
-                                   default_monthly_ref_marker_options,
-                                   default_monthly_data_marker_options,
-                                   default_month_colors,
-                                   default_monthly_plt_options)
+from .default_taylor_options import (
+    default_taylor_base_options,
+    default_taylor_ref_marker_options,
+    default_taylor_data_marker_options,
+    default_taylor_plt_options,
+    default_marker_shapes,
+    default_monthly_taylor_base_options,
+    default_monthly_ref_marker_options,
+    default_monthly_data_marker_options,
+    default_month_colors,
+    default_monthly_plt_options,
+)
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def comprehensive_taylor_diagram(data_dict, **kwargs):
     """
     Plot a comprehensive yearly Taylor diagram comparing model and satellite statistics.
@@ -186,9 +202,6 @@ def comprehensive_taylor_diagram(data_dict, **kwargs):
     
     # ----- PRINT AND SAVE PLOT -----
     plt.savefig(Path(options.output_path) / 'Taylor_diagram_summary.png')
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
 ###############################################################################
 
@@ -323,8 +336,5 @@ def monthly_taylor_diagram(data_dict, **kwargs):
     # ----- SAVE AND PRINT FIGURE -----
     save_path = output_path / "Unified_Taylor_Diagram.png"
     plt.savefig(save_path)
-    plt.show(block=False)
-    plt.draw()
-    plt.pause(3)
     plt.close()
 ###############################################################################
