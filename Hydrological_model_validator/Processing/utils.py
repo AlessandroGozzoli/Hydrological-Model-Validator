@@ -1,15 +1,33 @@
-from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
-from pathlib import Path
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import re
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
+
+# Data handling libraries
 import numpy as np
 import xarray as xr
+import pandas as pd
 
+# Logging and tracing
 import logging
 from eliot import start_action, log_message
 
+# Module utilities
 from .time_utils import Timer
 
 ###############################################################################
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
+###############################################################################
+
+
 def find_key(
     dictionary: Dict[Any, Any], 
     possible_keys: Iterable[str]
@@ -533,3 +551,30 @@ def check_numeric_data(data_dict: Dict[str, Dict[int, List[np.ndarray]]]) -> Non
 
             logging.info("Numeric data validation completed successfully")
             log_message("Completed check_numeric_data")
+            
+###############################################################################
+
+###############################################################################
+            
+def convert_dataarrays_in_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts any xarray.DataArray objects inside the DataFrame cells
+    into dictionaries with dims, coords, and data, preserving other cells.
+
+    Args:
+        df: pandas DataFrame possibly containing xarray.DataArray in cells.
+
+    Returns:
+        A new DataFrame where DataArray cells are converted to dicts.
+    """
+    def convert_cell(cell):
+        if isinstance(cell, xr.DataArray):
+            return {
+                "dims": cell.dims,
+                "coords": {k: v.values.tolist() for k, v in cell.coords.items()},
+                "data": cell.values.tolist(),
+            }
+        return cell
+
+    # Apply conversion element-wise
+    return df.map(convert_cell)
