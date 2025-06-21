@@ -1,14 +1,27 @@
-import scipy.io
-import xarray as xr
-from typing import Dict, Union
-import numpy as np
-from pathlib import Path
-import pandas as pd
+###############################################################################
+##                                                                           ##
+##                               LIBRARIES                                   ##
+##                                                                           ##
+###############################################################################
+
+# Standard library imports
 import json
+from pathlib import Path
+from typing import Dict, Union
+
+# Data handling libraries
+import numpy as np
+import pandas as pd
+import xarray as xr
+import scipy.io
 
 ###############################################################################
-
+##                                                                           ##
+##                               FUNCTIONS                                   ##
+##                                                                           ##
 ###############################################################################
+
+
 def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     """
     Save satellite longitude, latitude, and data arrays to disk in user-selected formats.
@@ -141,9 +154,11 @@ def save_satellite_data(output_path, Sat_lon, Sat_lat, SatData_complete):
     # Done
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*" * 45)
+    
 ###############################################################################
 
-###############################################################################    
+###############################################################################
+    
 def save_model_data(output_path, ModData_complete):
     """
     Save model data array to disk in user-selected formats.
@@ -248,9 +263,11 @@ def save_model_data(output_path, ModData_complete):
 
     print("\033[92m✅ The requested data has been saved!\033[0m")
     print("*" * 45)
+    
 ###############################################################################
 
-###############################################################################    
+############################################################################### 
+   
 def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output_path: Union[str, Path]) -> None:
     """
     Save each variable from a dictionary of arrays or DataArrays as separate NetCDF files.
@@ -304,9 +321,11 @@ def save_to_netcdf(data_dict: Dict[str, Union[np.ndarray, xr.DataArray]], output
         filepath = output_path / f"{var_name}.nc"
         # Save the Dataset to a NetCDF file at the specified path
         ds.to_netcdf(filepath)
+        
 ###############################################################################
 
-###############################################################################         
+###############################################################################  
+       
 def convert_to_serializable(obj):
     """
     Recursively convert an object to a form compatible with JSON serialization.
@@ -367,9 +386,11 @@ def convert_to_serializable(obj):
 
     # Fallback: return string representation
     return str(obj)
+
 ###############################################################################
 
 ############################################################################### 
+
 def save_variable_to_json(variable, output_path):
     """
     Save any Python variable to a JSON file in a serializable format.
