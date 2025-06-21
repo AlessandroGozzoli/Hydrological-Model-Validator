@@ -12,6 +12,7 @@ from Hydrological_model_validator.Processing.utils import (  # replace 'your_mod
     hal_threshold,
     find_key_variable,
     _to_dataarray,
+    convert_dataarrays_in_df
 )
 
 ###############################################################################
@@ -375,3 +376,76 @@ def test_val_is_array_like_but_not_dataarray():
     ref = create_reference_da(has_time=False)
     with pytest.raises(ValueError, match="Expected scalar or DataArray"):
         _to_dataarray(val, ref)
+        
+
+###############################################################################
+# Tests for find_key
+###############################################################################
+
+
+# Verify DataFrame without any DataArray cells remains unchanged after conversion.
+def test_convert_no_dataarray_cells_remain_unchanged():
+    df_plain = pd.DataFrame({"A": [1, 2], "B": ["foo", "bar"]})
+    result = convert_dataarrays_in_df(df_plain)
+    # No conversion should occur; result must be identical to input
+    pd.testing.assert_frame_equal(result, df_plain)
+
+
+# Verify that DataArray cells are converted properly to dicts with correct keys and values.
+def test_convert_single_dataarray_cell_to_dict():
+    da = xr.DataArray(np.array([[1, 2], [3, 4]]), dims=("x", "y"), coords={"x": [0, 1], "y": [10, 20]})
+    df = pd.DataFrame({"A": [da, 2], "B": ["foo", "bar"]})
+    result = convert_dataarrays_in_df(df)
+
+    converted = result.loc[0, "A"]
+    # Check that the cell is converted to a dict with required keys
+    assert isinstance(converted, dict), "DataArray cell should convert to dict"
+    assert set(converted.keys()) == {"dims", "coords", "data"}
+
+    # Confirm dims match
+    assert converted["dims"] == ("x", "y")
+    # Confirm coords converted properly to lists
+    assert converted["coords"] == {"x": [0, 1], "y": [10, 20]}
+    # Confirm data values converted properly
+    assert converted["data"] == [[1, 2], [3, 4]]
+
+    # Confirm other non-DataArray cells remain unchanged
+    assert result.loc[1, "A"] == 2
+    assert result.loc[0, "B"] == "foo"
+
+
+# Verify that DataFrames with all DataArray cells convert every cell properly.
+def test_convert_all_dataarray_cells():
+    da = xr.DataArray(np.array([[1, 2], [3, 4]]), dims=("x", "y"), coords={"x": [0, 1], "y": [10, 20]})
+    df = pd.DataFrame({"A": [da, da], "B": [da, da]})
+    result = convert_dataarrays_in_df(df)
+
+    for idx in df.index:
+        for col in df.columns:
+            cell = result.loc[idx, col]
+            # Each cell must be a dict with dims, coords, data keys
+            assert isinstance(cell, dict)
+            assert "dims" in cell and "coords" in cell and "data" in cell
+
+
+# Verify that an empty DataFrame returns an empty DataFrame without error.
+def test_convert_empty_dataframe():
+    df = pd.DataFrame()
+    result = convert_dataarrays_in_df(df)
+    # Result must be empty and equal to input
+    pd.testing.assert_frame_equal(result, df)
+
+
+# Verify mixed types including None, numeric, strings remain unchanged; only DataArrays convert.
+def test_convert_mixed_types_only_dataarray_converted():
+    da = xr.DataArray(np.array([[1]]), dims=("x", "y"), coords={"x": [0], "y": [0]})
+    df = pd.DataFrame({"A": [da, None], "B": [5.5, "text"]})
+    result = convert_dataarrays_in_df(df)
+
+    # DataArray cell converted
+    assert isinstance(result.loc[0, "A"], dict)
+    # None remains None
+    assert result.loc[1, "A"] is None
+    # Other types unchanged
+    assert result.loc[0, "B"] == 5.5
+    assert result.loc[1, "B"] == "text"
