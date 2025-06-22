@@ -134,7 +134,7 @@ def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
         (bound1, bound2, 'khaki'),
         (bound2, extent, 'lightcoral')
     ]:
-        fill_annular_region(ax, r_start, r_end, color=color, alpha=0.4)
+        fill_annular_region(ax, min(r_start, r_end), max(r_start, r_end), color=color, alpha=0.4)
 
     ax.set_axisbelow(True)
 
@@ -289,7 +289,7 @@ def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
     bound1, bound2 = zone_bounds
 
     for r_start, r_end, color in [(0, bound1, 'lightgreen'), (bound1, bound2, 'khaki'), (bound2, extent, 'lightcoral')]:
-        fill_annular_region(ax, r_start, r_end, color=color, alpha=0.4)
+        fill_annular_region(ax, min(r_start, r_end), max(r_start, r_end), color=color, alpha=0.4)
 
     # ---- PLOT MONTHLY DATA POINTS ----
     mod_key, _ = extract_mod_sat_keys(data_dict)
