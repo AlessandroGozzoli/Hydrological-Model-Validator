@@ -1064,19 +1064,30 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     gs = GridSpec(nrows, ncols, figure=fig)
     axes = []
     
-    # ----- ADD SUBPLOTS DYNAMICALLY -----
-    for i in range(n_plots):
-        row = i // ncols
-        col = i % ncols
-        ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
-        axes.append(ax)
+    # ----- ADD SUBPLOTS DYNAMICALLY, CENTER LAST ROW IF NEEDED -----
+    axes = []
+    if n_plots > 6 and (n_plots % ncols != 0):
+        last_row_filled = n_plots % ncols
+        pad_left = (ncols - last_row_filled) // 2
 
-    # ----- HIDE UNUSED CELLS -----
-    for j in range(n_plots, nrows * ncols):
-        row = j // ncols
-        col = j % ncols
-        ax = fig.add_subplot(gs[row, col])
-        ax.axis("off")
+        plot_index = 0
+        for row in range(nrows):
+            for col in range(ncols):
+                # If it's the last row and we're before the pad_left, skip to pad
+                if row == nrows - 1 and col < pad_left:
+                    continue
+                # If all plots are placed, break
+                if plot_index >= n_plots:
+                    break
+                ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
+                axes.append(ax)
+                plot_index += 1
+    else:
+        for i in range(n_plots):
+            row = i // ncols
+            col = i % ncols
+            ax = fig.add_subplot(gs[row, col], projection=getattr(ccrs, options["projection"])())
+            axes.append(ax)
 
     # ---- BUILD ORANGE - GREEEN COLORMAP -----
     cmap = options["cmap"]
