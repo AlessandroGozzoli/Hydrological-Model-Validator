@@ -17,12 +17,12 @@ import skill_metrics as sm
 from matplotlib.lines import Line2D
 
 # Module utils
-from ..Processing.Taylor_computations import compute_yearly_taylor_stats, build_all_points
-from ..Processing.utils import extract_options
+from Hydrological_model_validator.Processing.Taylor_computations import compute_yearly_taylor_stats, build_all_points
+from Hydrological_model_validator.Processing.utils import extract_options
 
 # Mosule formatting and default options
-from .formatting import get_variable_label_unit
-from .default_taylor_options import (
+from Hydrological_model_validator.Plotting.formatting import get_variable_label_unit
+from Hydrological_model_validator.Plotting.default_taylor_options import (
     default_taylor_base_options,
     default_taylor_ref_marker_options,
     default_taylor_data_marker_options,
@@ -51,49 +51,64 @@ def comprehensive_taylor_diagram(data_dict, **kwargs):
     data_dict : dict
         Dictionary with model and satellite data organized by year.
 
-    Keyword Arguments
-    -----------------
-    - output_path (str or Path)         : Required. Directory where the figure is saved.
-    - variable_name (str)               : Short name used to infer full variable name and unit.
-    - variable (str)                    : Full variable name (e.g., "Chlorophyll").
-    - unit (str)                        : Unit of measurement (e.g., "mg Chl/m³").
-    - marker_shapes (list of str)       : Marker symbols used for each year (e.g., ['o', 's', 'D']).
+    Other Parameters
+    ----------------
+    **kwargs
+        Additional keyword arguments include:
 
-    Plot Options
-    ------------
-    - figsize (tuple of float)          : Figure size in inches.
-    - dpi (int)                         : Plot resolution.
-    - title (str)                       : Plot title.
-    - title_fontsize (int)              : Font size of the title.
-    - title_fontweight (str or int)     : Font weight of the title.
-    - title_pad (float)                 : Padding between title and plot.
+        output_path : str or Path
+            Required. Directory where the figure is saved.
+        variable_name : str
+            Short name used to infer full variable name and unit.
+        variable : str
+            Full variable name (e.g., "Chlorophyll").
+        unit : str
+            Unit of measurement (e.g., "mg Chl/m³").
+        marker_shapes : list of str
+            Marker symbols used for each year (e.g., ['o', 's', 'D']).
 
-    Base Taylor Options
-    -------------------
-    - tickrms (list of float)           : RMSD contours for base diagram.
-    - titleRMS (str)                    : Turn RMS title on/off.
+        Plot Options:
+            figsize : tuple of float
+                Figure size in inches.
+            dpi : int
+                Plot resolution.
+            title : str
+                Plot title.
+            title_fontsize : int
+                Font size of the title.
+            title_fontweight : str or int
+                Font weight of the title.
+            title_pad : float
+                Padding between title and plot.
 
-    Reference Marker Options (Prefix with 'Ref_')
-    ---------------------------------------------
-    - Ref_markersymbol (str)            : Marker symbol for reference overlay.
-    - Ref_markercolor (str or tuple)    : Marker face or edge color.
-    - Ref_markersize (float)            : Marker size.
+        Base Taylor Options:
+            tickrms : list of float
+                RMSD contours for base diagram.
+            titleRMS : str
+                Turn RMS title on/off.
 
-    Data Marker Options
-    -------------------
-    - markersymbol (str)                : Marker symbol for yearly points.
-    - markercolor (str or tuple)        : Marker color.
-    - markersize (float)                : Marker size.
+        Reference Marker Options (prefix `Ref_`):
+            Ref_markersymbol : str
+                Marker symbol for reference overlay.
+            Ref_markercolor : str or tuple
+                Marker face or edge color.
+            Ref_markersize : float
+                Marker size.
+
+        Data Marker Options:
+            markersymbol : str
+                Marker symbol for yearly points.
+            markercolor : str or tuple
+                Marker color.
+            markersize : float
+                Marker size.
 
     Raises
     ------
     ValueError
         If neither 'variable_name' nor both 'variable' and 'unit' are provided.
-
-    Saves
-    -----
-    Taylor_diagram_summary.png : Saved in output_path
     """
+
     # ----- CONVERT KWARGS TO NAMESPACE -----
     options = SimpleNamespace(**kwargs)
     options.output_path = getattr(options, "output_path", None)
@@ -229,31 +244,40 @@ def monthly_taylor_diagram(data_dict, **kwargs):
     data_dict : dict
         Dictionary containing model and satellite data for each month and year.
 
-    Keyword Arguments
-    -----------------
-    - output_path (str or Path)         : Required. Directory where the figure is saved.
-    - variable_name (str)               : Short name used to infer full variable name and unit.
-    - variable (str)                    : Full variable name (e.g., "Chlorophyll").
-    - unit (str)                        : Unit of measurement (e.g., "mg Chl/m³").
+    Other Parameters
+    ----------------
+    **kwargs
+        Additional keyword arguments include:
 
-    Plot Options
-    ------------
-    - title (str)                       : Plot title.
-    - figsize (tuple of float)          : Figure size in inches.
-    - dpi (int)                         : Plot resolution.
-    - title_pad (float)                 : Padding between title and plot.
-    - title_fontsize (int)              : Font size of the title.
-    - title_fontweight (str or int)     : Font weight of the title.
+        output_path : str or Path
+            Required. Directory where the figure is saved.
+        variable_name : str
+            Short name used to infer full variable name and unit.
+        variable : str
+            Full variable name (e.g., "Chlorophyll").
+        unit : str
+            Unit of measurement (e.g., "mg Chl/m³").
+
+        Plot Options:
+            title : str
+                Plot title.
+            figsize : tuple of float
+                Figure size in inches.
+            dpi : int
+                Plot resolution.
+            title_pad : float
+                Padding between title and plot.
+            title_fontsize : int
+                Font size of the title.
+            title_fontweight : str or int
+                Font weight of the title.
 
     Raises
     ------
     ValueError
         If neither 'variable_name' nor both 'variable' and 'unit' are provided.
-
-    Saves
-    -----
-    Unified_Taylor_Diagram.png : Saved in output_path
     """
+
     # ----- CONVERT KWARGS TO NAMESPACE -----
     options = SimpleNamespace(**kwargs)
     options.output_path = getattr(options, "output_path", None)

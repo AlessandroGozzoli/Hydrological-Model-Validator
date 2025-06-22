@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import skill_metrics as sm
 
 # Module formatting and plotting utilities
-from .formatting import fill_annular_region, get_variable_label_unit
-from .default_target_options import (
+from Hydrological_model_validator.Plotting.formatting import fill_annular_region, get_variable_label_unit
+from Hydrological_model_validator.Plotting.default_target_options import (
     default_target_base_options,
     default_target_overlay_options,
     default_target_data_marker_options,
@@ -28,14 +28,14 @@ from .default_target_options import (
 )
 
 # Local processing modules
-from ..Processing.Target_computations import (
+from Hydrological_model_validator.Processing.Target_computations import (
     compute_normalised_target_stats,
     compute_normalised_target_stats_by_month,
     compute_target_extent_monthly,
     compute_target_extent_yearly,
 )
-from ..Processing.data_alignment import extract_mod_sat_keys
-from ..Processing.utils import extract_options
+from Hydrological_model_validator.Processing.data_alignment import extract_mod_sat_keys
+from Hydrological_model_validator.Processing.utils import extract_options
 
 ###############################################################################
 ##                                                                           ##
@@ -47,50 +47,60 @@ from ..Processing.utils import extract_options
 def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
     """
     Generate a comprehensive yearly target diagram using normalized statistics (bias, CRMSD, RMSD).
-
+    
     Parameters
     ----------
     data_dict : dict
-        Dictionary of model and reference time series indexed by datetime, e.g.,
-        {
-            "Ref": pd.Series,
-            2000: pd.Series,
-            2001: pd.Series,
-            ...
-        }
+        Dictionary of model and reference time series indexed by datetime
 
-    Keyword Arguments
-    -----------------
-    - output_path (str or Path)         : Required. Directory where the figure is saved.
-    - variable_name (str)               : Short name used to infer full variable name and unit.
-    - variable (str)                    : Full variable name (e.g., "Chlorophyll").
-    - unit (str)                        : Unit of measurement (e.g., "mg Chl/m³").
-    - filename (str)                    : Name of the output image file.
-    - title (str)                       : Custom title for the plot.
-    - zone_bounds (tuple)               : Tuple of two floats defining zone radii (e.g., (0.5, 0.7)).
-    - marker_shapes (list)              : List of marker shapes for the data points.
-    - base_* (various types)            : Options for the base target diagram (prefix: "base_").
-    - overlay_* (various types)         : Options for the overlay circles (prefix: "overlay_").
-    - data_* (various types)            : Options for the data point markers (prefix: "data_").
-    - (no prefix) (various types)       : General plot options (e.g., figsize, dpi, title_pad).
+    Other Parameters
+    ----------------
+    **kwargs
+        Additional keyword arguments include:
+
+        output_path : str or Path
+            Required. Directory where the figure is saved.
+        variable_name : str
+            Short name used to infer full variable name and unit.
+        variable : str
+            Full variable name (e.g., "Chlorophyll").
+        unit : str
+            Unit of measurement (e.g., "mg Chl/m³").
+        filename : str
+            Name of the output image file.
+        title : str
+            Custom title for the plot.
+        zone_bounds : tuple of float
+            Tuple of two floats defining zone radii (e.g., (0.5, 0.7)).
+        marker_shapes : list
+            List of marker shapes for the data points.
+        base_* : various
+            Options for the base target diagram (prefix: "base_").
+        overlay_* : various
+            Options for the overlay circles (prefix: "overlay_").
+        data_* : various
+            Options for the data point markers (prefix: "data_").
+        (no prefix) : various
+            General plot options (e.g., figsize, dpi, title_pad).
 
     Raises
     ------
     ValueError
         If required variable info or output path is missing.
 
-    Example
-    -------
-    comprehensive_target_diagram(
-        data_dict,
-        variable_name="Chl",
-        output_path="./plots",
-        base_alpha=0.3,
-        overlay_circles=[0.5, 1.0, 1.5],
-        data_markersize=16,
-        title="Target Plot"
-    )
+    Examples
+    --------
+    >>> comprehensive_target_diagram(
+    ...     data_dict,
+    ...     variable_name="Chl",
+    ...     output_path="./plots",
+    ...     base_alpha=0.3,
+    ...     overlay_circles=[0.5, 1.0, 1.5],
+    ...     data_markersize=16,
+    ...     title="Target Plot"
+    ... )
     """
+
 
     # ----- VALIDATE AND PREPARE INPUT OPTIONS -----
     output_path_value = kwargs.pop("output_path", None)
@@ -190,37 +200,54 @@ def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
     data_dict : dict
         Dictionary of model and reference monthly time series by year.
 
-    Keyword Arguments
-    -----------------
-    - output_path (str or Path)         : Required. Directory where the figure is saved.
-    - variable_name (str)               : Short name used to infer full variable name and unit.
-    - variable (str)                    : Full variable name (e.g., "Chlorophyll").
-    - unit (str)                        : Unit of measurement (e.g., "mg Chl/m³").
-    - filename (str)                    : Name of the output image file.
-    - title (str)                       : Custom title for the plot.
-    - zone_bounds (tuple)               : Tuple of two floats defining zone radii (e.g., (0.5, 0.7)).
-    - markers (list)                    : List of marker shapes per year.
-    - month_colors (list)               : List of colors corresponding to each month.
-    - base_* (various types)            : Options for the base diagram (prefix: "base_").
-    - overlay_* (various types)         : Options for overlay diagram (prefix: "overlay_").
-    - data_* (various types)            : Options for data point markers (prefix: "data_").
-    - (no prefix) (various types)       : General plot options (e.g., figsize, dpi, fontsize).
+    Other Parameters
+    ----------------
+    **kwargs
+        Additional keyword arguments include:
+
+        output_path : str or Path
+            Required. Directory where the figure is saved.
+        variable_name : str
+            Short name used to infer full variable name and unit.
+        variable : str
+            Full variable name (e.g., "Chlorophyll").
+        unit : str
+            Unit of measurement (e.g., "mg Chl/m³").
+        filename : str
+            Name of the output image file.
+        title : str
+            Custom title for the plot.
+        zone_bounds : tuple
+            Tuple of two floats defining zone radii (e.g., (0.5, 0.7)).
+        markers : list
+            List of marker shapes per year.
+        month_colors : list
+            List of colors corresponding to each month.
+        base_* : various
+            Options for the base diagram (prefix: "base_").
+        overlay_* : various
+            Options for the overlay diagram (prefix: "overlay_").
+        data_* : various
+            Options for data point markers (prefix: "data_").
+        (no prefix) : various
+            General plot options (e.g., figsize, dpi, fontsize).
 
     Raises
     ------
     ValueError
         If required variable info or output path is missing.
 
-    Example
-    -------
-    target_diagram_by_month(
-        data_dict,
-        variable_name="Chl",
-        output_path="./monthly_plots",
-        data_markersize=16,
-        title="Monthly Target Diagram"
-    )
+    Examples
+    --------
+    >>> target_diagram_by_month(
+    ...     data_dict,
+    ...     variable_name="Chl",
+    ...     output_path="./monthly_plots",
+    ...     data_markersize=16,
+    ...     title="Monthly Target Diagram"
+    ... )
     """
+
 
     # ---- VALIDATE AND PREPARE INPUT OPTIONS ----
     output_path = kwargs.pop("output_path", None)

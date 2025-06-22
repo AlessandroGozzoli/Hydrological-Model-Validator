@@ -37,12 +37,12 @@ from .formatting import (
     cmocean_to_plotly,
     invert_colorscale,
 )
-from .default_bfm_plot_options import (
+from Hydrological_model_validator.Plotting.default_bfm_plot_options import (
     DEFAULT_BENTHIC_PLOT_OPTIONS,
     DEFAULT_BENTHIC_PHYSICAL_PLOT_OPTIONS,
     DEFAULT_BENTHIC_CHEMICAL_PLOT_OPTIONS,
 )
-from ..Processing.utils import extract_options
+from Hydrological_model_validator.Processing.utils import extract_options
 
 
 ###############################################################################
@@ -62,52 +62,79 @@ def Benthic_depth(Bmost: np.ndarray,
 
     Parameters
     ----------
-    Bmost (np.ndarray)               : 2D array with bottom layer indices.
-    geo_coords (dict)               : Dictionary with geolocalized coordinates and extents,
-                                     including keys:
-                                     - 'latp', 'lonp'           : 2D arrays of latitudes and longitudes.
-                                     - 'Epsilon'                : Float, spatial offset for plotting.
-                                     - 'MinLambda', 'MaxLambda': Longitude bounds for extent.
-                                     - 'MinPhi', 'MaxPhi'       : Latitude bounds for extent.
-    output_path (str or Path)       : Required. Directory path where the figure PNG will be saved.
+    Bmost : np.ndarray
+        2D array with bottom layer indices.
+    geo_coords : dict
+        Dictionary with geolocalized coordinates and extents, including keys:
+        - 'latp', 'lonp'           : 2D arrays of latitudes and longitudes.
+        - 'Epsilon'                : Float, spatial offset for plotting.
+        - 'MinLambda', 'MaxLambda' : Longitude bounds for extent.
+        - 'MinPhi', 'MaxPhi'       : Latitude bounds for extent.
+    output_path : str or Path
+        Required. Directory path where the figure PNG will be saved.
 
-    user_opts (keyword arguments)
-    -----------------------------
-    - figsize (tuple of float)          : Size of the figure in inches (default: (10, 10)).
-    - projection (str)                  : Cartopy projection name as string (default: "PlateCarree").
-    - contour_levels (int)              : Number of contour levels (default: 26).
-    - cmap (str or Colormap)            : Colormap to use for the contour plot (default: "jet").
-    - contour_extend (str)              : Extend option for contour ('both', 'neither', etc., default: "both").
-    - coastline_linewidth (float)       : Line width of coastlines (default: 1.5).
-    - borders_linestyle (str)           : Line style for country borders (default: ":").
-    - gridline_color (str)              : Color of grid lines (default: "gray").
-    - gridline_linestyle (str)          : Line style of grid lines (default: "--").
-    - grid_draw_labels (bool)           : Whether to draw grid labels (default: True).
-    - grid_dms (bool)                   : Display grid labels in degrees, minutes, seconds (default: True).
-    - grid_x_inline (bool)              : Whether x-axis grid labels are inline (default: False).
-    - grid_y_inline (bool)              : Whether y-axis grid labels are inline (default: False).
-    - colorbar_width (float)            : Width of the colorbar (default: 0.65).
-    - colorbar_height (float)           : Height of the colorbar (default: 0.025).
-    - colorbar_left (float or None)     : Left position of the colorbar axes (default: None, computed automatically).
-    - colorbar_bottom (float)           : Bottom position of the colorbar axes (default: 0.175).
-    - colorbar_label (str)              : Label for the colorbar (default: "[m]").
-    - colorbar_labelsize (int)          : Font size for colorbar label (default: 12).
-    - colorbar_tick_length (int)        : Length of colorbar ticks (default: 18).
-    - colorbar_tick_labelsize (int)     : Font size for colorbar tick labels (default: 10).
-    - colorbar_ticks (list or None)     : List of ticks on colorbar (default: None, computed automatically).
-    - spine_linewidth (float)           : Line width for plot spines (default: 2).
-    - spine_edgecolor (str)             : Edge color for plot spines (default: "black").
-    - title (str)                       : Title of the plot (default: "Benthic Layer Depth").
-    - title_fontsize (int)              : Font size of the title (default: 16).
-    - title_fontweight (str)            : Font weight of the title (default: "bold").
-    - dpi (int)                         : DPI resolution for saved figure (default: 150).
-    - filename (str)                    : Filename for saved plot (default: "NA - Benthic Depth.png").
-
-    Returns
-    -------
-    None
-        Saves the generated plot to the specified output path and displays it briefly.
+    Keyword Arguments
+    -----------------
+    figsize : tuple of float, optional
+        Size of the figure in inches (default: (10, 10)).
+    projection : str, optional
+        Cartopy projection name as string (default: "PlateCarree").
+    contour_levels : int, optional
+        Number of contour levels (default: 26).
+    cmap : str or Colormap, optional
+        Colormap to use for the contour plot (default: "jet").
+    contour_extend : str, optional
+        Extend option for contour ('both', 'neither', etc., default: "both").
+    coastline_linewidth : float, optional
+        Line width of coastlines (default: 1.5).
+    borders_linestyle : str, optional
+        Line style for country borders (default: ":").
+    gridline_color : str, optional
+        Color of grid lines (default: "gray").
+    gridline_linestyle : str, optional
+        Line style of grid lines (default: "--").
+    grid_draw_labels : bool, optional
+        Whether to draw grid labels (default: True).
+    grid_dms : bool, optional
+        Display grid labels in degrees, minutes, seconds (default: True).
+    grid_x_inline : bool, optional
+        Whether x-axis grid labels are inline (default: False).
+    grid_y_inline : bool, optional
+        Whether y-axis grid labels are inline (default: False).
+    colorbar_width : float, optional
+        Width of the colorbar (default: 0.65).
+    colorbar_height : float, optional
+        Height of the colorbar (default: 0.025).
+    colorbar_left : float or None, optional
+        Left position of the colorbar axes (default: None, computed automatically).
+    colorbar_bottom : float, optional
+        Bottom position of the colorbar axes (default: 0.175).
+    colorbar_label : str, optional
+        Label for the colorbar (default: "[m]").
+    colorbar_labelsize : int, optional
+        Font size for colorbar label (default: 12).
+    colorbar_tick_length : int, optional
+        Length of colorbar ticks (default: 18).
+    colorbar_tick_labelsize : int, optional
+        Font size for colorbar tick labels (default: 10).
+    colorbar_ticks : list or None, optional
+        List of ticks on colorbar (default: None, computed automatically).
+    spine_linewidth : float, optional
+        Line width for plot spines (default: 2).
+    spine_edgecolor : str, optional
+        Edge color for plot spines (default: "black").
+    title : str, optional
+        Title of the plot (default: "Benthic Layer Depth").
+    title_fontsize : int, optional
+        Font size of the title (default: 16).
+    title_fontweight : str, optional
+        Font weight of the title (default: "bold").
+    dpi : int, optional
+        DPI resolution for saved figure (default: 150).
+    filename : str, optional
+        Filename for saved plot (default: "NA - Benthic Depth.png").
     """
+
 
     # ----- VALIDATION -----
     if not isinstance(Bmost, np.ndarray) or Bmost.ndim != 2:
@@ -217,10 +244,6 @@ def plot_benthic_3d_mesh(Bmost,
     save_path : str or Path, optional
         Directory path where the interactive HTML plot will be saved.
 
-    Returns
-    -------
-    None
-        Displays and optionally saves an interactive 3D plot in HTML format.
     """
 
     # ----- COORDINATES -----
@@ -338,30 +361,41 @@ def Benthic_physical_plot(var_dataframe: dict,
         Dictionary with 2D coordinate arrays:
         - 'lonp' : 2D array of longitudes.
         - 'latp' : 2D array of latitudes.
-        
-    user_opts (keyword arguments)
-    -----------------------------
-    - bfm2plot (str)                  : Variable name to plot (default: 'votemper').
-    - unit (str)                      : Unit of measurement (default: '°C').
-    - description (str)               : Variable description for plot title (default: 'Bottom Temperature').
-    - output_path (str or Path)       : Directory to save output plots (default: 'output').
-    - figsize (tuple of float)        : Size of each figure in inches (default: (10, 10)).
-    - dpi (int)                       : Resolution of saved figures (default: 150).
-    - coastline_linewidth (float)     : Width of coastlines (default: 2).
-    - border_linestyle (str)          : Country border linestyle (default: ':').
-    - gridline_color (str)            : Color of gridlines (default: 'gray').
-    - gridline_linestyle (str)        : Gridline linestyle (default: '--').
-    - title_fontsize (int)            : Font size for plot title (default: 16).
-    - title_fontweight (str)          : Font weight for title (default: 'bold').
-    - colorbar_position (list)        : Colorbar axes [left, bottom, width, height] (default: [0.175, 0.175, 0.65, 0.025]).
-    - colorbar_labelsize (int)        : Label font size for colorbar (default: 14).
-    - colorbar_tick_length (int)      : Tick length for colorbar (default: 18).
-    - colorbar_tick_labelsize (int)   : Font size of tick labels (default: 10).
 
-    Returns
-    -------
-    None
-        Saves one PNG file per month and year in the given output directory.
+    Keyword Arguments
+    -----------------
+    bfm2plot : str, optional
+        Variable name to plot (default is 'votemper').
+    unit : str, optional
+        Unit of measurement (default is '°C').
+    description : str, optional
+        Variable description for plot title (default is 'Bottom Temperature').
+    output_path : str or Path, optional
+        Directory to save output plots (default is 'output').
+    figsize : tuple of float, optional
+        Size of each figure in inches (default is (10, 10)).
+    dpi : int, optional
+        Resolution of saved figures (default is 150).
+    coastline_linewidth : float, optional
+        Width of coastlines (default is 2).
+    border_linestyle : str, optional
+        Country border linestyle (default is ':').
+    gridline_color : str, optional
+        Color of gridlines (default is 'gray').
+    gridline_linestyle : str, optional
+        Gridline linestyle (default is '--').
+    title_fontsize : int, optional
+        Font size for plot title (default is 16).
+    title_fontweight : str, optional
+        Font weight for title (default is 'bold').
+    colorbar_position : list, optional
+        Colorbar axes [left, bottom, width, height] (default is [0.175, 0.175, 0.65, 0.025]).
+    colorbar_labelsize : int, optional
+        Label font size for colorbar (default is 14).
+    colorbar_tick_length : int, optional
+        Tick length for colorbar (default is 18).
+    colorbar_tick_labelsize : int, optional
+        Font size of tick labels (default is 10).
     """
 
     # ----- LOAD OPTIONS -----
@@ -492,36 +526,53 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
 
     Parameters
     ----------
-    var_dataframe (dict)               : Dict of years (int), each containing a list of 12 monthly 2D arrays (Y, X).
-    geo_coord (dict)                   : Dictionary with geolocalized coordinates, keys:
-                                       - 'lonp' (2D array of longitudes)
-                                       - 'latp' (2D array of latitudes)
-    location (str or None)             : Optional location string to include in plot titles (default: None).
-    kwargs (keyword arguments)         : Optional keyword arguments for customizing plots:
-    
-      - bfm2plot (str)                 : Variable name to plot (default: 'votemper').
-      - unit (str)                     : Unit of measurement (default: '°C').
-      - description (str)              : Variable description for plot titles (default: 'Bottom Temperature').
-      - output_path (str or Path)      : Directory to save output plots (default: 'output').
-      - epsilon (float)                : Coordinate offset applied to lon/lat (default: 0.06).
-      - figsize (tuple of float)       : Size of each figure in inches (default: (10, 10)).
-      - dpi (int)                      : Resolution of saved figures (default: 150).
-      - coastline_linewidth (float)    : Width of coastlines (default: 2).
-      - border_linestyle (str)         : Country border linestyle (default: ':').
-      - gridline_color (str)           : Color of gridlines (default: 'gray').
-      - gridline_linestyle (str)       : Gridline linestyle (default: '--').
-      - title_fontsize (int)           : Font size for plot titles (default: 16).
-      - title_fontweight (str)         : Font weight for titles (default: 'bold').
-      - colorbar_position (list)       : Colorbar axes [left, bottom, width, height] (default: [0.175, 0.175, 0.65, 0.025]).
-      - colorbar_labelsize (int)       : Font size for colorbar label (default: 14).
-      - colorbar_tick_length (int)     : Length of colorbar ticks (default: 18).
-      - colorbar_tick_labelsize (int)  : Font size for colorbar tick labels (default: 10).
+    var_dataframe : dict
+        Dict of years (int), each containing a list of 12 monthly 2D arrays (Y, X).
+    geo_coord : dict
+        Dictionary with geolocalized coordinates, keys:
+        - 'lonp' (2D array of longitudes)
+        - 'latp' (2D array of latitudes)
+    location : str or None, optional
+        Optional location string to include in plot titles (default is None).
 
-    Returns
-    -------
-    None
-        Saves plots for all months and years under the specified output directory.
+    Keyword Arguments
+    -----------------
+    bfm2plot : str, optional
+        Variable name to plot (default is 'votemper').
+    unit : str, optional
+        Unit of measurement (default is '°C').
+    description : str, optional
+        Variable description for plot titles (default is 'Bottom Temperature').
+    output_path : str or Path, optional
+        Directory to save output plots (default is 'output').
+    epsilon : float, optional
+        Coordinate offset applied to lon/lat (default is 0.06).
+    figsize : tuple of float, optional
+        Size of each figure in inches (default is (10, 10)).
+    dpi : int, optional
+        Resolution of saved figures (default is 150).
+    coastline_linewidth : float, optional
+        Width of coastlines (default is 2).
+    border_linestyle : str, optional
+        Country border linestyle (default is ':').
+    gridline_color : str, optional
+        Color of gridlines (default is 'gray').
+    gridline_linestyle : str, optional
+        Gridline linestyle (default is '--').
+    title_fontsize : int, optional
+        Font size for plot titles (default is 16).
+    title_fontweight : str, optional
+        Font weight for titles (default is 'bold').
+    colorbar_position : list, optional
+        Colorbar axes [left, bottom, width, height] (default is [0.175, 0.175, 0.65, 0.025]).
+    colorbar_labelsize : int, optional
+        Font size for colorbar label (default is 14).
+    colorbar_tick_length : int, optional
+        Length of colorbar ticks (default is 18).
+    colorbar_tick_labelsize : int, optional
+        Font size for colorbar tick labels (default is 10).
     """
+
     # ----- OPTIONS -----
     opts = extract_options(kwargs, DEFAULT_BENTHIC_CHEMICAL_PLOT_OPTIONS, prefix="")
 

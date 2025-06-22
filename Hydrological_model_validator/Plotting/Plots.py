@@ -31,23 +31,23 @@ import cartopy.feature as cfeature
 from scipy.signal import csd
 
 # Module imports
-from .formatting import (plot_line,
+from Hydrological_model_validator.Plotting.formatting import (plot_line,
                         get_min_max_for_identity_line,
                         get_variable_label_unit,
                         style_axes_spines,
                         format_unit)
 
-from ..Processing.data_alignment import (extract_mod_sat_keys,
+from Hydrological_model_validator.Processing.data_alignment import (extract_mod_sat_keys,
                                          gather_monthly_data_across_years)
 
-from ..Processing.stats_math_utils import (fit_huber,
+from Hydrological_model_validator.Processing.stats_math_utils import (fit_huber,
                                            fit_lowess,
                                            )
 
-from ..Processing.time_utils import get_season_mask
-from ..Processing.utils import extract_options
+from Hydrological_model_validator.Processing.time_utils import get_season_mask
+from Hydrological_model_validator.Processing.utils import extract_options
 
-from .default_plot_options import (default_plot_options_ts,
+from Hydrological_model_validator.Plotting.default_plot_options import (default_plot_options_ts,
                                    default_plot_options_scatter,
                                    default_scatter_by_season_options,
                                    default_boxplot_options,
@@ -79,30 +79,43 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
     data_dict : Dict[str, Union[pd.Series, list]]
         Dictionary containing daily mean values for different sources (e.g., model and satellite).
         Keys are strings identifying the data source.
-        Values should be `pandas.Series` with datetime indices or lists that can be converted to Series.
+        Values should be `pandas.Series` with datetime indices or lists convertible to Series.
 
     BIAS : Union[pd.Series, list]
         Series (or list) representing the BIAS time series (typically model - satellite).
         Should be time-aligned with the values in `data_dict`.
 
-    Accepted kwargs include:
-    -------------------------
-    Keyword arguments overriding default plotting options. Include:
-        - output_path (str or Path)       : Required. Path where the figure should be saved.
-        - variable_name (str)             : Required. Variable code name (used to infer full name and unit).
-        - variable (str)                  : Full variable name (e.g., "Chlorophyll"). Used in titles and axis.
-        - unit (str)                      : Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
-        - BA (bool)                       : If True, appends " (Basin Average)" to the title.
-        - figsize (tuple of float)        : Size of figure in inches (default typically (12, 8)).
-        - dpi (int)                       : Resolution of the figure (default 100).
-        - color_palette (iterator)        : Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
-        - line_width (float)              : Width of plotted lines (default 2.0).
-        - title_fontsize (int)            : Font size of the main title.
-        - bias_title_fontsize (int)       : Font size of the BIAS subplot title.
-        - label_fontsize (int)            : Font size of axis labels.
-        - legend_fontsize (int)           : Font size of the legend.
-        - savefig_kwargs (dict)           : Additional args for `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
-        
+    Keyword Arguments
+    -----------------
+    output_path : str or Path
+        Required. Path where the figure should be saved.
+    variable_name : str
+        Required. Variable code name used to infer full name and unit.
+    variable : str, optional
+        Full variable name (e.g., "Chlorophyll"). Used in titles and axis.
+    unit : str, optional
+        Unit of measurement (e.g., "mg Chl/m³"). Displayed on axis.
+    BA : bool, optional
+        If True, appends " (Basin Average)" to the title.
+    figsize : tuple of float, optional
+        Size of figure in inches (default typically (12, 8)).
+    dpi : int, optional
+        Resolution of the figure (default 100).
+    color_palette : iterator, optional
+        Iterator of colors (e.g., `itertools.cycle(sns.color_palette("tab10"))`).
+    line_width : float, optional
+        Width of plotted lines (default 2.0).
+    title_fontsize : int, optional
+        Font size of the main title.
+    bias_title_fontsize : int, optional
+        Font size of the BIAS subplot title.
+    label_fontsize : int, optional
+        Font size of axis labels.
+    legend_fontsize : int, optional
+        Font size of the legend.
+    savefig_kwargs : dict, optional
+        Additional args for `plt.savefig()`, e.g., `bbox_inches`, `transparent`.
+
     Example
     -------
     >>> timeseries(
@@ -119,7 +132,7 @@ def timeseries(data_dict: Dict[str, Union[pd.Series, list]], BIAS: Union[pd.Seri
       `get_variable_label_unit(variable_name)`.
 
     - The data series are auto-converted to `pandas.Series` if passed as lists.
-    
+
     - The order and coloring of plotted datasets depend on the order in `data_dict` and `color_palette`.
     """
     # ----- RETRIEVE DEFAULT OPTIONS -----
@@ -219,24 +232,40 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
         Keys should correspond to model and satellite dataset names.
         Values must be 1D arrays or pandas Series.
 
-    Accepted kwargs include:
-    -------------------------
-        - output_path (str or Path)     : Required. Directory to save figures.
-        - variable_name (str)           : Required. Variable code (e.g., 'SST').
-        - BA (bool)                     : Whether to append "(Basin Average)" to titles.
-        - figsize (tuple of float)      : Figure size (width, height).
-        - dpi (int)                     : Figure resolution.
-        - color (str)                   : Scatter point color.
-        - season_colors (dict)          : Map of season names to colors (for seasonal plots).
-        - alpha (float)                 : Transparency of scatter points.
-        - marker_size (int)             : Size of scatter markers.
-        - title_fontsize (int)          : Font size for plot titles.
-        - label_fontsize (int)          : Font size for axis labels.
-        - tick_labelsize (int)          : Size of tick labels.
-        - line_width (float)            : Width of lines (identity, fits, axes).
-        - legend_fontsize (int)         : Size of legend text.
-        - variable (str)                : Long name of variable (used in title).
-        - unit (str)                    : Unit of variable (used in labels).
+    Keyword Arguments
+    -----------------
+    output_path : str or Path
+        Required. Directory to save figures.
+    variable_name : str
+        Required. Variable code (e.g., 'SST').
+    BA : bool, optional
+        Whether to append "(Basin Average)" to titles.
+    figsize : tuple of float, optional
+        Figure size (width, height).
+    dpi : int, optional
+        Figure resolution.
+    color : str, optional
+        Scatter point color.
+    season_colors : dict, optional
+        Map of season names to colors (for seasonal plots).
+    alpha : float, optional
+        Transparency of scatter points.
+    marker_size : int, optional
+        Size of scatter markers.
+    title_fontsize : int, optional
+        Font size for plot titles.
+    label_fontsize : int, optional
+        Font size for axis labels.
+    tick_labelsize : int, optional
+        Size of tick labels.
+    line_width : float, optional
+        Width of lines (identity, fits, axes).
+    legend_fontsize : int, optional
+        Size of legend text.
+    variable : str, optional
+        Long name of variable (used in title).
+    unit : str, optional
+        Unit of variable (used in labels).
 
     Example
     -------
@@ -339,51 +368,67 @@ def scatter_plot(data_dict: Dict[str, Union[pd.Series, list]], **kwargs: Any) ->
 
 def seasonal_scatter_plot(daily_means_dict: Dict[str, Union[np.ndarray, pd.Series]], **kwargs: Any) -> None:
     """
-    Generates seasonal scatter plots (DJF, MAM, JJA, SON) and a combined plot of model vs satellite daily means.
+    Generate seasonal scatter plots (DJF, MAM, JJA, SON) and a combined plot comparing
+    model vs satellite daily mean values.
 
-    Each seasonal subplot shows a scatter comparison of model and satellite values, with:
-    - Identity line (y = x)
-    - Robust linear regression fit (Huber)
-    - Nonparametric LOWESS fit
+    Each seasonal subplot shows:
+      - Scatter comparison of model and satellite values.
+      - Identity line (y = x).
+      - Robust linear regression fit (Huber).
+      - Nonparametric LOWESS fit.
 
-    A final composite plot displays all seasons together, color-coded and with a shared legend.
+    The final composite plot displays all seasons together, color-coded with a shared legend.
 
-    Parameters:
+    Parameters
     ----------
-    daily_means_dict : dict
-        Dictionary with keys typically "mod" and "sat", each containing a 1D array or pandas Series of daily means.
-        Assumes data starts from 2000-01-01 and is daily.
+    daily_means_dict : Dict[str, Union[np.ndarray, pd.Series]]
+        Dictionary with keys typically "mod" and "sat", each containing 1D arrays or pandas Series
+        of daily mean values. Assumes data starts from 2000-01-01 and is daily.
 
-    Accepted kwargs include:
-    -------------------------
-        Keyword arguments overriding default plotting options. Include:
-        - output_path (str or Path)     : Required. Directory to save figures.
-        - variable_name (str)           : Required. Variable code (e.g., 'SST').
-        - BA (bool)                     : Whether to append "(Basin Average)" to titles.
-        - figsize (tuple of int)        : Figure size (width, height).
-        - dpi (int)                     : Figure resolution.
-        - season_colors (dict)          : Map of season names to colors. Default is DJF/MAM/JJA/SON.
-        - alpha (float)                 : Transparency of scatter points.
-        - marker_size (int)             : Size of scatter markers.
-        - title_fontsize (int)          : Font size for plot titles.
-        - label_fontsize (int)          : Font size for axis labels.
-        - line_width (int)              : Width of lines (identity, fits, axes).
-        - tick_labelsize (int)          : Size of tick labels.
-        - legend_fontsize (int)         : Size of legend text.
-        - variable (str)                : Long name of variable (used in title).
-        - unit (str)                    : Unit of variable (used in labels).
+    Keyword Arguments
+    -----------------
+    output_path : str or Path
+        Required. Directory to save figures.
+    variable_name : str
+        Required. Variable code (e.g., 'SST').
+    BA : bool, optional
+        Whether to append "(Basin Average)" to titles.
+    figsize : tuple of int, optional
+        Figure size (width, height).
+    dpi : int, optional
+        Figure resolution.
+    season_colors : dict, optional
+        Map of season names to colors. Default covers DJF, MAM, JJA, SON.
+    alpha : float, optional
+        Transparency of scatter points.
+    marker_size : int, optional
+        Size of scatter markers.
+    title_fontsize : int, optional
+        Font size for plot titles.
+    label_fontsize : int, optional
+        Font size for axis labels.
+    line_width : int, optional
+        Width of lines (identity, fits, axes).
+    tick_labelsize : int, optional
+        Size of tick labels.
+    legend_fontsize : int, optional
+        Size of legend text.
+    variable : str, optional
+        Long name of variable (used in titles).
+    unit : str, optional
+        Unit of variable (used in labels).
 
-    Returns:
+    Returns
     -------
     None
         Saves each seasonal plot and one combined plot to the output path.
 
-    Notes:
+    Notes
     -----
-    - Assumes data is aligned and continuous from 2000-01-01 onward.
+    - Assumes data is continuous and aligned from 2000-01-01 onward.
     - Handles NaNs automatically during fitting and plotting.
-    - Ideal for visualizing agreement across seasons in long-term climate or model outputs.
-    
+    - Useful for visualizing seasonal agreement in long-term model or climate datasets.
+
     Example
     -------
     >>> seasonal_scatter_plot(
@@ -590,7 +635,7 @@ def whiskerbox(data_dict, **kwargs):
     """
     Create a boxplot comparing monthly values of model and satellite data.
 
-    This function plots side-by-side boxplots for each month, showing model vs. satellite distributions.
+    This function plots side-by-side boxplots for each month, showing model vs satellite distributions.
     It's useful for visualizing variability and central tendency over time.
 
     Parameters
@@ -599,23 +644,43 @@ def whiskerbox(data_dict, **kwargs):
         Dictionary containing time-series data for model and satellite.
         Keys must distinguish between model and satellite (e.g., 'model', 'satellite').
 
-    **kwargs : keyword arguments
-        Keyword arguments overriding default plotting options. Include:
-        - output_path (str or Path)       : Required. Directory to save the resulting PNG plot.
-        - variable_name (str)             : Required. Variable short name (e.g., 'SST').
-        - variable (str)                  : Full variable name (e.g., 'Sea Surface Temperature').
-        - unit (str)                      : Unit of the variable (e.g., '°C').
-        - figsize (tuple of float)        : Figure size in inches, e.g., (14, 8).
-        - dpi (int)                       : Plot resolution in dots per inch.
-        - palette (str or list)           : Seaborn-compatible color palette.
-        - showfliers (bool)               : Whether to show outlier points in the boxplot.
-        - title_fontsize (int)            : Font size of the plot title.
-        - title_fontweight (str)          : Font weight of the plot title (e.g., 'bold').
-        - ylabel_fontsize (int)           : Font size of the y-axis label.
-        - xlabel (str)                    : Label for the x-axis (default: '').
-        - grid_alpha (float)              : Transparency for grid lines.
-        - xtick_rotation (int or float)   : Rotation angle for x-axis tick labels.
-        - tick_width (float)              : Width of axis ticks.
+    Keyword Arguments
+    -----------------
+    output_path : str or Path
+        Required. Directory to save the resulting PNG plot.
+    variable_name : str
+        Required. Variable short name (e.g., 'SST').
+    variable : str, optional
+        Full variable name (e.g., 'Sea Surface Temperature').
+    unit : str, optional
+        Unit of the variable (e.g., '°C').
+    figsize : tuple of float, optional
+        Figure size in inches, e.g., (14, 8).
+    dpi : int, optional
+        Plot resolution in dots per inch.
+    palette : str or list, optional
+        Seaborn-compatible color palette.
+    showfliers : bool, optional
+        Whether to show outlier points in the boxplot.
+    title_fontsize : int, optional
+        Font size of the plot title.
+    title_fontweight : str, optional
+        Font weight of the plot title (e.g., 'bold').
+    ylabel_fontsize : int, optional
+        Font size of the y-axis label.
+    xlabel : str, optional
+        Label for the x-axis (default: '').
+    grid_alpha : float, optional
+        Transparency for grid lines.
+    xtick_rotation : int or float, optional
+        Rotation angle for x-axis tick labels.
+    tick_width : float, optional
+        Width of axis ticks.
+
+    Returns
+    -------
+    None
+        Saves the boxplot figure as a PNG file to the specified output directory.
 
     Example
     -------
@@ -628,7 +693,7 @@ def whiskerbox(data_dict, **kwargs):
     ...     showfliers=False
     ... )
     """
-
+    
     # ----- FETCH DEFAULT OPTIONS -----
     options = SimpleNamespace(**{**default_boxplot_options, **kwargs})
 
@@ -721,22 +786,43 @@ def violinplot(data_dict, **kwargs):
 
     Keyword Arguments
     -----------------
-    - output_path (str or Path)       : Required. Directory where the figure is saved.
-    - variable_name (str)             : Short name used to infer full variable name and unit.
-    - variable (str)                  : Full variable name (e.g., "Chlorophyll"). Used in the title.
-    - unit (str)                      : Unit of measurement (e.g., "mg Chl/m³"). Shown on the y-axis.
-    - figsize (tuple of float)        : Size of the figure in inches.
-    - dpi (int)                       : Resolution of the plot.
-    - palette (list or dict)          : Colors for the violin plots.
-    - cut (float)                     : Defines how far the violin extends past extreme datapoints.
-    - title_fontsize (int)            : Font size of the title.
-    - title_fontweight (str or int)   : Font weight of the title (e.g., 'bold').
-    - ylabel_fontsize (int)           : Font size of the y-axis label.
-    - xlabel_fontsize (int)           : Font size of the x-axis label.
-    - xtick_rotation (int)            : Degree of x-tick label rotation.
-    - tick_width (float)              : Width of axis ticks.
-    - spine_linewidth (float)         : Line width for axis spines.
-    - grid_alpha (float)              : Transparency of grid lines.
+    output_path : str or Path
+        Required. Directory where the figure is saved.
+    variable_name : str
+        Short name used to infer full variable name and unit.
+    variable : str, optional
+        Full variable name (e.g., "Chlorophyll"). Used in the title.
+    unit : str, optional
+        Unit of measurement (e.g., "mg Chl/m³"). Shown on the y-axis.
+    figsize : tuple of float, optional
+        Size of the figure in inches.
+    dpi : int, optional
+        Resolution of the plot.
+    palette : list or dict, optional
+        Colors for the violin plots.
+    cut : float, optional
+        Defines how far the violin extends past extreme datapoints.
+    title_fontsize : int, optional
+        Font size of the title.
+    title_fontweight : str or int, optional
+        Font weight of the title (e.g., 'bold').
+    ylabel_fontsize : int, optional
+        Font size of the y-axis label.
+    xlabel_fontsize : int, optional
+        Font size of the x-axis label.
+    xtick_rotation : int, optional
+        Degree of x-tick label rotation.
+    tick_width : float, optional
+        Width of axis ticks.
+    spine_linewidth : float, optional
+        Line width for axis spines.
+    grid_alpha : float, optional
+        Transparency of grid lines.
+
+    Returns
+    -------
+    None
+        Saves the violin plot figure to the specified output directory.
 
     Example
     -------
@@ -821,43 +907,73 @@ def efficiency_plot(total_value, monthly_values, **kwargs):
     ----------
     total_value : float
         The efficiency value computed over the full time period (used as reference line).
-
     monthly_values : list of float
         Efficiency values for each month (12 total).
 
     Keyword Arguments
     -----------------
-    - output_path (str or Path)        : Required. Directory where the figure is saved.
-    - metric_name (str)                : Required. Used for the filename (e.g., "NSE").
-    - title (str)                      : Title of the plot (e.g., "Nash-Sutcliffe Efficiency").
-    - y_label (str)                    : LaTeX-formatted y-axis label (e.g., "$E_{rel}$").
-    - figsize (tuple of float)         : Size of the figure in inches.
-    - dpi (int)                        : Resolution of the plot.
-    - line_color (str)                 : Color of the line connecting monthly points.
-    - line_width (float)               : Width of the connecting line.
-    - marker_size (float)              : Size of circular markers.
-    - marker_edge_color (str)          : Color of marker edge.
-    - marker_edge_width (float)        : Width of marker edge.
-    - xtick_rotation (int)             : Degree of x-tick label rotation.
-    - tick_width (float)               : Width of axis ticks.
-    - spine_width (float)              : Width of axis spines.
-    - legend_loc (str)                 : Location of the legend.
-    - grid_style (str)                 : Style of grid lines (e.g., "--", ":").
-    - zero_line (dict)                 : Zero reference line options:
-                                         {
-                                             "show": bool,
-                                             "style": str,
-                                             "width": float,
-                                             "color": str,
-                                             "label": str
-                                         }
-    - overall_line (dict)              : Overall mean line options:
-                                         {
-                                             "style": str,
-                                             "width": float,
-                                             "color": str,
-                                             "label": str
-                                         }
+    output_path : str or Path
+        Required. Directory where the figure is saved.
+    metric_name : str
+        Required. Used for the filename (e.g., "NSE").
+    title : str, optional
+        Title of the plot (e.g., "Nash-Sutcliffe Efficiency").
+    y_label : str, optional
+        LaTeX-formatted y-axis label (e.g., "$E_{rel}$").
+    figsize : tuple of float, optional
+        Size of the figure in inches.
+    dpi : int, optional
+        Resolution of the plot.
+    line_color : str, optional
+        Color of the line connecting monthly points.
+    line_width : float, optional
+        Width of the connecting line.
+    marker_size : float, optional
+        Size of circular markers.
+    marker_edge_color : str, optional
+        Color of marker edge.
+    marker_edge_width : float, optional
+        Width of marker edge.
+    xtick_rotation : int, optional
+        Degree of x-tick label rotation.
+    tick_width : float, optional
+        Width of axis ticks.
+    spine_width : float, optional
+        Width of axis spines.
+    legend_loc : str, optional
+        Location of the legend.
+    grid_style : str, optional
+        Style of grid lines (e.g., "--", ":").
+    zero_line : dict, optional
+        Zero reference line options, keys:
+            - show (bool)
+            - style (str)
+            - width (float)
+            - color (str)
+            - label (str)
+    overall_line : dict, optional
+        Overall mean line options, keys:
+            - style (str)
+            - width (float)
+            - color (str)
+            - label (str)
+
+    Returns
+    -------
+    None
+        Saves the efficiency metric plot to the specified output directory.
+
+    Example
+    -------
+    >>> plot_efficiency_metric(
+    ...     total_value=0.75,
+    ...     monthly_values=[0.6, 0.7, 0.8, 0.7, 0.75, 0.76, 0.77, 0.78, 0.74, 0.72, 0.7, 0.69],
+    ...     output_path='figures/',
+    ...     metric_name='NSE',
+    ...     title='Nash-Sutcliffe Efficiency',
+    ...     y_label='$E_{rel}$',
+    ...     figsize=(10, 6)
+    ... )
     """
     
     # ----- FETCH DEFAULT OPTIONS -----
@@ -954,72 +1070,103 @@ def plot_spatial_efficiency(data_array, geo_coords, output_path, title_prefix, *
     """
     Plot spatial efficiency metric maps (e.g., correlation, NSE) by month or year with Cartopy projection.
 
-    This function generates a grid of spatial maps (e.g., for each month or year) showing the
-    spatial distribution of a performance metric such as correlation or NSE between model and
-    satellite data. It supports extensive customization via keyword arguments and a centralized
-    defaults dictionary.
+    Generates a grid of spatial maps showing the spatial distribution of a performance metric
+    (e.g., correlation, NSE) between model and satellite data for each month or year. Supports
+    extensive customization via keyword arguments and a centralized defaults dictionary.
 
     Parameters
     ----------
     data_array : xarray.DataArray
         3D data with shape (month/year, lat, lon). Must contain either a 'month' or 'year' dimension.
-
     geo_coords : dict
-        Dictionary containing:
-            - 'latp' (2D array): Latitude grid.
-            - 'lonp' (2D array): Longitude grid.
-            - 'MinLambda', 'MaxLambda' (float): Longitude bounds.
-            - 'MinPhi', 'MaxPhi' (float): Latitude bounds.
-            - 'Epsilon' (float, optional): Spatial padding offset (used for label adjustment).
-
+        Dictionary containing geographic info:
+            - latp (2D array): Latitude grid.
+            - lonp (2D array): Longitude grid.
+            - MinLambda, MaxLambda (float): Longitude bounds.
+            - MinPhi, MaxPhi (float): Latitude bounds.
+            - Epsilon (float, optional): Spatial padding offset for label adjustment.
     output_path : str or Path
         Directory where the figure will be saved.
-
     title_prefix : str
-        Title prefix for the colorbar and each subplot (e.g., "Correlation").
+        Title prefix for colorbar and subplot titles (e.g., "Correlation").
 
     Keyword Arguments
     -----------------
-    - cmap (str or Colormap)           : Colormap to use (e.g., "coolwarm").
-    - vmin, vmax (float)               : Min and max values for colorbar.
-    - suffix (str)                     : Suffix for plot title and filename.
-    - suptitle_fontsize (int)          : Font size of the super title (if the 
-                                            resulting number of columns is 1
-                                            the value will be reduced by 6).
-    - suptitle_fontweight (str)        : Font weight of the super title.
-    - suptitle_y (float)               : Vertical position of the super title.
-    - title_fontsize (int)             : Font size of subplot titles.
-    - title_fontweight (str)           : Font weight of subplot titles.
-    - cbar_labelsize (int)             : Font size of colorbar tick labels.
-    - cbar_labelpad (int)              : Padding between colorbar and label.
-    - cbar_shrink (float)              : Shrink factor for horizontal colorbar.
-    - cbar_ticks (int)                 : Number of colorbar ticks.
-    - figsize_per_plot (tuple)         : Size per subplot (width, height).
-    - max_cols (int)                   : Max number of columns in subplot grid.
-    - epsilon (float)                  : Padding fallback if not in geo_coords.
-    - lat_offset_base (float)          : Extra lat offset if needed.
-    - gridline_color (str)             : Color of gridlines.
-    - gridline_style (str)             : Line style of gridlines (e.g., "--").
-    - gridline_alpha (float)           : Gridline transparency.
-    - gridline_dms (bool)              : Format labels in DMS (deg:min:sec).
-    - gridline_labels_top (bool)       : Show labels on top axis.
-    - gridline_labels_right (bool)     : Show labels on right axis.
-    - projection (str)                 : Cartopy projection class name.
-    - resolution (str)                 : Resolution of coastlines (e.g., "10m").
-    - land_color (str)                 : Color for landmasses.
-    - show (bool)                      : Display the plot interactively.
-    - block (bool)                     : Block execution on plt.show().
-    - dpi (int)                        : Resolution of the output figure.
-    
+    cmap : str or Colormap, optional
+        Colormap to use (default: "coolwarm").
+    vmin : float, optional
+        Minimum value for colorbar.
+    vmax : float, optional
+        Maximum value for colorbar.
+    suffix : str, optional
+        Suffix for plot title and filename.
+    suptitle_fontsize : int, optional
+        Font size of the super title (reduced by 6 if only one column).
+    suptitle_fontweight : str, optional
+        Font weight of the super title.
+    suptitle_y : float, optional
+        Vertical position of the super title.
+    title_fontsize : int, optional
+        Font size of subplot titles.
+    title_fontweight : str, optional
+        Font weight of subplot titles.
+    cbar_labelsize : int, optional
+        Font size of colorbar tick labels.
+    cbar_labelpad : int, optional
+        Padding between colorbar and label.
+    cbar_shrink : float, optional
+        Shrink factor for horizontal colorbar.
+    cbar_ticks : int, optional
+        Number of colorbar ticks.
+    figsize_per_plot : tuple, optional
+        Size (width, height) per subplot.
+    max_cols : int, optional
+        Maximum number of columns in subplot grid.
+    epsilon : float, optional
+        Padding fallback if not in geo_coords.
+    lat_offset_base : float, optional
+        Extra latitude offset if needed.
+    gridline_color : str, optional
+        Color of gridlines.
+    gridline_style : str, optional
+        Line style of gridlines (e.g., "--").
+    gridline_alpha : float, optional
+        Transparency of gridlines.
+    gridline_dms : bool, optional
+        Format labels in degrees-minutes-seconds.
+    gridline_labels_top : bool, optional
+        Show gridline labels on top axis.
+    gridline_labels_right : bool, optional
+        Show gridline labels on right axis.
+    projection : str, optional
+        Cartopy projection class name.
+    resolution : str, optional
+        Resolution of coastlines (e.g., "10m").
+    land_color : str, optional
+        Color for landmasses.
+    show : bool, optional
+        Display the plot interactively.
+    block : bool, optional
+        Block execution on plt.show().
+    dpi : int, optional
+        Resolution of the output figure.
+
     Raises
     ------
     ValueError
         If the `data_array` does not contain a 'month' or 'year' dimension.
 
+    Returns
+    -------
+    None
+        Saves the spatial efficiency maps to the specified output directory.
+
     Examples
     --------
-    >>> plot_spatial_efficiency(data_array, geo_coords, "figures", "Correlation",
-    ...                         cmap="coolwarm", vmax=1.0, vmin=-1.0, show=True)
+    >>> plot_spatial_efficiency(
+    ...     data_array, geo_coords, "figures", "Correlation",
+    ...     cmap="coolwarm", vmax=1.0, vmin=-1.0, show=True
+    ... )
     """
     
     # ----- GET DEFAULT OPTIONS -----
@@ -1199,7 +1346,7 @@ def error_components_timeseries(
     """
     Plot time series of error components and optional cloud cover.
 
-    This function generates a multi-panel plot showing:
+    Generates a multi-panel plot showing:
       - Mean Bias
       - Unbiased RMSE
       - Standard Deviation of Error
@@ -1209,43 +1356,60 @@ def error_components_timeseries(
     Parameters
     ----------
     stats_df : pd.DataFrame
-        DataFrame containing time series of statistical error components with columns:
+        DataFrame with time series of statistical error components. Must include columns:
         ['mean_bias', 'unbiased_rmse', 'std_error', 'correlation'].
-
     output_path : str or Path
-        Directory path where the resulting figure should be saved.
-
+        Directory path where the figure will be saved.
     cloud_cover : pd.Series, optional
-        Time series of cloud cover data (percentage). If provided, an extra subplot will be shown.
-
+        Time series of cloud cover (%) data. Adds extra subplot if provided.
     variable_name : str, optional
-        Name of the variable (e.g., "SST", "Chlorophyll") for labeling purposes.
+        Variable name (e.g., "SST", "Chlorophyll") used for labeling.
+    
+    Keyword Arguments
+    -----------------
+    fig_width : float, optional
+        Width of the full figure.
+    fig_height_per_plot : float, optional
+        Height allocated per subplot.
+    sharex : bool, optional
+        If True, subplots share the x-axis.
+    title_fontsize : int, optional
+        Font size of the figure title.
+    title_fontweight : str, optional
+        Font weight of the figure title.
+    label_fontsize : int, optional
+        Font size of y-axis labels.
+    grid_color : str, optional
+        Grid line color.
+    grid_linestyle : str, optional
+        Grid line style (e.g., '--').
+    grid_alpha : float, optional
+        Transparency of grid lines.
+    mean_bias_color : str, optional
+        Line color for Mean Bias subplot.
+    unbiased_rmse_color : str, optional
+        Line color for Unbiased RMSE subplot.
+    std_error_color : str, optional
+        Line color for Std Error subplot.
+    correlation_color : str, optional
+        Line color for Correlation subplot.
+    cloud_cover_color : str, optional
+        Line color for raw Cloud Cover.
+    cloud_cover_smoothed_color : str, optional
+        Line color for smoothed Cloud Cover.
+    cloud_cover_rolling_window : int, optional
+        Window size for rolling smoothing of cloud cover.
+    spine_linewidth : float, optional
+        Width of axes spines.
+    spine_edgecolor : str, optional
+        Color of axes spines.
+    filename_template : str, optional
+        Template for saved filename (e.g., '{}_errors.png').
 
-    kwargs : dict
-        Keyword arguments to override default plotting options.
-
-    Accepted kwargs include:
-    -------------------------
-    Keyword arguments overriding default plotting options. Include:
-        - fig_width (float)                  : Width of the full figure (default varies).
-        - fig_height_per_plot (float)        : Height allocated per subplot row.
-        - sharex (bool)                      : If True, subplots share the same x-axis.
-        - title_fontsize (int)               : Font size of the figure title.
-        - title_fontweight (str)             : Font weight of the figure title.
-        - label_fontsize (int)               : Font size of y-axis labels.
-        - grid_color (str)                   : Color of grid lines.
-        - grid_linestyle (str)               : Linestyle for grid (e.g., '--').
-        - grid_alpha (float)                 : Alpha transparency of the grid lines.
-        - mean_bias_color (str)              : Line color for Mean Bias subplot.
-        - unbiased_rmse_color (str)          : Line color for Unbiased RMSE subplot.
-        - std_error_color (str)              : Line color for Std Error subplot.
-        - correlation_color (str)            : Line color for Correlation subplot.
-        - cloud_cover_color (str)            : Line color for raw Cloud Cover.
-        - cloud_cover_smoothed_color (str)   : Line color for smoothed Cloud Cover.
-        - cloud_cover_rolling_window (int)   : Rolling window size for smoothing cloud cover.
-        - spine_linewidth (float)            : Width of axes spines.
-        - spine_edgecolor (str)              : Color of axes spines.
-        - filename_template (str)            : Template for saved filename (e.g., '{}_errors.png').
+    Returns
+    -------
+    None
+        Saves the multi-panel error component plot to the output path.
 
     Example
     -------
@@ -1258,9 +1422,10 @@ def error_components_timeseries(
 
     Notes
     -----
-    - Plots are styled with Seaborn and Matplotlib.
-    - Default style and colors are controlled via `default_error_timeseries_options`.
+    - Uses Seaborn and Matplotlib styling.
+    - Default styles and colors controlled by `default_error_timeseries_options`.
     """
+    
     # ----- OPTIONS -----
     options = extract_options(kwargs, default_error_timeseries_options)
 
@@ -1367,59 +1532,58 @@ def plot_spectral(
     ----------
     data : pd.Series or dict, optional
         Optional time series input (not used directly in current implementation).
-
     plot_type : str
         Type of spectral plot to generate: 'PSD' (Power Spectral Density) or 'CSD' (Cross Spectral Density).
-
     freqs : array-like, optional
         Frequency values used for PSD plotting.
-
     fft_components : dict of arrays, optional
         Dictionary mapping labels to FFT-transformed series for PSD plotting.
-
     error_comp : pd.DataFrame or dict, optional
         Error component data used in CSD plotting.
-
-    cloud_covers : list of (Series, str), optional
-        List of tuples containing cloud cover time series and their labels (used in CSD).
-
+    cloud_covers : list of (pd.Series, str), optional
+        List of tuples with cloud cover time series and their labels (used in CSD).
     output_path : str or Path
         Path to save the resulting spectral plot.
-
     variable_name : str
-        Short code name of the variable for use in the output filename.
+        Short code name of the variable, used in output filename.
+    fs : float, optional
+        Sampling frequency (default: 1.0).
+    nperseg : int, optional
+        Segment length for computing CSD (default: 256).
 
-    fs : float
-        Sampling frequency (default is 1.0).
-
-    nperseg : int
-        Segment length for computing CSD (default is 256).
-
-    kwargs : dict
-        Additional keyword arguments for customization.
-
-    Accepted kwargs include:
-    -------------------------
-    Keyword arguments overriding default plotting options. Include:
-        - figsize (tuple)                    : Figure size (e.g., (12, 6)).
-        - xlabel_fontsize (int)              : Font size of x-axis label.
-        - ylabel_fontsize (int)              : Font size of y-axis label.
-        - title_fontsize (int)               : Font size of plot title.
-        - title_fontweight (str)             : Font weight of plot title (e.g., 'bold').
-        - tick_labelsize (int)               : Font size of tick labels.
-        - grid_color (str)                   : Grid color.
-        - grid_alpha (float)                 : Grid line transparency.
-        - grid_linestyle (str)               : Grid line style (e.g., '--').
-        - freq_xlim (tuple)                  : Limits for frequency axis (e.g., (0.0, 0.5)).
-        - additional_linestyles (list)       : Linestyles for multiple cloud cover series (e.g., ['--', '-.', ':']).
-        - spine_linewidth (float)            : Width of plot spines.
-        - spine_edgecolor (str)              : Color of plot spines.
+    Keyword Arguments
+    -----------------
+    figsize : tuple, optional
+        Figure size (e.g., (12, 6)).
+    xlabel_fontsize : int, optional
+        Font size of the x-axis label.
+    ylabel_fontsize : int, optional
+        Font size of the y-axis label.
+    title_fontsize : int, optional
+        Font size of the plot title.
+    title_fontweight : str, optional
+        Font weight of the plot title (e.g., 'bold').
+    tick_labelsize : int, optional
+        Font size of tick labels.
+    grid_color : str, optional
+        Grid line color.
+    grid_alpha : float, optional
+        Grid line transparency.
+    grid_linestyle : str, optional
+        Grid line style (e.g., '--').
+    freq_xlim : tuple, optional
+        Frequency axis limits (e.g., (0.0, 0.5)).
+    additional_linestyles : list, optional
+        Linestyles for multiple cloud cover series (e.g., ['--', '-.', ':']).
+    spine_linewidth : float, optional
+        Width of plot spines.
+    spine_edgecolor : str, optional
+        Color of plot spines.
 
     Raises
     ------
     ValueError
-        If required inputs are missing or an unknown plot type is provided.
-
+        If required inputs are missing or an unknown plot_type is provided.
     """
     # ----- OPTIONS -----
     options = extract_options(kwargs, default_spectral)
