@@ -236,10 +236,6 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 ## Spectral Analysis
 
-| Test Case Output (1-year) | Full Dataset Output (10-year) |
-|---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
-
 Using the available **3D datasets**, the tool extracts **basin-averaged time series** for each of the main error components:
 
 - **Mean Bias**
@@ -258,9 +254,21 @@ This analysis enables the detection of both natural cycles and possible systemat
 
 ### Timeseries and comparison
 
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Error_Decomposition_Timeseries.png) | ![Full CHL BOX](Example_Images/Full_Data/Error_Decomposition_Timeseries.png) |
+
 ### PSD
 
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_PSD.png) | ![Full CHL BOX](Example_Images/Full_Data/PSD-CHL.png) |
+
 ### CSD
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_PSD.png) | ![Full CHL BOX](Example_Images/Full_Data/CSD-CHL.png) |
 
 ---
 
