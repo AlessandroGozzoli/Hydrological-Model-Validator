@@ -88,7 +88,7 @@ The following visualization and statistical tools are used to evaluate model per
 
 ---
 
-### Expansion of the Analysis: Bottom (Benthic) \(\sigma\)-Layer
+### Expansion of the Analysis: Bottom (Benthic) σ-Layer
 
 As the **first direction for expanded analysis**, this repository introduces tools focused on the **extraction and study of the bottom \(\sigma\)-layer** of the simulation grid. This layer is particularly relevant for investigating the **formation of deep water masses** and the **distribution of bio-geochemical variables** near the seabed.
 
