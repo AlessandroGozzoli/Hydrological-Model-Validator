@@ -402,4 +402,15 @@ The user may select one of the available **BFM tracers** to be plotted at both:
 
 This allows for immediate visual identification of potential ecological stress events in both benthic and pelagic environments.
 
-### MAPS
+### Oxygen
+
+![Test SST BOX](Example_Images/bfm/Benthic_O2o_2000_December.png)
+
+### Primary Producers (P-family)
+
+| Diatoms | Flagellates |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/bfm/Benthic_P1c_2000_April.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P2c_2000_May.png) |
+| PicoPhytoplancton | Large Phytoplancton |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/bfm/Benthic_P3c_2000_November.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P4c_2000_July.png) |
