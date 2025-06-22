@@ -1,3 +1,38 @@
+# **Version:** 4.10.3  
+**Date:** 21/06/2025  
+
+## Summary
+
+Documentation overhaul and minor hotfixes.
+
+## Documentation Updates
+
+### New `README.md`
+The main `README` has been **fully rewritten** to better reflect the scope, usage, and structure of the project. It now includes:
+- Project overview and capabilities
+- Installation instructions (including dependencies like MATLAB and CDO)
+- Example usage and command-line options
+- Extended bibliography and reference list
+- Project health badges from Codecov, Codacy, and Codebeat
+
+### `docs/TEST_CASES_README.md`
+A dedicated markdown file has been added under `docs/` to document the **test cases**:
+- Descriptions of each test case
+- Example output plots
+- Clarification on purpose and expected input/output
+
+> A future integration with Sphinx is planned to combine this with the `README.md` and `CHANGELOG.md` into a full API-style documentation._
+
+---
+
+## Hotfixes
+
+### `plot_spatial_efficiency`
+Fixed a layout issue affecting **multi-year datasets (7+ years)**:  
+The recent refactor to improve handling of **short datasets** (e.g., 1 year) broke the **centering logic** for longer timelines. Plot layout is now adaptive and visually consistent across all timescales.
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.10.2
 **Date:** 21/06/2025 
 
