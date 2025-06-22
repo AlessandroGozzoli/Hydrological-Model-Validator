@@ -106,27 +106,27 @@ A series of plotting and analysis is performed using the BAsin Average Timeserie
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Taylor_diagram_summary.png) | ![Full CHL BOX](Example_Images/Full_Data/Taylor_diagram_summary.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Taylor_diagram_summary.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Taylor_diagram_summary.png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Unified_Taylor_Diagram.png) | ![Full CHL BOX](Example_Images/Full_Data/Unified_Taylor_Diagram.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Unified_Taylor_Diagram.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Unified_Taylor_Diagram.png) |
 
 ### Target plots
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Unified_Target_Diagram.png) | ![Full CHL BOX](Example_Images/Full_Data/Unified_Target_Diagram.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Unified_Target_Diagram.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Unified_Target_Diagram.png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly_Target_Diagram.png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly_Target_Diagram.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly_Target_Diagram.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly_Target_Diagram.png) |
 
 ### Efficiency metrcis
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/NSE.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/NSE.png) |
 
 ## Spatial Analysis
 
@@ -152,21 +152,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### Standard Deviation Error
 
@@ -174,21 +174,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### Cross-correlation
 
@@ -196,21 +196,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### uRMSE
 
@@ -218,21 +218,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ## Spectral Analysis
 
@@ -256,19 +256,19 @@ This analysis enables the detection of both natural cycles and possible systemat
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Error_Decomposition_Timeseries.png) | ![Full CHL BOX](Example_Images/Full_Data/Error_Decomposition_Timeseries.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Error_Decomposition_Timeseries.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Error_Decomposition_Timeseries.png) |
 
 ### PSD
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_PSD.png) | ![Full CHL BOX](Example_Images/Full_Data/PSD-CHL.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Spectral_Plot_PSD.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/PSD-CHL.png) |
 
 ### CSD
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_CSD.png) | ![Full CHL BOX](Example_Images/Full_Data/CSD-CHL.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Spectral_Plot_CSD.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/CSD-CHL.png) |
 
 ---
 
@@ -294,11 +294,11 @@ These visualizations help to contextualize the benthic analysis and validate tha
 
 ### 2D plot
 
-![Bottom2d](Example_Images/bfm/NA%20-%20Benthic%20Depth.png)
+![Bottom2d](../docs/Example_Images/bfm/NA%20-%20Benthic%20Depth.png)
 
 ### Full render
 
-[🔗 Download 3D Basin Depth Surface (Interactive HTML)](Example_Images/bfm/3D%20Basin%20Depth%20surface.html)
+[🔗 Download 3D Basin Depth Surface (Interactive HTML)](../docs/Example_Images/bfm/3D%20Basin%20Depth%20surface.html)
 
 > Due to the location of the sphinx files the setup of the GitHub web page was not possible and due to the file being too big the visualization is impossible, to see the render a download is unfortunatelly necessary
 
@@ -322,7 +322,7 @@ These outputs are essential for identifying the impact of surface and lateral fo
 
 | Temperature | Salinity |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_votemper_2000_July.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_vosaline_2000_January.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_votemper_2000_July.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_vosaline_2000_January.png) |
 
 ## Density Computation: Equations of State
 
@@ -375,14 +375,14 @@ Each of these equations results in a **separate density dataset**, allowing comp
 
 | SEOS | EOS-80 | TEOS-10
 |---------------------------|-------------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_density_2000_February-SEOS.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_density_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_density_2000_February-TEOS10.png) |
-| NO DATA | ![Full CHL BOX](Example_Images/bfm/Benthic_dense_water_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_dense_water_2000_February-TEOS10.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_density_2000_February-SEOS.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_density_2000_February-EOS80.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_density_2000_February-TEOS10.png) |
+| NO DATA | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_dense_water_2000_February-EOS80.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_dense_water_2000_February-TEOS10.png) |
 
 Representing the density of the water masses. A threshold of 1029.2 km/m3 is then imposed to isolate all dense water masses and and a volume timeseries is then computed
 
 ### Dense water mass timeseries
 
-![DenseWater](Example_Images/bfm/Dense_water_timeseries.png)
+![DenseWater](../docs/Example_Images/bfm/Dense_water_timeseries.png)
 
 ## Bio-Geochemical Tracers
 
@@ -404,34 +404,34 @@ This allows for immediate visual identification of potential ecological stress e
 
 ### Oxygen
 
-![Test SST BOX](Example_Images/bfm/Benthic_O2o_2000_December.png)
+![Test SST BOX](../docs/Example_Images/bfm/Benthic_O2o_2000_December.png)
 
 ### Primary Producers (P-family)
 
 | Diatoms | Flagellates |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_P1c_2000_April.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P2c_2000_May.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_P1c_2000_April.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_P2c_2000_May.png) |
 
 | PicoPhytoplancton | Large Phytoplancton |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_P3c_2000_November.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P4c_2000_July.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_P3c_2000_November.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_P4c_2000_July.png) |
 
 ### Secondary Producers (Z-family)
 
 | Carnivorous Mesozooplankton | Omnivorous Mesozooplankton |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_Z3c_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z4c_2000_August.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_Z3c_2000_August.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_Z4c_2000_August.png) |
 
 | Microzooplankton | Heterotropic Nanoflagellates |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_Z5c_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z6c_2000_August.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_Z5c_2000_August.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_Z6c_2000_August.png) |
 
 ### Other Chemical Tracers (N-family)
 
 | Phospahte | Nitrate | Ammonium
 |---------------------------|-------------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_N1p_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N3n_2000_July.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N4n_2000_June.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_N1p_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N3n_2000_July.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_N4n_2000_June.png) |
 
 ### Organic Matter (R-family)
 
-![Test SST BOX](Example_Images/bfm/Benthic_R6c_2000_August.png)
+![Test SST BOX](../docs/Example_Images/bfm/Benthic_R6c_2000_August.png)
