@@ -189,9 +189,11 @@ def Benthic_depth(Bmost: np.ndarray,
     save_path = Path(output_path, filename)
     plt.savefig(save_path)
     plt.close()
+    
 ###############################################################################
 
 ###############################################################################
+
 def plot_benthic_3d_mesh(Bmost,
                          geo_coords,
                          layer_thickness=2,
@@ -317,9 +319,11 @@ def plot_benthic_3d_mesh(Bmost,
         os.makedirs(save_path, exist_ok=True)
         filename = Path(save_path, filename)
         pio.write_html(fig, filename, auto_open=True)
+        
 ###############################################################################
 
 ###############################################################################
+
 def Benthic_physical_plot(var_dataframe: dict,
                           geo_coord: dict,
                           **kwargs) -> None:
@@ -477,9 +481,11 @@ def Benthic_physical_plot(var_dataframe: dict,
         plt.close()
 
     print('-' * 45)
+    
 ###############################################################################    
 
 ###############################################################################
+
 def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
     """
     Plot benthic variable maps (e.g., temperature, chlorophyll) across all years and months.
@@ -636,9 +642,11 @@ def Benthic_chemical_plot(var_dataframe, geo_coord, location=None, **kwargs):
             save_dir.mkdir(parents=True, exist_ok=True)
             plt.savefig(save_dir / f"Benthic_{bfm2plot}_{year}_{month_name}.png", bbox_inches='tight', dpi=dpi)
             plt.close()
+            
 ###############################################################################    
 
-###############################################################################    
+############################################################################### 
+  
 def dense_water_timeseries(
     data_lists: Dict[str, List[dict]],
     title: str = "Dense Water Volume Time Series",
@@ -745,4 +753,5 @@ def dense_water_timeseries(
     save_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(save_dir / "Dense_water_timeseries")
     plt.close()
+    
 ###############################################################################

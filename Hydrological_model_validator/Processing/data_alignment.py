@@ -91,6 +91,7 @@ def get_valid_mask(mod_vals: np.ndarray, sat_vals: np.ndarray) -> np.ndarray:
 ###############################################################################
 
 ###############################################################################
+
 def get_valid_mask_pandas(mod_series: pd.Series, 
                           sat_series: pd.Series) -> pd.Series:
     """
@@ -181,6 +182,7 @@ def get_valid_mask_pandas(mod_series: pd.Series,
 ###############################################################################
 
 ###############################################################################
+
 def align_pandas_series(mod_series: pd.Series, 
                         sat_series: pd.Series) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -265,6 +267,7 @@ def align_pandas_series(mod_series: pd.Series,
 ###############################################################################
 
 ###############################################################################
+
 def align_numpy_arrays(mod_vals: np.ndarray, 
                        sat_vals: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """

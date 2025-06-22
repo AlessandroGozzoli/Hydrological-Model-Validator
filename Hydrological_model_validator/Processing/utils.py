@@ -91,9 +91,11 @@ def find_key(
             logging.info("No matching key found.")
             log_message("find_key no match found")
             return None  # No matching key found
+        
 ###############################################################################
 
 ###############################################################################
+
 def extract_options(
     user_kwargs: Dict[str, Any],
     default_dict: Dict[str, Any],
@@ -161,9 +163,11 @@ def extract_options(
             log_message("extract_options completed", result_keys=list(result.keys()))
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def infer_years_from_path(
     directory: Union[str, Path],
     *,
@@ -249,15 +253,19 @@ def infer_years_from_path(
             log_message("infer_years_from_path completed", Ybeg=Ybeg, Yend=Yend, ysec=ysec)
 
             return Ybeg, Yend, ysec
+        
 ###############################################################################
 
 ###############################################################################
+
 def build_bfm_filename(year: int, filename_fragments: Dict[str, str]) -> str:
     """Construct BFM filename with given year and fragments."""
     return f"ADR{year}{filename_fragments['ffrag1']}{year}{filename_fragments['ffrag2']}{year}{filename_fragments['ffrag3']}.nc"
+
 ###############################################################################
 
 ###############################################################################
+
 def temp_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: np.ndarray) -> np.ndarray:
     """
     Compute invalid mask for temperature based on shallow and deep thresholds.
@@ -311,6 +319,7 @@ def temp_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: 
 ###############################################################################
 
 ###############################################################################
+
 def hal_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: np.ndarray) -> np.ndarray:
     """
     Compute invalid mask for salinity based on shallow and deep thresholds.
@@ -360,9 +369,11 @@ def hal_threshold(slice_data: np.ndarray, mask_shallow: np.ndarray, mask_deep: n
             log_message("hal_threshold completed")
 
             return invalid_mask
+        
 ###############################################################################
 
 ###############################################################################
+
 def find_key_variable(nc_vars: Iterable[str], candidates: List[str]) -> str:
     """
     Return the first variable name found in nc_vars from candidates list,
@@ -416,9 +427,11 @@ def find_key_variable(nc_vars: Iterable[str], candidates: List[str]) -> str:
             logging.info(f"Found variable '{found_var}' in nc_vars.")
             log_message("find_key_variable completed", found_var=found_var)
             return found_var
+        
 ###############################################################################
 
 ###############################################################################
+
 def _to_dataarray(
     val: Union[float, int, xr.DataArray], 
     reference_da: xr.DataArray
@@ -485,9 +498,11 @@ def _to_dataarray(
             logging.info("Broadcasted scalar to DataArray matching reference shape.")
             log_message("Completed _to_dataarray", result_shape=result.shape)
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def check_numeric_data(data_dict: Dict[str, Dict[int, List[np.ndarray]]]) -> None:
     """
     Validate that all monthly data arrays in the input dictionary contain numeric data

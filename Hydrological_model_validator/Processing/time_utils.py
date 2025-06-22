@@ -78,9 +78,11 @@ def leapyear(year: int) -> int:
             logging.info(f"Year {year} is {'a leap year' if result else 'not a leap year'}.")
 
             return result
+        
 ###############################################################################
 
 ###############################################################################
+
 def true_time_series_length(
     chlfstart: List[int],
     chlfend: List[int],
@@ -148,9 +150,11 @@ def true_time_series_length(
         log_message("Computed total_days", total_days=total_days)
 
         return total_days
+    
 ###############################################################################
 
 ###############################################################################
+
 def split_to_monthly(
     yearly_data: Dict[int, Union[pd.Series, pd.DataFrame]]
 ) -> Dict[int, List[Union[pd.Series, pd.DataFrame]]]:
@@ -228,9 +232,11 @@ def split_to_monthly(
         logging.info(f"Completed splitting all years, total years processed: {len(monthly_data_dict)}")
         log_message("Completed splitting all years", years_processed=len(monthly_data_dict))
         return monthly_data_dict
+    
 ###############################################################################
 
 ###############################################################################
+
 def split_to_yearly(
     series: pd.Series, 
     unique_years: List[Union[int, str]]
@@ -296,9 +302,11 @@ def split_to_yearly(
         log_message("Completed splitting to yearly", years=list(yearly_data.keys()))
 
         return yearly_data
+    
 ###############################################################################
 
 ###############################################################################
+
 def get_common_years(
     data_dict: Dict[str, Dict[Union[int, str], Any]], 
     mod_key: str, 
@@ -359,9 +367,11 @@ def get_common_years(
         log_message("Computed common years", common_years=common_years)
 
         return common_years
+    
 ###############################################################################
 
 ###############################################################################
+
 def get_season_mask(
     dates: Union[pd.DatetimeIndex, pd.Series], 
     season_name: str
@@ -432,9 +442,11 @@ def get_season_mask(
         log_message("Computed season mask", season_name=season_name, mask_shape=mask.shape)
 
         return mask
+    
 ###############################################################################
 
 ###############################################################################
+
 def resample_and_compute(
     model_sst_chunked: Union[xr.DataArray, xr.Dataset],
     sat_sst_chunked: Union[xr.DataArray, xr.Dataset]

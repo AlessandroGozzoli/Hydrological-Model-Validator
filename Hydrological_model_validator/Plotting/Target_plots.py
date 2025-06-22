@@ -176,9 +176,11 @@ def comprehensive_target_diagram(data_dict: dict, **kwargs) -> None:
     plt.tight_layout()
     plt.savefig(save_path, dpi=plt_opts.get("dpi"))
     plt.close()
+    
 ###############################################################################
 
 ###############################################################################
+
 def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
     """
     Generate a monthly target diagram with normalized statistics (bias, CRMSD, RMSD).
@@ -330,4 +332,5 @@ def target_diagram_by_month(data_dict: dict, **kwargs) -> None:
     # ----- PRINT AND SAVE THE PLOT -----
     plt.savefig(save_path, dpi=plt_opts.get("dpi"))
     plt.close()
+    
 ###############################################################################
