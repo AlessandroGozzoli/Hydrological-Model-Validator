@@ -114,7 +114,6 @@ Python version supported : ![Python version](https://img.shields.io/badge/python
 
 <details>
 <summary><strong>Conda (Recommended)</strong></summary>
-
 ### All Systems
 
 ```bash
@@ -127,10 +126,10 @@ conda activate hydroval
 # Install the package and dependencies in editable mode
 pip install -e .
 ```
-</details> 
-<details> 
-<summary><strong>Pip Only (Without Conda)</strong></summary>
+</details>
 
+<details>
+<summary><strong>Pip Only (Without Conda)</strong></summary>
 ### All Systems
 
 ```bash
@@ -141,10 +140,10 @@ source env/bin/activate      # Windows: env\Scripts\activate
 # Install the package and dependencies in editable mode
 pip install -e .
 ```
-</details> 
-<details> 
-<summary><strong>Alternative Pip Options</strong></summary>
+</details>
 
+<details>
+<summary><strong>Alternative Pip Options</strong></summary>
 ### --user (No admin rights)
 
 ```bash
@@ -157,7 +156,6 @@ pip install --user -e .
 pip install -e .
 ```
 Use -e when actively developing or modifying the source code.
-
 </details>
 
 ---
