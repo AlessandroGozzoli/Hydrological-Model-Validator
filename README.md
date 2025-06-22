@@ -110,6 +110,8 @@ This project can be installed using `conda` (recommended) or `pip` across all ma
 
 ## **Python Environment Setup**
 
+Python version supported : ![Python version](https://img.shields.io/badge/python-3.9|3.10|3.11|3.12|3.13-blue.svg)
+
 <details>
 <summary><strong>Conda (Recommended)</strong></summary>
 
@@ -122,42 +124,40 @@ conda create -n hydroval python=3.10
 # Activate the environment
 conda activate hydroval
 
-# Install required packages
-pip install -r requirements.txt
+# Install the package and dependencies in editable mode
+pip install -e .
 ```
-</details>
-
-<details>
+</details> 
+<details> 
 <summary><strong>Pip Only (Without Conda)</strong></summary>
 
 ### All Systems
 
 ```bash
-# Optionally use a virtualenv (recommended)
+# Optionally create and activate a virtual environment (recommended)
 python -m venv env
 source env/bin/activate      # Windows: env\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install the package and dependencies in editable mode
+pip install -e .
 ```
-</details>
-
-<details>
+</details> 
+<details> 
 <summary><strong>Alternative Pip Options</strong></summary>
 
-### `--user` (No admin rights)
+### --user (No admin rights)
 
 ```bash
-pip install --user -r requirements.txt
+pip install --user -e .
 ```
 
-### `-e` (Editable/development mode)
+### -e (Editable/development mode)
 
 ```bash
 pip install -e .
 ```
+Use -e when actively developing or modifying the source code.
 
-Use `-e` when actively developing or modifying the source code.
 </details>
 
 ---
@@ -173,6 +173,14 @@ Some test cases or post-analysis steps may require MATLAB. Make sure it's instal
 
 🔗 [Official MATLAB Installation Guide](https://www.mathworks.com/help/install/)
 </details>
+
+To correctly run the interpolator, the toolboxes **m_map**, **mexcdf**, and **nctoolbox** need to be accessible by the script. Please make sure that their paths are reachable by your MATLAB installation. For a guide on how to add paths in MATLAB, please refer to [MATLAB Add Folder to Path Documentation](https://www.mathworks.com/help/matlab/ref/addpath.html).
+
+The usage of a MATLAB interpolator is to make the process NOAA compliant by using their same tools, allowing future integration of this repository with other [NOAA](https://www.noaa.gov/) tools.
+
+- **m_map** toolbox: [https://www.eoas.ubc.ca/~rich/map.html](https://www.eoas.ubc.ca/~rich/map.html)  
+- **mexcdf** toolbox: [https://www.mathworks.com/matlabcentral/fileexchange/26310-netcdf-interface-for-matlab-mexcdf](https://www.mathworks.com/matlabcentral/fileexchange/26310-netcdf-interface-for-matlab-mexcdf)  
+- **nctoolbox**: [https://github.com/nctoolbox/nctoolbox](https://github.com/nctoolbox/nctoolbox)
 
 ---
 
@@ -224,6 +232,7 @@ GenerateReport [input_folder_or_dict] [OPTIONS]
 
 ## Positional Argument
 
+```bash
 usage: GenerateReport [-h] [--output-dir path] [--check] [--no-pdf] [--verbose] [--open-report]
                       [--variable var_name] [--unit unit_str] [--no-banner] [--info] [--version]
                       [input]
@@ -255,6 +264,7 @@ options:
   --no-banner           Suppress ASCII banner (useful for batch jobs)
   --info                Show program description and exit
   --version             Show version and exit
+```
 
 ---
 
