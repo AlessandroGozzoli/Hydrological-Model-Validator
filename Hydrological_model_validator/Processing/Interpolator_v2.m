@@ -30,7 +30,7 @@ fprintf('\n%s\n', repmat('-', 1, 45));
 
 %-----EXTRACTING THE SINGULAR FIELDS FROM DATA-----
 fprintf("Extracting the singular variables from data... \n");
-Truedays = 3653;
+Truedays = size(ModData_complete, 1);
 fprintf("Trueday has been extracted! \n");
 Sat_lon = double(data.Sat_lon);
 fprintf("Slon has been extracted! \n");
@@ -119,13 +119,13 @@ if strcmp(data_level, "l4")
     % Check if the file exists, if not create it
     ncfile = [interPath, '\', 'ModData_', varname, '_interp_l4.nc'];
 
-    % Create the NetCDF file and the variable 'Mchl_interp' if they don't exist
+    % Create the NetCDF file and the variable 'ModData_complete' if they don't exist
     if exist(ncfile, 'file') == 2
         fprintf("File already exists, overwriting...\n");
         delete(ncfile); % Optional: delete the existing file if overwriting is desired
     end
 
-    % Create the NetCDF file and variable for 'Mchl_interp'
+    % Create the NetCDF file and variable for 'ModData_complete'
     nccreate(ncfile, 'ModData_complete', 'Dimensions', {'time', Truedays, 'lat', size(ModData_complete, 2), 'lon', size(ModData_complete, 3)});
 
     % Write the data to the 'ModData_interp' variable in the NetCDF file
@@ -133,7 +133,7 @@ if strcmp(data_level, "l4")
     fprintf("ModData_complete_l4.nc file has been saved\n");
 
     fprintf("Saving the interpolated satellite level 4 data...\n")
-    % Saving SatData_interp_l4.nc file similarly
+    % Saving SatData_interp.nc file similarly
     ncfile2 = [interPath, '\', 'SatData_', varname, '_interp_l4.nc'];
 
     if exist(ncfile2, 'file') == 2
@@ -141,10 +141,10 @@ if strcmp(data_level, "l4")
         delete(ncfile2); % Optional: delete the existing file if overwriting is desired
     end
 
-    % Create the NetCDF file and variable for 'SatData_complete'
+    % Create the NetCDF file and variable for 'SatData_interp'
     nccreate(ncfile2, 'SatData_interp', 'Dimensions', {'time', Truedays, 'lat', size(SatData_interp, 2), 'lon', size(SatData_interp, 3)});
 
-    % Write the SatData_complete data
+    % Write the SatData_interp data
     ncwrite(ncfile2, 'SatData_interp', SatData_interp);
     fprintf("SatData_interp_l4.nc file has been created\n")
 
@@ -218,21 +218,21 @@ elseif strcmp(data_level, "l3")
     % Check if the file exists, if not create it
     ncfile = [interPath, '\', 'ModData_', varname, '_interp_l3.nc'];
 
-    % Create the NetCDF file and the variable 'Mchl_interp' if they don't exist
+    % Create the NetCDF file and the variable 'ModData_interp' if they don't exist
     if exist(ncfile, 'file') == 2
         fprintf("File already exists, overwriting...\n");
         delete(ncfile); % Optional: delete the existing file if overwriting is desired
     end
 
-    % Create the NetCDF file and variable for 'Mchl_interp'
+    % Create the NetCDF file and variable for 'ModData_interp'
     nccreate(ncfile, 'ModData_interp', 'Dimensions', {'time', Truedays, 'lat', size(ModData_interp, 2), 'lon', size(ModData_interp, 3)});
 
-    % Write the data to the 'Mchl_interp' variable in the NetCDF file
+    % Write the data to the 'ModData_interp' variable in the NetCDF file
     ncwrite(ncfile, 'ModData_interp', ModData_interp);
     fprintf("ModData_interp_l3.nc file has been saved\n");
 
     fprintf("Saving the satellite level 3 data...\n")
-    % Saving SatData_interp_l3.nc file similarly
+    % Saving SatData_complete.nc file similarly
     ncfile2 = [interPath, '\', 'SatData_', varname, '_interp_l3.nc'];
 
     if exist(ncfile2, 'file') == 2
