@@ -359,9 +359,9 @@ These tools verify logic correctness, class behavior, and code style compliance.
 
 This project is continuously monitored with external quality and coverage tools:
 
-| Codacy | Codebeat | Codecov |
-|--------|----------|---------|
-| [![Codacy Badge](https://app.codacy.com/project/badge/Grade/78c1d747de5f4f0f9abb1e12af4b4f5a)](https://app.codacy.com/gh/AlessandroGozzoli/Hydrological-Model-Validator/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) | [![codebeat badge](https://codebeat.co/badges/7416d105-cd9a-4f3d-b5f2-16f311ba4de4)](https://codebeat.co/projects/github-com-alessandrogozzoli-hydrological-model-validator-master) | [![codecov](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator/graph/badge.svg?token=JYO0BFY7OX)](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator) |
+| Codacy | Codebeat | Codecov | Documentation|
+|--------|----------|---------|--------------|
+| [![Codacy Badge](https://app.codacy.com/project/badge/Grade/78c1d747de5f4f0f9abb1e12af4b4f5a)](https://app.codacy.com/gh/AlessandroGozzoli/Hydrological-Model-Validator/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) | [![codebeat badge](https://codebeat.co/badges/7416d105-cd9a-4f3d-b5f2-16f311ba4de4)](https://codebeat.co/projects/github-com-alessandrogozzoli-hydrological-model-validator-master) | [![codecov](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator/graph/badge.svg?token=JYO0BFY7OX)](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator) | [![Documentation Status](https://readthedocs.org/projects/hydrological-model-validator/badge/?version=latest)](https://hydrological-model-validator.readthedocs.io/en/latest/?badge=latest)
 
 ---
 
