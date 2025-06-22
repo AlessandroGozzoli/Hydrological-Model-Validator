@@ -420,8 +420,8 @@ This allows for immediate visual identification of potential ecological stress e
 
 | Carnivorous Mesozooplankton | Omnivorous Mesozooplankton |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_Z3c_2000_April.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z4c_2000_April.png) |
+| ![Test SST BOX](Example_Images/bfm/Benthic_Z3c_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z4c_2000_August.png) |
 
 | Microzooplankton | Heterotropic Nanoflagellates |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/bfm/Benthic_Z5c_2000_November.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z6c_2000_July.png) |
+| ![Test SST BOX](Example_Images/bfm/Benthic_Z5c_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z6c_2000_August.png) |
