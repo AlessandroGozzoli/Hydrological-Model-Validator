@@ -22,10 +22,14 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities and modules
-from .time_utils import Timer
-from .utils import infer_years_from_path, build_bfm_filename, temp_threshold, hal_threshold
-from .file_io import unzip_gz_to_file, read_nc_variable_from_unzipped_file
-from .data_alignment import apply_3d_mask
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.utils import (infer_years_from_path, 
+                                                           build_bfm_filename, 
+                                                           temp_threshold, 
+                                                           hal_threshold)
+from Hydrological_model_validator.Processing.file_io import (unzip_gz_to_file, 
+                                                             read_nc_variable_from_unzipped_file)
+from Hydrological_model_validator.Processing.data_alignment import apply_3d_mask
 
 ###############################################################################
 ##                                                                           ##

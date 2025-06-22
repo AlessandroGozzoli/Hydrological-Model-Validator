@@ -17,10 +17,10 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities and processing modules
-from .time_utils import Timer
-from ..Processing.data_alignment import get_common_series_by_year, get_common_series_by_year_month
-from ..Processing.stats_math_utils import round_up_to_nearest
-from .utils import check_numeric_data
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.data_alignment import get_common_series_by_year, get_common_series_by_year_month
+from Hydrological_model_validator.Processing.stats_math_utils import round_up_to_nearest
+from Hydrological_model_validator.Processing.utils import check_numeric_data
 
 ###############################################################################
 ##                                                                           ##

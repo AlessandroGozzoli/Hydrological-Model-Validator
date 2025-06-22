@@ -22,7 +22,7 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities
-from .time_utils import Timer
+from Hydrological_model_validator.Processing.time_utils import Timer
 
 ###############################################################################
 ##                                                                           ##
@@ -967,6 +967,9 @@ def detrend_linear(data: Union[np.ndarray, List[float], pd.Series]) -> np.ndarra
     >>> data = np.arange(10) + np.random.rand(10)
     >>> detrended = detrend(data)
     """
+    if data is None or len(data) == 0:
+        raise ValueError("Input data for detrending is empty.")
+    
     with Timer('detrend'):
         with start_action(action_type='detrend', length=len(data)):
             # Generate time indices as independent variable for regression

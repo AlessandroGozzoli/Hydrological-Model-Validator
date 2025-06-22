@@ -14,7 +14,7 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities
-from .time_utils import Timer
+from Hydrological_model_validator.Processing.time_utils import Timer
 
 ###############################################################################
 ##                                                                           ##

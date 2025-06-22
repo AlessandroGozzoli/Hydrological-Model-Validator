@@ -20,8 +20,8 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities
-from .time_utils import Timer, leapyear
-from .utils import infer_years_from_path
+from Hydrological_model_validator.Processing.time_utils import Timer, leapyear
+from Hydrological_model_validator.Processing.utils import infer_years_from_path
 
 ###############################################################################
 ##                                                                           ##

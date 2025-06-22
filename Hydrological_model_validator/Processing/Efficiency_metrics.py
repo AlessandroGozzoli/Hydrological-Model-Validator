@@ -15,8 +15,8 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities and stats functions
-from .time_utils import Timer
-from .stats_math_utils import (
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.stats_math_utils import (
     mean_bias,
     standard_deviation_error,
     std_dev,

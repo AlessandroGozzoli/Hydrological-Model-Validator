@@ -15,8 +15,10 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities
-from .time_utils import Timer
-from .data_alignment import get_common_series_by_year, get_valid_mask, extract_mod_sat_keys
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.data_alignment import (get_common_series_by_year, 
+                                                                    get_valid_mask, 
+                                                                    extract_mod_sat_keys)
 
 ###############################################################################
 ##                                                                           ##

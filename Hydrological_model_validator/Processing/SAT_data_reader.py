@@ -20,8 +20,8 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities
-from .time_utils import Timer
-from .utils import find_key_variable
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.utils import find_key_variable
 
 ###############################################################################
 ##                                                                           ##
