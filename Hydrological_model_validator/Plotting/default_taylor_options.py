@@ -47,7 +47,7 @@ default_taylor_ref_marker_options = {
 
 ###############################################################################
 default_taylor_data_marker_options = {
-    'markersize': 10,
+    'markersize': 12.5,
     'alpha': 0.8
     # overlay and showlabelsrms are fixed
 }
