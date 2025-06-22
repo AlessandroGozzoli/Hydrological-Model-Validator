@@ -294,9 +294,15 @@ These visualizations help to contextualize the benthic analysis and validate tha
 
 ### 2D plot
 
+![Bottom2d] (docs/bfm/NA%20-%20Benthic%20Depth.png)
+
 ### Full render
 
+[🔗 View 3D Basin Depth Surface (Interactive HTML)](Example_Images/Full_Data/3D%20Basin%20Depth%20surface.html)
+
 ## Deep Water Mass Formation
+
+![DenseWater] (docs/bfm/Dense_water_timeseries.png)
 
 To better understand the **formation of deep water masses**, the analysis includes the computation of the **density field** at the bottom σ-layer.
 
