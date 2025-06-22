@@ -114,7 +114,7 @@ Python version supported : ![Python version](https://img.shields.io/badge/python
 
 <details>
 <summary><strong>Conda (Recommended)</strong></summary>
-### All Systems
+<p><strong>All Systems</strong></p>
 
 ```bash
 # Create a new conda environment
@@ -130,7 +130,7 @@ pip install -e .
 
 <details>
 <summary><strong>Pip Only (Without Conda)</strong></summary>
-<h3>All systems</h3>
+<p><strong>All Systems</strong></p>
 
 ```bash
 # Optionally create and activate a virtual environment (recommended)
@@ -144,7 +144,7 @@ pip install -e .
 
 <details>
 <summary><strong>Alternative Pip Options</strong></summary>
-<h3>--user (No admin rights)</h3>
+<p><strong>--user (No admin rights)</strong></p>
 
 ```bash
 pip install --user -e .
