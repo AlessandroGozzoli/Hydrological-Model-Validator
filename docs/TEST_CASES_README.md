@@ -294,11 +294,13 @@ These visualizations help to contextualize the benthic analysis and validate tha
 
 ### 2D plot
 
-![Bottom2d] (Example_Images/bfm/NA%20-%20Benthic%20Depth.png)
+![Bottom2d](Example_Images/bfm/NA%20-%20Benthic%20Depth.png)
 
 ### Full render
 
-[🔗 View 3D Basin Depth Surface (Interactive HTML)](Example_Images/bfm/3D%20Basin%20Depth%20surface.html)
+[🔗 Download 3D Basin Depth Surface (Interactive HTML)](Example_Images/bfm/3D%20Basin%20Depth%20surface.html)
+
+> Due to the location of the sphinx files the setup of the GitHub web page was not possible and due to the file being too big the visualization is impossible, to see the render a download is unfortunatelly necessary
 
 ## Deep Water Mass Formation
 
@@ -378,7 +380,7 @@ representing the density of the water masses. A threshold of 1029.2 km/m3 is the
 
 ### Dense water mass timeseries
 
-![DenseWater] (Example_Images/bfm/Dense_water_timeseries.png)
+![DenseWater](Example_Images/bfm/Dense_water_timeseries.png)
 
 ## Bio-Geochemical Tracers
 
