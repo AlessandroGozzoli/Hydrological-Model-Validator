@@ -1,3 +1,117 @@
+# **Version:** 4.10.2
+**Date:** 21/06/2025 
+
+## Summary
+
+Introduction of new tests
+
+## Report_generator tests
+
+With the aim to reach an acceptable coverage of the Report_generator more tests have been created
+
+# **Version:** 4.10.1
+**Date:** 21/06/2025 
+
+## Summary
+
+Minor release focused on general hotfixes and improved cross-platform behavior.
+
+## Hotfixes
+
+### PDF Opening in WSL  
+The `Report_generator`’s `--open-report` functionality has been reworked for **better compatibility with WSL environments**.  
+The routine now **falls back to `xdg-open` or `os.startfile` alternatives**, depending on platform detection. This ensures PDFs open correctly across Linux, Windows, and WSL instances when using the CLI flag `--open-report`.
+
+### Taylor Diagram (Single Marker Bug)  
+Fixed a rendering bug in the `comprehensive_taylor_diagram` plotting function:  
+- When **only a single marker** is passed and `overlay="on"` is set, the native SkillMetrics library failed to place it correctly.
+- Now, a **manual fallback mechanism** adds the marker without using the looped overlay logic.
+
+--------------------------------------------------------------------------------------
+
+# **Version:** 4.10.0
+**Date:** 21/06/2025  
+
+## Summary
+
+Major release introducing a third submodule for automatic PDF report generation via CLI. Also includes CLI enhancements, helper utilities, and hotfixes across plotting and data handling functions.
+
+## Report generator CLI
+
+A command-line interface has been introduced to **automatically generate a PDF report** for model performance evaluation based on minimal input datasets.  
+
+Invoked via the `GenerateReport` entrypoint, this routine:
+
+- Accepts input via file paths or dictionaries
+- Runs SST/CHL-like analyses automatically (same ones proposed in the associated test cases)
+- Optionally compiles the results into a PDF (plots + summaries)
+- Always saves individual plots/dataframes, regardless of PDF output
+
+**Key CLI flags/options:**
+
+- `input`: str or dict path(s) to data
+- `--output-dir`: optional output path
+- `--check`: validate structure only (no run)
+- `--no-pdf`: suppress PDF creation
+- `--verbose`: print run-time messages
+- `--open-report`: open PDF post-run
+- `--variable`, `--unit`: override plot labels
+- `--no-banner`: suppress ASCII banner
+- `--version`, `--info`: metadata displa
+
+## Report submodule
+
+All functions and classes for PDF report composition have been moved into a standalone submodule.  
+This enables advanced users to programmatically generate custom reports.
+
+- Includes layout tools, content templates, and internal page managers
+- Covered by 3 new testing suites:
+  - Report classes
+  - Report functions
+  - Full report generation flow
+
+## Report helper functions
+
+To support the new submodule, various utilities were added or improved:
+
+**`file_io.py`**
+- `find_file_with_keywords`: auto-match filenames
+- `select_3d_variable`: extract usable `DataArray` from `Dataset`
+
+**`time_utils.py`**
+- `is_invalid_time_index`: check for broken time series
+- `ensure_datetime_index`: enforce time indexing
+- `prompt_for_datetime_index`: prompt user to define one
+
+**`utils.py`**
+- `convert_dataarrays_in_df`: safely convert 3D/2D `DataArray` to `DataFrame`
+
+Additional input label normalization ensures all common synonyms (`mod`, `sim`, `obs`, `sat`, etc.) are interpreted correctly.
+
+## Hotifxes
+
+- `plot_spatial_efficiency`:
+  - Fixed handling of 1-column layouts
+  - Improved colorbar/suptitle rendering
+
+- `compute_fft` and `plot_spectral`:
+  - Now skip ZeroDivision instances gracefully
+
+- `CHL/SST` test cases:
+  - Corrected geolocation error caused by inconsistent ocean masks
+
+## Future Work
+
+Next steps before final release:
+
+- Fully refactor the `README.md` with diagrams and working image links
+- Publish the **public test-case dataset**
+- General hotfixes
+
+> **Planned project deadline:** June 22, 2025 (subject to change)
+
+--------------------------------------------------------------------------------------
+
 # **Version:** 4.9.1  
 **Date:** 13/06/2025  
 
@@ -39,7 +153,7 @@ Next steps before final release:
 - Publish the **public test-case dataset**
 - Final pass of module and import cleanup
 
-> **Planned project deadline:** June 22, 2025 *(subject to change)*
+> **Planned project deadline:** June 22, 2025 (subject to change)
 
 --------------------------------------------------------------------------------------
 
