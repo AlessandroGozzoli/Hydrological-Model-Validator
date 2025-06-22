@@ -268,7 +268,7 @@ This analysis enables the detection of both natural cycles and possible systemat
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_PSD.png) | ![Full CHL BOX](Example_Images/Full_Data/CSD-CHL.png) |
+| ![Test SST BOX](Example_Images/Test_data/Spectral_Plot_CSD.png) | ![Full CHL BOX](Example_Images/Full_Data/CSD-CHL.png) |
 
 ---
 
