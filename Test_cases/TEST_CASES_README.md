@@ -83,23 +83,23 @@ A series of plotting and analysis is performed using the BAsin Average Timeserie
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST TS](docs/Example_Images/Test_data/Sea%20Surface%20Temperature_timeseries.png) | ![Full CHL TS](docs/Example_Images/Full_Data/Chlorophyll%20%28Level%203%29_timeseries.png) |
+| ![Test SST TS](../docs/Example_Images/Test_data/Sea%20Surface%20Temperature_timeseries.png) | ![Full CHL TS](../docs/Example_Images/Full_Data/Chlorophyll%20%28Level%203%29_timeseries.png) |
 
 ### Seasonal Scatterplots
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST SCAT](docs/Example_Images/Test_data/Sea%20Surface%20Temperature_all_seasons_scatterplot.png) | ![Full CHL SCAT](docs/Example_Images/Full_Data/Chlorophyll%20%28Level%203%29_all_seasons_scatterplot.png) |
+| ![Test SST SCAT](../docs/Example_Images/Test_data/Sea%20Surface%20Temperature_all_seasons_scatterplot.png) | ![Full CHL SCAT](../docs/Example_Images/Full_Data/Chlorophyll%20%28Level%203%29_all_seasons_scatterplot.png) |
 
 ### Violin and Boxplots
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST VIOLIN](docs/Example_Images/Test_data/Sea%20Surface%20Temperature_violinplot.png) | ![Full CHL VIOLIN](docs/Example_Images/Full_Data/Chlorophyll%20(Level%203)_violinplot.png) |
+| ![Test SST VIOLIN](../docs/Example_Images/Test_data/Sea%20Surface%20Temperature_violinplot.png) | ![Full CHL VIOLIN](../docs/Example_Images/Full_Data/Chlorophyll%20(Level%203)_violinplot.png) |
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](docs/Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](docs/Example_Images/Full_Data/Chlorophyll%20(Level%203)_boxplot.png) |
+| ![Test SST BOX](../docs/Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](../docs/Example_Images/Full_Data/Chlorophyll%20(Level%203)_boxplot.png) |
 
 
 ### Taylor diagrams
