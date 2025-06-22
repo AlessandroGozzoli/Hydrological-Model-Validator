@@ -347,11 +347,9 @@ This is computationally inexpensive but only accurate for small variations near 
 
 The **International Equation of State of Seawater (1980)**:
 
-\[
-\rho = \rho(S, T, p)
-\]
+`ρ = ρ(S, T, p)`
 
-Where \(\rho\) is a non-linear function of salinity \(S\), temperature \(T\), and pressure \(p\), using empirical coefficients. Implemented via standard oceanographic libraries (e.g., `seawater` in Python/Matlab).
+Where `ρ` is a non-linear function of salinity `S`, temperature `T`, and pressure `p`, using empirical coefficients. Implemented via standard oceanographic libraries (e.g., `seawater` in Python/Matlab).
 
 ---
 
@@ -359,9 +357,7 @@ Where \(\rho\) is a non-linear function of salinity \(S\), temperature \(T\), an
 
 The most accurate and modern formulation. It uses **Absolute Salinity (SA)** and **Conservative Temperature (CT)**:
 
-\[
-\rho = \rho(S_A, \Theta, p)
-\]
+`ρ = ρ(Sₐ, Θ, p)`
 
 This is the standard recommended by the [IOC/UNESCO](https://www.teos-10.org/) and supports full thermodynamic consistency.
 
