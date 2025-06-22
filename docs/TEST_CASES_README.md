@@ -87,23 +87,46 @@ A series of plotting and analysis is performed using the BAsin Average Timeserie
 
 ### Seasonal Scatterplots
 
-[]
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST SCAT](Example_Images/Test_data/Sea%20Surface%20Temperature_all_seasons_scatterplot.png) | ![Full CHL SCAT](Example_Images/Full_Data/Chlorophyll%20%28Level%203%29_all_seasons_scatterplot.png) |
 
 ### Violin and Boxplots
 
-[]
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST VIOLIN](Example_Images/Test_data/Sea%20Surface%20Temperature_violinplot.png) | ![Full CHL VIOLIN](Example_Images/Full_Data/Chlorophyll%20(Level%203)_violinplot.png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](Example_Images/Full_Data/Chlorophyll%20(Level%203)_boxplot.png) |
+
 
 ### Taylor diagrams
 
-[]
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](Example_Images/Full_Data/Taylor_diagram_summary.png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](Example_Images/Full_Data/Unified_Taylor_Diagram.png) |
 
 ### Target plots
 
-[]
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](Example_Images/Full_Data/Unified_Target_Diagram.png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Sea%20Surface%20Temperature_boxplot.png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly_Target_Diagram.png) |
 
 ### Efficiency metrcis
 
-[]
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Full_Data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 ## Spatial Analysis
 
