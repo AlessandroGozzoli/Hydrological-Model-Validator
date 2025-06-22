@@ -424,7 +424,7 @@ This allows for immediate visual identification of potential ecological stress e
 
 | Phospahte | Nitrate | Ammonium
 |---------------------------|-------------------------------|-------------------------------|
-| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_N1p_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N3n_2000_July.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_N4n_2000_June.png) |
+| ![Test SST BOX](../docs/Example_Images/bfm/Benthic_N1p_2000_August.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_N3n_2000_July.png) | ![Full CHL BOX](../docs/Example_Images/bfm/Benthic_N4n_2000_June.png) |
 
 ### Organic Matter (R-family)
 
