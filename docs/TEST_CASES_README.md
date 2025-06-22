@@ -375,9 +375,9 @@ Each of these equations results in a **separate density dataset**, allowing comp
 
 | SEOS | EOS-80 | TEOS-10
 |---------------------------|-------------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/Benthic_density_2000_February-SEOS.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_density_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_density_2000_February-TEOS10.png) |
+| ![Test SST BOX](Example_Images/bfm/Benthic_density_2000_February-SEOS.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_density_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_density_2000_February-TEOS10.png) |
 |---------------------------|-------------------------------|-------------------------------|
-| NO DATA | ![Full CHL BOX](Example_Images/Full_Data/Benthic_dense_water_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_dense_water_2000_February-TEOS10.png) |
+| NO DATA | ![Full CHL BOX](Example_Images/bfm/Benthic_dense_water_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_dense_water_2000_February-TEOS10.png) |
 
 representing the density of the water masses. A threshold of 1029.2 km/m3 is then imposed to isolate all dense water masses and and a volume timeseries is then computed
 
