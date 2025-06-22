@@ -72,6 +72,16 @@ def input_mock(prompt):
         return "y"
     elif "data frequency" in prompt.lower() or "frequency" in prompt.lower():
         return "D"
+    elif "exact filename to use for observed spatial data" in prompt.lower():
+        return "obs_spatial.nc"
+    elif "exact filename to use for simulated spatial data" in prompt.lower():
+        return "simulated_field.nc"
+    elif "exact filename to use for observed timeseries" in prompt.lower():
+        return "observed_timeseries.nc"
+    elif "exact filename to use for simulated timeseries" in prompt.lower():
+        return "model_timeseries.nc"
+    elif "exact filename to use for mask" in prompt.lower():
+        return "ocean_mask.nc"
     else:
         raise ValueError(f"Unhandled prompt: {prompt}")
         
@@ -442,3 +452,113 @@ def test_generate_full_report_asks_for_custom_output_dir_on_no(tmp_path, monkeyp
 
     # Validate that the custom directory was created
     assert custom_output_path.exists(), "Custom output directory was not created"
+    
+    
+def test_generate_full_report_with_string_folder_path(tmp_path):
+    # Create fake spatial and time series files with keyword-friendly names ----
+    obs_spatial = tmp_path / "obs_spatial.nc"
+    sim_spatial = tmp_path / "simulated_field.nc"
+    obs_ts = tmp_path / "observed_timeseries.nc"
+    sim_ts = tmp_path / "model_timeseries.nc"
+    mask_file = tmp_path / "ocean_mask.nc"
+
+    # Match time range to input_mock() start date ("2000-01-01")
+    time_index = pd.date_range("2000-01-01", periods=365)
+
+    dummy_array = xr.DataArray(
+        np.random.rand(365, 2, 2),
+        dims=["time", "lat", "lon"],
+        coords={"time": time_index, "lat": [0, 1], "lon": [0, 1]}
+    )
+    dummy_ts = pd.DataFrame({"value": np.random.rand(365)}, index=time_index)
+
+    dummy_array.to_netcdf(obs_spatial)
+    dummy_array.to_netcdf(sim_spatial)
+    dummy_ts.rename_axis("time").to_xarray().to_netcdf(obs_ts)
+    dummy_ts.rename_axis("time").to_xarray().to_netcdf(sim_ts)
+
+    # Create a dummy mask file with required variables
+    from netCDF4 import Dataset
+    with Dataset(mask_file, "w", format="NETCDF4") as ds:
+        ds.createDimension("z", 1)
+        ds.createDimension("y", 2)
+        ds.createDimension("x", 2)
+        tmask = ds.createVariable("tmask", "i1", ("z", "y", "x"))
+        nav_lat = ds.createVariable("nav_lat", "f4", ("y", "x"))
+        nav_lon = ds.createVariable("nav_lon", "f4", ("y", "x"))
+        tmask[:, :, :] = [[[1, 0], [1, 1]]]
+        nav_lat[:, :] = [[10, 11], [12, 13]]
+        nav_lon[:, :] = [[20, 21], [22, 23]]
+
+    # Patch input to simulate interactive responses
+    with patch("builtins.input", side_effect=input_mock):
+        generate_full_report(
+            str(tmp_path),          # Path to folder with files
+            output_dir=None,    # Where to save report
+            generate_pdf=False,     # Skip PDF to speed up test
+            verbose=False,
+            variable="testvar"
+        )
+
+    # Sice nothing at the end should change
+    # assert that a report folder was created
+    default_outdir = tmp_path / "REPORT"
+    assert default_outdir.exists()
+    
+
+def test_spatial_data_no_time_coordinate_triggers_prompt(tmp_path):
+    # Create a NetCDF file with a 'time' dimension but NO 'time' coordinate
+    no_time_coord_path = tmp_path / "obs_spatial.nc"
+    with Dataset(no_time_coord_path, "w", format="NETCDF4") as ds:
+        ds.createDimension("time", 365)
+        ds.createDimension("lat", 2)
+        ds.createDimension("lon", 2)
+        var = ds.createVariable("temperature", "f4", ("time", "lat", "lon"))
+        var[:] = np.random.rand(365, 2, 2)
+
+    # Create other required files to avoid crashing during full report flow
+    sim_path = tmp_path / "sim_spatial.nc"
+    xr.DataArray(np.random.rand(365, 2, 2), dims=["time", "lat", "lon"],
+                 coords={"time": pd.date_range("2001-01-01", periods=365),
+                         "lat": [0, 1], "lon": [0, 1]}).to_dataset(name="sim").to_netcdf(sim_path)
+
+    ts = pd.DataFrame({"val": np.random.rand(365)}, index=pd.date_range("2001-01-01", periods=365))
+    ts.rename_axis("time").to_xarray().to_netcdf(tmp_path / "obs_ts.nc")
+    ts.rename_axis("time").to_xarray().to_netcdf(tmp_path / "sim_ts.nc")
+
+    mask_path = tmp_path / "mask.nc"
+    with Dataset(mask_path, "w", format="NETCDF4") as ds:
+        ds.createDimension("z", 1)
+        ds.createDimension("y", 2)
+        ds.createDimension("x", 2)
+        tmask = ds.createVariable("tmask", "i1", ("z", "y", "x"))
+        nav_lat = ds.createVariable("nav_lat", "f4", ("y", "x"))
+        nav_lon = ds.createVariable("nav_lon", "f4", ("y", "x"))
+        tmask[:, :, :] = [[[1, 1], [1, 0]]]
+        nav_lat[:, :] = [[10, 11], [12, 13]]
+        nav_lon[:, :] = [[20, 21], [22, 23]]
+
+    # Mock `prompt_for_datetime_index()` to return a fake DatetimeIndex
+    fake_index = pd.date_range("2001-01-01", periods=365, freq="D")
+
+    with patch("Hydrological_model_validator.Processing.time_utils.prompt_for_datetime_index", return_value=fake_index) as prompt_mock:
+        # Patch input() with input_mock instead of a fixed return value
+        with patch("builtins.input", side_effect=input_mock), \
+             patch("PIL.Image.open"), \
+             patch("reportlab.pdfgen.canvas.Canvas.drawImage"):
+
+            generate_full_report(
+                {
+                    "obs_spatial": str(no_time_coord_path),
+                    "sim_spatial": str(sim_path),
+                    "obs_ts": str(tmp_path / "obs_ts.nc"),
+                    "sim_ts": str(tmp_path / "sim_ts.nc"),
+                    "mask": str(mask_path),
+                },
+                output_dir=tmp_path,
+                generate_pdf=False,
+                verbose=False,
+                variable="var"
+            )
+
+    prompt_mock.assert_called_once_with(365)
