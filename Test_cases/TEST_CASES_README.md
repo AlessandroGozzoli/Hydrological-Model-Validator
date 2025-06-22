@@ -332,14 +332,12 @@ The **density field** at the benthic (bottom σ-) layer is computed by combining
 
 A simplified linear approximation of seawater density:
 
-\[
-\rho = \rho_0 \left(1 - \alpha (T - T_0) + \beta (S - S_0) \right)
-\]
+`ρ = ρ₀ · (1 - α(T - T₀) + β(S - S₀))`
 
-- \(\rho_0\): reference density (typically 1025 kg/m³)  
-- \(T_0, S_0\): reference temperature and salinity  
-- \(\alpha\): thermal expansion coefficient  
-- \(\beta\): haline contraction coefficient
+- `ρ₀`: reference density (typically 1025 kg/m³)  
+- `T₀`, `S₀`: reference temperature and salinity  
+- `α`: thermal expansion coefficient  
+- `β`: haline contraction coefficient
 
 This is computationally inexpensive but only accurate for small variations near reference conditions.
 
