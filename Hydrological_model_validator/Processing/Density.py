@@ -18,9 +18,9 @@ import logging
 from eliot import start_action, log_message
 
 # Module utilities and file I/O
-from .time_utils import Timer
-from .utils import infer_years_from_path, temp_threshold, hal_threshold, build_bfm_filename
-from .file_io import read_nc_variable_from_gz_in_memory
+from Hydrological_model_validator.Processing.time_utils import Timer
+from Hydrological_model_validator.Processing.utils import infer_years_from_path, temp_threshold, hal_threshold, build_bfm_filename
+from Hydrological_model_validator.Processing.file_io import read_nc_variable_from_gz_in_memory
 
 ###############################################################################
 ##                                                                           ##
