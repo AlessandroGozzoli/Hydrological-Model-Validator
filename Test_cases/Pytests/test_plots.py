@@ -857,7 +857,8 @@ def time_series():
 
 @pytest.fixture
 def fft_components(time_series):
-    freqs, fft_vals = welch(time_series, fs=1.0)
+    # Ensure compatibility with scipy.signal.welch by converting to ndarray
+    freqs, fft_vals = welch(np.asarray(time_series), fs=1.0)
     return freqs, {"Model": fft_vals}
 
 @pytest.fixture
