@@ -1251,12 +1251,45 @@ def generate_full_report(
         import subprocess
         import platform
         
-        if platform.system() == "Darwin":   # For macOS
-            subprocess.run(["open", str(pdf_path)])
-        elif platform.system() == "Windows":    # Windows
-            os.startfile(str(pdf_path))
-        else:                                   # Linux variants
-            subprocess.run(["xdg-open", str(pdf_path)])
+        pdf_path_str = str(pdf_path)
+        system = platform.system()
+        release = platform.release().lower()
+        
+        try:
+            if system == "Darwin":  # macOS
+                subprocess.run(["open", pdf_path_str], check=True)
+
+            elif system == "Windows":  # Windows native
+                os.startfile(pdf_path_str)
+
+            elif system == "Linux":
+                try:
+                    subprocess.run(["xdg-open", pdf_path_str], check=True)
+                except Exception as e1:
+                    try:
+                        subprocess.run(["evince", pdf_path_str], check=True)
+                    except Exception as e2:
+                        if "microsoft" in release:
+                            try:
+                                result = subprocess.run(
+                                    ["wslpath", "-w", pdf_path_str],
+                                    capture_output=True,
+                                    text=True,
+                                    check=True
+                                    )
+                                win_path = result.stdout.strip()
+                                subprocess.run(["explorer.exe", win_path], check=True)
+                            except Exception as e3:
+                                print("❌ Failed WSL fallback with explorer.exe")
+                                print("explorer.exe error:", e3)
+                        else:
+                            print("❌ Both xdg-open and evince failed.")
+                            print("xdg-open error:", e1)
+                            print("evince error:", e2)
+
+        except Exception as final_error:
+            print("❌ Failed to open the PDF report.")
+            print("Final error:", final_error)
     
     else:
         vprint(f"\033[92m✅ The data has been saved at {output_path}\033[0m", verbose=verbose)
