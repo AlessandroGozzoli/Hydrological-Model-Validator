@@ -425,3 +425,13 @@ This allows for immediate visual identification of potential ecological stress e
 | Microzooplankton | Heterotropic Nanoflagellates |
 |---------------------------|-------------------------------|
 | ![Test SST BOX](Example_Images/bfm/Benthic_Z5c_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z6c_2000_August.png) |
+
+### Other Chemical Tracers (N-family)
+
+| Phospahte | Nitrate | Ammonium
+|---------------------------|-------------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/bfm/Benthic_N1p_2000_August.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N3n_2000_July.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_N4n_2000_June.png) |
+
+### Organic Matter (R-family)
+
+![Test SST BOX](Example_Images/bfm/Benthic_R6c_2000_August.png)
