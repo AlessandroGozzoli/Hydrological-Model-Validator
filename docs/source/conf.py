@@ -1,38 +1,38 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+import os
+import sys
 
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+# Adjust path to Hydrological_model_validator for autodoc
+sys.path.insert(0, os.path.abspath('../../Hydrological_model_validator'))
 
-project = 'Hydrological_model_validator'
-copyright = '2025, Alessandro_Gozzoli'
-author = 'Alessandro_Gozzoli'
-release = '4.8.1'
-
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
-
-master_doc = 'index'
+project = 'Hydrological Model Validator'
+author = 'Alessandro Gozzoli'
+release = '4.10.2'
 
 extensions = [
-    'myst_parser',          # enable Markdown support
-    'sphinx.ext.autodoc',   # enable automatic doc generation from code docstrings
+    'myst_parser',        # For Markdown support
+    'sphinx.ext.autodoc', # For API docs
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
 ]
+
+templates_path = ['_templates']
+exclude_patterns = []
 
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
 }
 
-templates_path = ['_templates']
-exclude_patterns = []
+# Enable MyST parser extensions for Markdown support
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "html_admonition",
+    "html_image",
+]
 
-language = 'en'
+master_doc = 'index'
 
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = 'alabaster'
+html_theme = "sphinx_book_theme"
 html_static_path = ['_static']
