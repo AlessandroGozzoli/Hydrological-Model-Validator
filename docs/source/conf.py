@@ -2,7 +2,7 @@ import os
 import sys
 
 # Adjust path to Hydrological_model_validator for autodoc
-sys.path.insert(0, os.path.abspath('../../Hydrological_model_validator'))
+sys.path.insert(0, os.path.abspath('../..'))
 
 project = 'Hydrological Model Validator'
 author = 'Alessandro Gozzoli'
