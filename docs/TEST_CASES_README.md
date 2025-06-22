@@ -150,51 +150,99 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Mean%20Bias%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### Standard Deviation Error
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 #### Yearly
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 ### Standard Deviation (Model)
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 #### Yearly
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 ### Standard Deviation (Satellite)
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 #### Yearly
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 ### Cross-correlation
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |t
 
 #### Yearly
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 ### uRMSE
 
 #### Monthly
 
-#### Monthly full dataset
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 #### Yearly
 
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+
 ## Spectral Analysis
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
 Using the available **3D datasets**, the tool extracts **basin-averaged time series** for each of the main error components:
 
