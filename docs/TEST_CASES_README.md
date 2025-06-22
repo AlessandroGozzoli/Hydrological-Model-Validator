@@ -182,47 +182,27 @@ Both **raw** and **detrended** data representations are provided, allowing users
 |---------------------------|-------------------------------|
 | ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
 
-### Standard Deviation (Model)
-
-#### Monthly
-
-| Test Case Output (1-year) | Full Dataset Output (10-year) |
-|---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
-
-#### Yearly
-
-| Test Case Output (1-year) | Full Dataset Output (10-year) |
-|---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
-
-### Standard Deviation (Satellite)
-
-#### Monthly
-
-| Test Case Output (1-year) | Full Dataset Output (10-year) |
-|---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
-
-#### Yearly
-
-| Test Case Output (1-year) | Full Dataset Output (10-year) |
-|---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
-
 ### Cross-correlation
 
 #### Monthly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |t
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Cross%20Correlation%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### uRMSE
 
