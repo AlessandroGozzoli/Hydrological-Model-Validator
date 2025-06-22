@@ -318,9 +318,11 @@ The resulting density field:
 
 These outputs are essential for identifying the impact of surface and lateral forcings on benthic dynamics and water mass stability.
 
-### Temperature
+### Temperature and Salinity
 
-### Salinity
+| Temperature | Salinity |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Benthic_votemper_2000_July.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_vosaline_2000_January.png) |
 
 ## Density Computation: Equations of State
 
@@ -369,12 +371,13 @@ This is the standard recommended by the [IOC/UNESCO](https://www.teos-10.org/) a
 
 Each of these equations results in a **separate density dataset**, allowing comparative analysis of deep water mass formation and sensitivity to equation choice.
 
+### Density results
 
-### SEOS
-
-### EOS-80
-
-### TEOS-10
+| SEOS | EOS-80 | TEOS-10
+|---------------------------|-------------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Benthic_density_2000_February-SEOS.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_density_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_density_2000_February-TEOS10.png) |
+|---------------------------|-------------------------------|-------------------------------|
+| NO DATA | ![Full CHL BOX](Example_Images/Full_Data/Benthic_dense_water_2000_February-EOS80.png) | ![Full CHL BOX](Example_Images/Full_Data/Benthic_dense_water_2000_February-TEOS10.png) |
 
 representing the density of the water masses. A threshold of 1029.2 km/m3 is then imposed to isolate all dense water masses and and a volume timeseries is then computed
 
