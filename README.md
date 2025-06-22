@@ -224,35 +224,37 @@ GenerateReport [input_folder_or_dict] [OPTIONS]
 
 ## Positional Argument
 
-| Argument | Description |
-|----------|-------------|
-| `input`  | Path to the input data directory **or** a JSON/Python-style dictionary of file paths.<br>🗂️ Folder must contain: `obs_spatial`, `sim_spatial`, `obs_ts`, `sim_ts`, and `mask`.<br>🧾 Example dictionary:<br><br>```json
-{
-  "obs_spatial": "obs_spatial.nc",
-  "sim_spatial": "sim_spatial.nc",
-  "obs_ts": "obs_timeseries.csv",
-  "sim_ts": "sim_timeseries.csv",
-  "mask": "mask.nc"
-}
-``` |
+usage: GenerateReport [-h] [--output-dir path] [--check] [--no-pdf] [--verbose] [--open-report]
+                      [--variable var_name] [--unit unit_str] [--no-banner] [--info] [--version]
+                      [input]
 
----
+Generate a comprehensive evaluation report from observed and simulated Bio-Geo-Hydrological datasets.
 
-## Options
+positional arguments:
+  input                 Path to the input data directory or a dictionary of file paths.
+                        You can pass:
+                          - a folder containing: obs_spatial, sim_spatial, obs_ts, sim_ts, and mask
+                          - or a stringified dictionary (JSON or Python format) mapping these keys:
+                            {
+                              "obs_spatial": "obs_spatial.nc",
+                              "sim_spatial": "sim_spatial.nc",
+                              "obs_ts": "obs_timeseries.csv",
+                              "sim_ts": "sim_timeseries.csv",
+                              "mask": "mask.nc"
+                            }
 
-| Option | Description |
-|--------|-------------|
-| `-h`, `--help` | Show the help message and exit |
-| `--output-dir path` | Destination folder for report and plots (default: `./REPORT`) |
-| `--check` | Validate input files and structure only, **no report generation** |
-| `--no-pdf` | Skip PDF generation, only output plots and dataframes |
-| `--verbose` | Enable detailed logging |
-| `--open-report` | Open the PDF report automatically if generated |
-| `--variable var_name` | Name of the target variable (e.g. `"Chlorophyll-a"`) |
-| `--unit unit_str` | Unit of variable (e.g. `"mg/L"`, `"m3/s"`), LaTeX-ready |
-| `--no-banner` | Suppress ASCII banner (good for automation) |
-| `--info` | Show program description and exit |
-| `--version` | Show version and exit |
+options:
+  -h, --help            Show this help message and exit
+  --output-dir path     Destination folder for report and plots (default: ./REPORT)
+  --check               Validate input files and structure only, no report generation
+  --no-pdf              Skip PDF generation, only output plots and dataframes
+  --verbose             Enable detailed logging
+  --open-report         Automatically open the PDF report if generated
+  --variable var_name   Name of the target variable (e.g. "Chlorophyll-a")
+  --unit unit_str       Unit of the variable (e.g. "mg/L", "m3/s"), LaTeX-ready
+  --no-banner           Suppress ASCII banner (useful for batch jobs)
+  --info                Show program description and exit
+  --version             Show version and exit
 
 ---
 
