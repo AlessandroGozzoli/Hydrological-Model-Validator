@@ -411,6 +411,17 @@ This allows for immediate visual identification of potential ecological stress e
 | Diatoms | Flagellates |
 |---------------------------|-------------------------------|
 | ![Test SST BOX](Example_Images/bfm/Benthic_P1c_2000_April.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P2c_2000_May.png) |
+
 | PicoPhytoplancton | Large Phytoplancton |
 |---------------------------|-------------------------------|
 | ![Test SST BOX](Example_Images/bfm/Benthic_P3c_2000_November.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_P4c_2000_July.png) |
+
+### Secondary Producers (Z-family)
+
+| Carnivorous Mesozooplankton | Omnivorous Mesozooplankton |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/bfm/Benthic_Z3c_2000_April.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z4c_2000_April.png) |
+
+| Microzooplankton | Heterotropic Nanoflagellates |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/bfm/Benthic_Z5c_2000_November.png) | ![Full CHL BOX](Example_Images/bfm/Benthic_Z6c_2000_July.png) |
