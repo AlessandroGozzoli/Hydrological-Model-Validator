@@ -186,16 +186,28 @@ def comprehensive_taylor_diagram(data_dict, **kwargs):
     )
 
     # ----- OVERLAY DATA POINTS -----
-    for shape, (x, y, c) in zip(itertools.cycle(user_shapes), zip(sdev[1:], crmsd[1:], ccoef[1:])):
-        sm.taylor_diagram(
-            np.array([x, x]),
-            np.array([y, y]),
-            np.array([c, c]),
-            showlabelsrms='off',
-            overlay='on',
-            markersymbol=shape,
+    # When there's only one year of data:
+    if len(sdev[1:]) == 1:
+        ax.plot(
+            sdev[1], crmsd[1],
+            marker=user_shapes[0],
+            markerfacecolor='r',
+            markeredgecolor='r',
+            linestyle='None',
             **data_opts
-        )
+            )
+    else:
+        # Normal Taylor diagram overlay for multiple points
+        for shape, (x, y, c) in zip(itertools.cycle(user_shapes), zip(sdev[1:], crmsd[1:], ccoef[1:])):
+            sm.taylor_diagram(
+                np.array([x, x]),
+                np.array([y, y]),
+                np.array([c, c]),
+                showlabelsrms='off',
+                overlay='on',
+                markersymbol=shape,
+                **data_opts
+                )
 
     # ----- CHECK DIRECTORY EXISTENCE -----
     Path(options.output_path).mkdir(parents=True, exist_ok=True)
@@ -203,9 +215,11 @@ def comprehensive_taylor_diagram(data_dict, **kwargs):
     # ----- PRINT AND SAVE PLOT -----
     plt.savefig(Path(options.output_path) / 'Taylor_diagram_summary.png')
     plt.close()
+    
 ###############################################################################
 
 ###############################################################################
+
 def monthly_taylor_diagram(data_dict, **kwargs):
     """
     Plot a unified Taylor diagram with points for each month and year.
