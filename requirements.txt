@@ -32,3 +32,4 @@ alabaster
 babel
 docutils
 Pygments
+sphinx-book-theme
