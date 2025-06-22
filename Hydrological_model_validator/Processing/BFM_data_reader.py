@@ -376,6 +376,7 @@ def process_year(year: int,
     >>> print(benthic_arr.shape)
     (time_steps, 20, 30)
     """
+    
     # ===== INPUT VALIDATION =====
     if not isinstance(year, int):
         raise TypeError(f"❌ year must be int, got {type(year)} ❌")
