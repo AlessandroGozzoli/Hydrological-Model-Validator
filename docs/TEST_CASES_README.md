@@ -83,7 +83,7 @@ A series of plotting and analysis is performed using the BAsin Average Timeserie
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST TS](docs/Example_Images/Test_data/Sea Surface Temperature_timeseries.png) | ![Full CHL TS](docs/Example_Images/Full_data/Chlorophyll (Level 3)_timeseries.png) |
+| ![Test SST TS](Example_Images/Test_data/Sea Surface Temperature_timeseries.png) | ![Full CHL TS](Example_Images/Full_Data/Chlorophyll (Level 3)_timeseries.png) |
 
 ### Seasonal Scatterplots
 
