@@ -98,7 +98,7 @@ Once the model has been validated using the core evaluation tools, users can app
 - Tracer evolution in deep layers (e.g., nutrients, oxygen, carbon compounds)  
 - Temporal variability in bottom water properties
 
-> For implementation details and example workflows, refer to the test cases provided in the `tests/` directory.
+> For implementation details and example workflows, refer to the test cases provided in the `Test_cases/` directory.
 
 --- 
 
