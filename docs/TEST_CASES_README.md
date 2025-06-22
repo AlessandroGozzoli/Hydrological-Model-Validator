@@ -174,13 +174,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Standard%20Deviation%20Error%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ### Cross-correlation
 
@@ -210,13 +218,21 @@ Both **raw** and **detrended** data representations are provided, allowing users
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Monthly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 #### Yearly
 
 | Test Case Output (1-year) | Full Dataset Output (10-year) |
 |---------------------------|-------------------------------|
-| ![Test SST BOX](Example_Images/Test_data/NSE.png) | ![Full CHL BOX](Example_Images/Full_Data/NSE.png) |
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Raw)%20(Model%20-%20Satellite).png) |
+
+| Test Case Output (1-year) | Full Dataset Output (10-year) |
+|---------------------------|-------------------------------|
+| ![Test SST BOX](Example_Images/Test_data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) | ![Full CHL BOX](Example_Images/Full_Data/Yearly%20Unbiased%20RMSE%20(Detrended)%20(Model%20-%20Satellite).png) |
 
 ## Spectral Analysis
 
