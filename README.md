@@ -1,207 +1,355 @@
 # Hydrological Model Validator
 
-## Overview
+This project provides a set of tools for evaluating the performance of Bio-Geo-Hydrological simulations and analyzing their outputs.
 
-# Northern Adriatic Sea Model Post-Processing
+The focus of this repository is on **post-processing**, offering utilities to:
 
-This project is developed to **read, interpolate, analyze, and validate** the output of a **coupled physical–biogeochemical model** for the **Northern Adriatic Sea**.
-
-The **physical component** of the simulation is powered by the [**NEMO General Circulation Model**](https://www.nemo-ocean.eu/), while the **biogeochemical processes** are simulated using the [**BFM Biogeochemical Flux Model**](https://www.cmcc.it/models/biogeochemical-flux-model-bfm). The BFM includes an **explicit benthic-pelagic coupling**, capturing the dynamics at the **sediment–water interface**.
-
-This **GitHub repository** focuses specifically on the **post-processing** of model outputs. It provides tools to:
-
-- Clean and pre-process relevant **satellite data**,
-- Interpolate missing fields in satellite observations,
-- Compare satellite and model outputs for validation purposes.
-
-The satellite data used in this project is sourced via request from the [**Copernicus Marine Service**](https://marine.copernicus.eu/) and shares the same spatial grid as the model output. Two satellite **data levels** are utilized:
-
-- **Level 3**: Raw observation data; missing values (e.g., due to cloud cover) are left unfilled, resulting in data gaps.
-- **Level 4**: Includes interpolated data, where missing values are filled using methods such as basin-wide averaging.
-
-Once the data is processed, two main **analysis and validation** scripts are available:
-
-- **Sea Surface Temperature (SST) Analysis**
-- **Chlorophyll-a Concentration Analysis**
+- Clean and pre-process relevant dataframes
+- Interpolate observed datasets to handle missing values and apply proper masking
+- Compare observed and simulated outputs for validation and performance assessment
+- Analyse the simulation outputs for further insights
 
 ---
 
-This repository is part of a **Physics of the Earth System** thesis and may be expanded in the future to include additional variables and more advanced analysis features.
+## Features
+
+- Data cleaning and transformation
+- Missing data interpolation and masking
+- Automated validation metrics and visual comparison
+- Optional PDF report generation
+- Modular structure for customizable analysis workflows
 
 ---
 
 ## Project Structure
 
-The project is organized into two primary components:
+The project is organized into two main objectives:
 
-### 1. Data Setup
+1. **Quick-Use Toolkit**  
+   A high-level interface that allows users to input datasets and automatically generate:
+   - Validation plots
+   - Summary dataframes
+   - A PDF report (optional)
 
-This section handles the preparation of both model and satellite datasets:
+2. **Modular Subcomponents**  
+   A collection of standalone functions and classes for users who prefer to build custom analysis pipelines or integrate specific components into other projects.
+   These are collected into 3 submodules, which can both be used as standalones or combined:
+    - **`Processing/`**: Functions for reading, cleaning, transforming, and analyzing input datasets.
+    - **`Plotting/`**: Tools for generating a variety of plots from the processed results, including time series, scatter plots, and performance metrics.
+    - **`Report/`**: Utilities for creating structured PDF reports, incorporating plots, summary statistics, and metadata.
 
-- Reading and importing of model and satellite data;
-- Identification of missing values and missing days;
-- Interpolation of incomplete fields using:
-  - **Level 3 data** (reconstructed using model data);
-  - **Level 4 data** (reconstructed using satellite-derived estimates);
-- Computation of **basin-average time series** for both SST and CHL datasets.
-
-### 2. Data Analysis & Validation (SST and CHL)
-
-This section provides tools for both exploratory analysis and quantitative validation.
-
-#### Analysis Tools
-
-- Time series plotting  
-- Bias visualization  
-- Seasonal and global scatter plots  
-
-#### Validation Tools
-
-- **Taylor diagrams**
-- **Target plots**
-- Coefficient of Determination:
-  - Regular
-  - Weighted
-- Index of Agreement:
-  - Regular
-  - Modified
-  - Relative
-- Nash–Sutcliffe Efficiency:
-  - Regular
-  - Logarithmic
-  - Modified
-  - Relative
-
-### 3. Benthic Layer Analysis
-
-- Density field computation using:
-  - Simplified Equation of State
-  - Equation of State for the Seawater (1980)
-  - Thermodynamic Equation of State (2010)
-- Extraction of the Biocheochemical indices at the Benthic Layer and the Sea Surface
+> **Note:** This repository is part of a **Physics of the Earth System** thesis and may be expanded in the future to include additional variables and more advanced analytical features.
 
 ---
 
-## Installation and explanation of the scripts
+### Model/Simulation Evaluation
 
-The necessary scripts for **data preprocessing**, **analysis**, and future **biogeochemical exploration** are provided in this repository.
+The current evaluation approach is based on a **direct comparison** between simulated and observed datasets over the same time window. The results are presented through a variety of plots and statistical performance metrics.
 
----
+#### Analytical Tools
 
-### `Data_reader_setupper.py`
+The following visualization and statistical tools are used to evaluate model performance:
 
-This script retrieves and processes the required **satellite datasets**, identifying both **missing days** and **gaps** within the time series. The cleaned data can be saved either as a single `.mat` file or as multiple `.nc` files, depending on user preference.
+- **Time Series & Scatter Plots**
+  - General time series plots for visual inspection
+  - Seasonal scatter plots for intra-annual trends
 
-Due to limitations in replicating the interpolation process in Python, a dedicated **MATLAB** script is included for bilinear interpolation of **model data onto the satellite grid**. Future updates may include an option to choose between interpolating model data onto the satellite grid or self-interpolating the satellite dataset to fill gaps.
+- **Distribution Plots**
+  - Box-and-whisker plots
+  - Violin plots
 
----
+- **Multivariate Performance Plots**
+  - Target diagrams
+  - Taylor diagrams
 
-### `SST_data_analyzer.py` & `CHL_data_analyzer.py`
+- **Efficiency Metrics**
+  A wide set of statistical coefficients is implemented to evaluate model accuracy:
 
-These scripts analyze **Basin Average** time series for **Sea Surface Temperature (SST)** and **Chlorophyll (CHL)** fields, evaluating model performance against satellite observations.
+  - **Coefficient of Determination (R²)**
+    - Standard
+    - Weighted
 
-The analysis includes:
-- Bias detection (seasonal and overall)
-- Scatter plots and time series comparisons
-- Hydrological model validation using a suite of **efficiency metrics**, based on methodologies described by Krause et al. (see the Bibliography).
+  - **Index of Agreement (d)**
+    - Standard
+    - Modified
+    - Relative
 
----
+  - **Nash–Sutcliffe Efficiency (NSE)**
+    - Standard
+    - Logarithmic
+    - Modified
+    - Relative
 
-### `Benthic_Layer.py`
-
-The `Benthic_layer.py` script extracts the depth value of the Benthic Layer from the dataset. With this depth information, the script uses it as a key coordinate to pull out relevant fields. These fields are then visualized through various plots, allowing for further exploration and analysis of the data.
-
-The script then uses these fields to compute the **Density** field from the **Temperature** and **Salinity** values derived from the **BFM** simulation by applying three different **Equations of State** to the data. These include:
-
-- **Simplified Equation of State**
-- **Equation of State for Seawater (1980)**
-- **Thermodynamic Equation of State (2010)**
-
-The use of multiple equations allows for a comparative analysis of how each performs in representing the water density.
-
-
----
-
-## Required Python Libraries
-
-Make sure that these libraries are installed in the environment before running the scripts.
-
-### Standard Library Modules
-These are included with Python and require no installation:
-
-- `os`
-- `sys`
-- `gzip`
-- `shutil`
-- `calendar`
-- `datetime`
-- `warnings`
-- `pathlib`
-- `cryptography`
-
-### Third-Party Libraries
-Install these using `pip` or conda if they are not already available in your environment:
-
-- [`numpy`](https://numpy.org/)
-- [`pandas`](https://pandas.pydata.org/)
-- [`xarray`](https://docs.xarray.dev/)
-- [`matplotlib`](https://matplotlib.org/)
-- [`netCDF4`](https://unidata.github.io/netcdf4-python/)
-- [`scipy`](https://scipy.org/)
-- [`skill_metrics`](https://github.com/PeterRochford/skill_metrics)
-- [`scikit-learn`](https://scikit-learn.org/)
-- [`statsmodels`](https://www.statsmodels.org/)
-- [`re`](https://docs.python.org/3/library/re.html)
-- [`gsw`](https://pypi.org/project/gsw/)
+- **Error Decomposition**
+  - **Time-series and Spectral Analysis**
+    - Compared against cloud coverage patterns
+  - **Spatial Performance Mapping**
+    - Annual and monthly resolution maps showing model performance across geographic regions
 
 ---
 
-## The Test Case
+### Expansion of the Analysis: Bottom (Benthic) \(\sigma\)-Layer
 
-Alongside a **pytest** file for the computational functions a test case is provided to test the plotting functions.
+As the **first direction for expanded analysis**, this repository introduces tools focused on the **extraction and study of the bottom \(\sigma\)-layer** of the simulation grid. This layer is particularly relevant for investigating the **formation of deep water masses** and the **distribution of bio-geochemical variables** near the seabed.
 
-The **test case** file are the **satellite data** and **model data** for the **year 2000**. Here are a couple of example outputs of the plots generated using the code:
+Once the model has been validated using the core evaluation tools, users can apply these modules to explore processes such as:
 
-### Basin Average timeseries
+- Stratification and mixing at depth  
+- Tracer evolution in deep layers (e.g., nutrients, oxygen, carbon compounds)  
+- Temporal variability in bottom water properties
 
-![BA_SST_TS](Example_Images/TS_SST_EXP.png)
-![BA_CHL_TS](Example_Images/TS_CHL_EXP.png)
+> For implementation details and example workflows, refer to the test cases provided in the `tests/` directory.
 
-### Seasonal Scatterplots (both global and seasonal)
+--- 
 
-![SCATT_SST](Example_Images/SCATT_SST_EXP.png)
-![SCATT_CHL](Example_Images/SCATT_CHL_EXP.png)
+# Installation Guide
 
-### 2D maps
+This project can be installed using `conda` (recommended) or `pip` across all major operating systems. Below you’ll also find guidance for optional tools like **MATLAB** and **CDO** (Linux only) which are integrated in some of the functions/routines
 
-![SST_MAP](Example_Images/2D_SST_EXP.png)
-![CHL_MAP](Example_Images/2D_CHL_EXP.png)
+---
 
-### Taylor Diagrams (both yearly and monthly)
+## **Python Environment Setup**
 
-![TAYLOR](Example_Images/TAYLOR_EXP.png)
+<details>
+<summary><strong>Conda (Recommended)</strong></summary>
 
-### Target Plots (both yearly and monthly)
+### All Systems
 
-![TARGET](Example_Images/TARGET_EXP.png)
+```bash
+# Create a new conda environment
+conda create -n hydroval python=3.10
 
-### Efficiency Metrics
+# Activate the environment
+conda activate hydroval
 
-![EFFICIENCY](Example_Images/EFF_EXP.png)
+# Install required packages
+pip install -r requirements.txt
+```
+</details>
 
-### 2D Deep Water Density Fields
+<details>
+<summary><strong>Pip Only (Without Conda)</strong></summary>
 
-![EOS](Example_Images/EOS.png)
-![EOS-80](Example_Images/EOS80.png)
-![TEOS-10](Example_Images/TEOS10.png)
+### All Systems
 
-### Benthic Layer Computation
+```bash
+# Optionally use a virtualenv (recommended)
+python -m venv env
+source env/bin/activate      # Windows: env\Scripts\activate
 
-![BENTHIC_MAP](Example_Images/2D_BENTHIC_EXAMPLE.png)
+# Install dependencies
+pip install -r requirements.txt
+```
+</details>
 
-### 2D Biogeochemical Map at the Benthic Layer
+<details>
+<summary><strong>Alternative Pip Options</strong></summary>
 
-![BIO_MAP](Example_Images/2D_O2O_EXP.png)
+### `--user` (No admin rights)
+
+```bash
+pip install --user -r requirements.txt
+```
+
+### `-e` (Editable/development mode)
+
+```bash
+pip install -e .
+```
+
+Use `-e` when actively developing or modifying the source code.
+</details>
+
+---
+
+## MATLAB (Optional but needed for the interpolator script)
+
+<details>
+<summary><strong>MATLAB Setup (All Systems)</strong></summary>
+
+### Description
+
+Some test cases or post-analysis steps may require MATLAB. Make sure it's installed and available via your system's PATH.
+
+🔗 [Official MATLAB Installation Guide](https://www.mathworks.com/help/install/)
+</details>
+
+---
+
+## CDO - Climate Data Operators (Linux Only)
+
+<details>
+<summary><strong>CDO Setup (Linux Only)</strong></summary>
+
+### ⚠️ CDO is supported **only on Linux-based systems**.
+
+```bash
+# Ubuntu/Debian
+sudo apt install cdo
+
+# Or use conda
+conda install -c conda-forge cdo
+```
+
+🔗 [Official CDO Installation Guide](https://code.mpimet.mpg.de/projects/cdo/wiki/Cdo)
+</details>
+
+---
+
+## Helpful Links
+
+<details>
+<summary><strong>Official Documentation</strong></summary>
+
+- 🐍 [Python Installation](https://www.python.org/downloads/)
+- 📦 [Anaconda/Miniconda Installation](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+- 🪟 [WSL for Windows Users](https://learn.microsoft.com/en-us/windows/wsl/install)
+- 🌐 [MATLAB Installation](https://www.mathworks.com/help/install/)
+- 🌊 [CDO (Linux only)](https://code.mpimet.mpg.de/projects/cdo/wiki/Cdo)
+</details>
+
+---
+
+# Usage Guide: `GenerateReport` CLI
+
+The `GenerateReport` command-line interface (CLI) allows users to generate evaluation reports from observed and simulated Bio-Geo-Hydrological datasets.
+
+## Basic Command
+
+```bash
+GenerateReport [input_folder_or_dict] [OPTIONS]
+```
+
+---
+
+## Positional Argument
+
+| Argument | Description |
+|----------|-------------|
+| `input`  | Path to the input data directory **or** a JSON/Python-style dictionary of file paths.<br>🗂️ Folder must contain: `obs_spatial`, `sim_spatial`, `obs_ts`, `sim_ts`, and `mask`.<br>🧾 Example dictionary:<br><br>```json
+{
+  "obs_spatial": "obs_spatial.nc",
+  "sim_spatial": "sim_spatial.nc",
+  "obs_ts": "obs_timeseries.csv",
+  "sim_ts": "sim_timeseries.csv",
+  "mask": "mask.nc"
+}
+``` |
+
+---
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `-h`, `--help` | Show the help message and exit |
+| `--output-dir path` | Destination folder for report and plots (default: `./REPORT`) |
+| `--check` | Validate input files and structure only, **no report generation** |
+| `--no-pdf` | Skip PDF generation, only output plots and dataframes |
+| `--verbose` | Enable detailed logging |
+| `--open-report` | Open the PDF report automatically if generated |
+| `--variable var_name` | Name of the target variable (e.g. `"Chlorophyll-a"`) |
+| `--unit unit_str` | Unit of variable (e.g. `"mg/L"`, `"m3/s"`), LaTeX-ready |
+| `--no-banner` | Suppress ASCII banner (good for automation) |
+| `--info` | Show program description and exit |
+| `--version` | Show version and exit |
+
+---
+
+## Examples
+
+<details>
+<summary><strong>Minimal Run (Interactive)</strong></summary>
+
+```bash
+GenerateReport ./data
+```
+
+</details>
+
+<details>
+<summary><strong>With Output Directory & No PDF</strong></summary>
+
+```bash
+GenerateReport ./data --output-dir ./results --no-pdf
+```
+
+</details>
+
+<details>
+<summary><strong>Using a JSON-Style Dictionary</strong></summary>
+
+```bash
+GenerateReport "{ \"obs_spatial\": \"obs.nc\", \"sim_spatial\": \"sim.nc\", \"obs_ts\": \"obs.csv\", \"sim_ts\": \"sim.csv\", \"mask\": \"mask.nc\" }"
+```
+
+</details>
+
+<details>
+<summary><strong>Quiet Batch Run (No Banner, Auto Open Report)</strong></summary>
+
+```bash
+GenerateReport ./data --no-banner --open-report
+```
+
+</details>
+
+---
+
+> For example usage of the singular functions (sans the report generation ones) availbale in the repository, and generally for in-script import and usage, please refer to the test cases available in the **`Test_cases/`** folder and their respective TEST_CASES_README file.
+
+---
+
+# Test Cases and Pytests
+
+This repository includes a suite of **example routines** and **automated tests** to ensure the correct functionality of its components. All tests are located in the **`Test_cases/`** directory.
+
+---
+
+## Test Case Scripts
+
+These are **step-by-step, verbose scripts** that demonstrate how to apply the tools for data cleaning, analysis, and reporting. They are ideal for understanding the intended usage.
+
+### Available Test Cases
+
+- **`Data_cleaner_setupper.py`**  
+  Demonstrates how to clean and prepare datasets for analysis.  
+  Includes the MATLAB script **`Interpolator_v2.m`** to perform bilinear interpolation on observed datasets.
+
+- **`SST_data_analyzer.py` & `CHL_data_analyzer.py`**  
+  Practical examples of analysis workflows using **Sea Surface Temperature** and **Chlorophyll-a** datasets.  
+  These are simplified and didactical illustrations of what the `Report_generator` submodule automates.
+
+- **`Benthic_layer.py`**  
+  Focuses on extracting and analyzing **bottom σ-layers**, emphasizing **dense water formation** and **bio-geochemical tracers** near the seabed.
+
+---
+
+## Pytests and Code Quality
+
+Automated testing ensures reliability and stability of the modules, using:
+
+- [`pytest`](https://docs.pytest.org/en/stable/)
+- [`flake8`](https://flake8.pycqa.org/en/latest/) (for linting and style enforcement)
+
+You can run them via:
+
+```bash
+pytest
+flake8 src/
+```
+
+These tools verify logic correctness, class behavior, and code style compliance.
+
+---
+
+## Code Quality Reports
+
+This project is continuously monitored with external quality and coverage tools:
+
+| Codacy | Codebeat | Codecov |
+|--------|----------|---------|
+| [![Codacy Badge](https://app.codacy.com/project/badge/Grade/78c1d747de5f4f0f9abb1e12af4b4f5a)](https://app.codacy.com/gh/AlessandroGozzoli/Hydrological-Model-Validator/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) | [![codebeat badge](https://codebeat.co/badges/7416d105-cd9a-4f3d-b5f2-16f311ba4de4)](https://codebeat.co/projects/github-com-alessandrogozzoli-hydrological-model-validator-master) | [![codecov](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator/graph/badge.svg?token=JYO0BFY7OX)](https://codecov.io/gh/AlessandroGozzoli/Hydrological-Model-Validator) |
 
 ---
 
@@ -216,3 +364,9 @@ The **test case** file are the **satellite data** and **model data** for the **y
 [**The International Thermodynamic Equation of Seawater 2010 (TEOS-10): Calculation and Use of Thermodynamic Properties (McDougall et al., 2010)**](https://www.researchgate.net/publication/216028042_The_International_Thermodynamic_Equation_of_Seawater_2010_TEOS-10_Calculation_and_Use_of_Thermodynamic_Properties)
 
 [**Defining a Simplified Yet “Realistic” Equation of State for Seawater (Roquet et al., 2015)**](https://journals.ametsoc.org/view/journals/phoc/45/10/jpo-d-15-0080.1.xml?utm_source=chatgpt.com)
+
+[**Climatological analysis of the Adriatic Sea thermohaline characteristics (Giorgietti A., 1998)**](https://bgo.ogs.it/sites/default/files/2023-08/bgta40.1_GIORGETTI.pdf)
+
+[**Evaluation of different Maritime rapid environmental assessment procedures with a focus on acoustic performance (Oddo et al., 2022)**](https://pubs.aip.org/asa/jasa/article/152/5/2962/2840159/Evaluation-of-different-Maritime-rapid)
+
+[**A study of the hydrographic conditions in the Adriatic Sea from numerical modelling and direct observations (2000–2008) (Oddo et al., 2011)**](https://os.copernicus.org/articles/7/549/2011/)
