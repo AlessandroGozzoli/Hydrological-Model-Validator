@@ -130,7 +130,7 @@ pip install -e .
 
 <details>
 <summary><strong>Pip Only (Without Conda)</strong></summary>
-### All Systems
+<h3>All systems</h3>
 
 ```bash
 # Optionally create and activate a virtual environment (recommended)
@@ -144,7 +144,7 @@ pip install -e .
 
 <details>
 <summary><strong>Alternative Pip Options</strong></summary>
-### --user (No admin rights)
+<h3>--user (No admin rights)</h3>
 
 ```bash
 pip install --user -e .
