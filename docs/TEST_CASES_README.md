@@ -294,15 +294,13 @@ These visualizations help to contextualize the benthic analysis and validate tha
 
 ### 2D plot
 
-![Bottom2d] (docs/bfm/NA%20-%20Benthic%20Depth.png)
+![Bottom2d] (Example_Images/bfm/NA%20-%20Benthic%20Depth.png)
 
 ### Full render
 
-[🔗 View 3D Basin Depth Surface (Interactive HTML)](Example_Images/Full_Data/3D%20Basin%20Depth%20surface.html)
+[🔗 View 3D Basin Depth Surface (Interactive HTML)](Example_Images/bfm/3D%20Basin%20Depth%20surface.html)
 
 ## Deep Water Mass Formation
-
-![DenseWater] (docs/bfm/Dense_water_timeseries.png)
 
 To better understand the **formation of deep water masses**, the analysis includes the computation of the **density field** at the bottom σ-layer.
 
@@ -379,6 +377,8 @@ Each of these equations results in a **separate density dataset**, allowing comp
 representing the density of the water masses. A threshold of 1029.2 km/m3 is then imposed to isolate all dense water masses and and a volume timeseries is then computed
 
 ### Dense water mass timeseries
+
+![DenseWater] (Example_Images/bfm/Dense_water_timeseries.png)
 
 ## Bio-Geochemical Tracers
 
