@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 project = 'Hydrological Model Validator'
 author = 'Alessandro Gozzoli'
-release = '4.10.2'
+release = '4.10.4'
 
 extensions = [
     'myst_parser',        # For Markdown support
