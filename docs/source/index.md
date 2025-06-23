@@ -150,7 +150,7 @@ pip install -e .
 pip install --user -e .
 ```
 
-### -e (Editable/development mode)
+<p><strong>-e (Editable/development mode)<p><strong>
 
 ```bash
 pip install -e .
