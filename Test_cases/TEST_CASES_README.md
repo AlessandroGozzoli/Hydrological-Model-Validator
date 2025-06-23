@@ -19,6 +19,9 @@ Each test case can be executed via the command line using its respective entrypo
 
 All entrypoints are automatically installed when installing the package via `pip` (see the Installation Guide in the main README).
 
+To retrieve the test case datasets plese run the `Donwload_data.py` script in the `Test_cases/` folder to donwload and unzip the datasets. 
+To make sure that the worklow runs withou issue, please keep a copy of both zipped and unzipped version of the datasets in their respective fodlers. This is also done to avoid any possible corruption of modification of the dataset during computations.
+
 ---
 
 ## Test Data Explanation
