@@ -131,7 +131,7 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version="Hydrological_model_validator v4.9.1",
+        version="Hydrological_model_validator v4.10.4",
         help="Display the current version and exit."
     )
 
