@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='Hydrological_model_validator',
-    version='4.9.1',
+    version='4.10.4',
     description='Tools for the analysis and validation of Bio-Geo-Hydrological simulations and other climatological data',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -42,7 +42,11 @@ setup(
         'cartopy',
         'cryptography',
         'scipy',
-        'dask'
+        'dask',
+        'eliot',
+        'eliot-tree',
+        'reportlab',
+        'rasterio',
     ],
     python_requires='>=3.7',
     platforms='any',
@@ -67,6 +71,7 @@ setup(
             "chl-analyze = Test_cases.CHL_data_analyzer:main",
             "bfm-analyze = Test_cases.Benthic_Layer:main",
             "data-setupper = Test_cases.Data_reader_setupper:main",
+            "GenerateReport = Hydrological_model_validator.__main__:main",
             ]
         }
 )
